@@ -1,0 +1,102 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+:root {
+  /* Port.io Dark Theme */
+  --bg-primary: #1E1C25;
+  --bg-secondary: #2A2831;
+  --bg-card: #2F2D38;
+  --bg-hover: #383644;
+  --text-primary: #FFFFFF;
+  --text-secondary: #B8B5C3;
+  --text-muted: #8B8896;
+  --accent-primary: #6C5DD3;
+  --accent-hover: #7E6FE0;
+  --border-color: #3D3A47;
+  --success: #00D9A5;
+  --warning: #FFB800;
+  --error: #FF6B6B;
+  --info: #4E9FFF;
+
+  font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Light Theme */
+[data-theme="light"] {
+  --bg-primary: #F5F5F7;
+  --bg-secondary: #FFFFFF;
+  --bg-card: #FFFFFF;
+  --bg-hover: #F0F0F2;
+  --text-primary: #1E1C25;
+  --text-secondary: #5E5C6B;
+  --text-muted: #8B8896;
+  --accent-primary: #6C5DD3;
+  --accent-hover: #5B4CC2;
+  --border-color: #E5E5E8;
+  --success: #00C896;
+  --warning: #F5A623;
+  --error: #FF5252;
+  --info: #4E9FFF;
+}
+
+body {
+  margin: 0;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  min-height: 100vh;
+  overflow-x: hidden;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+a {
+  color: var(--accent-primary);
+  text-decoration: none;
+  transition: color 0.2s;
+}
+
+a:hover {
+  color: var(--accent-hover);
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+  border: none;
+  outline: none;
+  transition: all 0.2s;
+}
+
+input, textarea, select {
+  font-family: inherit;
+  outline: none;
+}
+
+/* Scrollbar Styles */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-primary);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--bg-hover);
+}
