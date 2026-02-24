@@ -15,6 +15,8 @@ function App() {
     return localStorage.getItem('syncops-theme') || 'dark'
   })
 
+  //mudiyathunu solran serome
+
   // Check for existing user on mount
   useEffect(() => {
     const savedUser = localStorage.getItem('syncops-user')
