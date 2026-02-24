@@ -1,4 +1,4 @@
-import './ServiceCard.css'
+import '../styles/ServiceCard.css'
 
 function ServiceCard({ service, onClick }) {
   return (

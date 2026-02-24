@@ -1,4 +1,4 @@
-import './ServiceDetail.css'
+import '../styles/ServiceDetail.css'
 
 function ServiceDetail({ service, onBack }) {
   if (!service) return null

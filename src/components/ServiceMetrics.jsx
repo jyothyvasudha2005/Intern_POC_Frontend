@@ -1,4 +1,4 @@
-import './ServiceMetrics.css'
+import '../styles/ServiceMetrics.css'
 
 function ServiceMetrics({ service, onBack }) {
   const { metrics } = service

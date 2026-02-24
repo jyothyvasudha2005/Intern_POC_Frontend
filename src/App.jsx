@@ -4,6 +4,7 @@ import Login from './components/Login'
 import Home from './components/Home'
 import ServiceCatalogue from './components/ServiceCatalogue'
 import ServiceMetrics from './components/ServiceMetrics'
+import Scorecard from './components/Scorecard'
 
 function App() {
   const [user, setUser] = useState(null)
@@ -235,6 +236,33 @@ function App() {
           </div>
           <div className="content">
             <ServiceMetrics service={selectedService} onBack={handleBackToServices} />
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // Scorecard Viewer view
+  if (currentView === 'scorecard-viewer') {
+    return (
+      <div className={`app ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
+        {renderSidebar()}
+        <div className="main-content">
+          <div className="header">
+            <div className="header-right">
+              <button
+                className="theme-switcher"
+                onClick={toggleTheme}
+                title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+              >
+                <span className="theme-icon">
+                  {theme === 'dark' ? '☀️' : '🌙'}
+                </span>
+              </button>
+            </div>
+          </div>
+          <div className="content">
+            <Scorecard />
           </div>
         </div>
       </div>

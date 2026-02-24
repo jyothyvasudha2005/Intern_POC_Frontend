@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import './ServiceTable.css'
+import '../styles/ServiceTable.css'
 
 function ServiceTable({ services, onServiceClick }) {
   const [sortColumn, setSortColumn] = useState('name')
