@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import './ServiceCatalogue.css'
+import '../styles/ServiceCatalogue.css'
 import { demoRepositories, repositoryServices } from '../data/servicesData'
 import ServiceTable from './ServiceTable'
 
