@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import '../styles/ServiceTable.css'
 
-function ServiceTable({ services, onServiceClick }) {
+function ServiceTable({ services, onServiceClick, onScorecardClick }) {
   const [sortColumn, setSortColumn] = useState('name')
   const [sortDirection, setSortDirection] = useState('asc')
 
@@ -66,6 +66,7 @@ function ServiceTable({ services, onServiceClick }) {
                 )}
               </div>
             </th>
+            <th>Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -122,6 +123,21 @@ function ServiceTable({ services, onServiceClick }) {
                 <span className={getStatusClass(service.status)}>
                   {service.status}
                 </span>
+              </td>
+              <td>
+                <div className="action-buttons">
+                  <button
+                    className="scorecard-button"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      onScorecardClick && onScorecardClick(service)
+                    }}
+                    title="View Scorecard"
+                  >
+                    <span className="button-icon">📊</span>
+                    Scorecard
+                  </button>
+                </div>
               </td>
             </tr>
           ))}

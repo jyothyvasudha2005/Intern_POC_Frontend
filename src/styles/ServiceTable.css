@@ -34,6 +34,14 @@
   background: var(--bg-hover);
 }
 
+.service-table th:last-child {
+  cursor: default;
+}
+
+.service-table th:last-child:hover {
+  background: var(--bg-tertiary);
+}
+
 .th-content {
   display: flex;
   align-items: center;
@@ -133,6 +141,42 @@
   background: rgba(255, 159, 67, 0.1);
   color: #FF9F43;
   border: 1px solid rgba(255, 159, 67, 0.3);
+}
+
+/* Action Buttons */
+.action-buttons {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.scorecard-button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background: linear-gradient(135deg, #6C5DD3 0%, #8B7FE8 100%);
+  border: none;
+  border-radius: 6px;
+  color: white;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.scorecard-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(108, 93, 211, 0.3);
+}
+
+.scorecard-button:active {
+  transform: translateY(0);
+}
+
+.scorecard-button .button-icon {
+  font-size: 14px;
 }
 
 /* Responsive */

@@ -4,17 +4,23 @@ import Login from './components/Login'
 import Home from './components/Home'
 import ServiceCatalogue from './components/ServiceCatalogue'
 import ServiceMetrics from './components/ServiceMetrics'
+import ServiceScorecard from './components/ServiceScorecard'
 import Scorecard from './components/Scorecard'
 
 function App() {
   const [user, setUser] = useState(null)
   const [currentView, setCurrentView] = useState('home')
   const [selectedService, setSelectedService] = useState(null)
+  const [viewMode, setViewMode] = useState('details') // 'details' or 'scorecard'
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [userInfoCollapsed, setUserInfoCollapsed] = useState(false)
   const [theme, setTheme] = useState(() => {
     return localStorage.getItem('syncops-theme') || 'dark'
   })
+
+  // Persist repository selection state
+  const [mountedRepo, setMountedRepo] = useState(null)
+  const [selectedRepo, setSelectedRepo] = useState('')
 
   //mudiyathunu solran serome
 
@@ -62,11 +68,75 @@ function App() {
 
   const handleServiceClick = (service) => {
     setSelectedService(service)
+    setViewMode('details')
+  }
+
+  const handleScorecardClick = (service) => {
+    setSelectedService(service)
+    setViewMode('scorecard')
   }
 
   const handleBackToServices = () => {
     setSelectedService(null)
+    setViewMode('details')
   }
+
+  // Get page title based on current view
+  const getPageTitle = () => {
+    if (selectedService) {
+      return viewMode === 'scorecard' ? 'Service Scorecard' : 'Service Details'
+    }
+
+    const titles = {
+      'home': 'Dashboard',
+      'service-catalogue': 'Service Catalogue',
+      'scorecard-viewer': 'Scorecard Viewer',
+      'regression-testing': 'Regression Testing',
+      'integration-analysis': 'Integration Analysis'
+    }
+    return titles[currentView] || 'SyncOps'
+  }
+
+  // Get page description based on current view
+  const getPageDescription = () => {
+    if (selectedService) {
+      return viewMode === 'scorecard'
+        ? `Comprehensive quality metrics for ${selectedService.name}`
+        : `Detailed metrics and information for ${selectedService.name}`
+    }
+
+    const descriptions = {
+      'home': 'Welcome to your DevOps management platform',
+      'service-catalogue': 'Browse and manage your services across repositories',
+      'scorecard-viewer': 'View quality scorecards across all services and teams',
+      'regression-testing': 'Automated regression testing for your services',
+      'integration-analysis': 'Analyze service integrations and dependencies'
+    }
+    return descriptions[currentView] || 'Manage your DevOps operations'
+  }
+
+  // Render Header Component
+  const renderHeader = () => (
+    <div className="header">
+      <div className="header-left">
+        <div className="page-header-info">
+          <h1 className="page-header-title">{getPageTitle()}</h1>
+          <p className="page-header-description">{getPageDescription()}</p>
+        </div>
+      </div>
+      <div className="header-right">
+        <button
+          className="theme-switcher"
+          onClick={toggleTheme}
+          title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+        >
+          <span className="theme-icon">
+            {theme === 'dark' ? '☀️' : '🌙'}
+          </span>
+        </button>
+      </div>
+    </div>
+  )
 
   // Render Sidebar Component
   const renderSidebar = () => (
@@ -169,19 +239,7 @@ function App() {
       <div className={`app ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
         {renderSidebar()}
         <div className="main-content">
-          <div className="header">
-            <div className="header-right">
-              <button
-                className="theme-switcher"
-                onClick={toggleTheme}
-                title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
-              >
-                <span className="theme-icon">
-                  {theme === 'dark' ? '☀️' : '🌙'}
-                </span>
-              </button>
-            </div>
-          </div>
+          {renderHeader()}
           <div className="content">
             <Home onNavigate={handleNavigate} user={user} />
           </div>
@@ -196,48 +254,35 @@ function App() {
       <div className={`app ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
         {renderSidebar()}
         <div className="main-content">
-          <div className="header">
-            <div className="header-right">
-              <button
-                className="theme-switcher"
-                onClick={toggleTheme}
-                title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
-              >
-                <span className="theme-icon">
-                  {theme === 'dark' ? '☀️' : '🌙'}
-                </span>
-              </button>
-            </div>
-          </div>
+          {renderHeader()}
           <div className="content">
-            <ServiceCatalogue onServiceClick={handleServiceClick} />
+            <ServiceCatalogue
+              onServiceClick={handleServiceClick}
+              onScorecardClick={handleScorecardClick}
+              mountedRepo={mountedRepo}
+              setMountedRepo={setMountedRepo}
+              selectedRepo={selectedRepo}
+              setSelectedRepo={setSelectedRepo}
+            />
           </div>
         </div>
       </div>
     )
   }
 
-  // Service Metrics view (when a service is selected)
+  // Service Metrics/Scorecard view (when a service is selected)
   if (selectedService) {
     return (
       <div className={`app ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
         {renderSidebar()}
         <div className="main-content">
-          <div className="header">
-            <div className="header-right">
-              <button
-                className="theme-switcher"
-                onClick={toggleTheme}
-                title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
-              >
-                <span className="theme-icon">
-                  {theme === 'dark' ? '☀️' : '🌙'}
-                </span>
-              </button>
-            </div>
-          </div>
+          {renderHeader()}
           <div className="content">
-            <ServiceMetrics service={selectedService} onBack={handleBackToServices} />
+            {viewMode === 'scorecard' ? (
+              <ServiceScorecard service={selectedService} onBack={handleBackToServices} />
+            ) : (
+              <ServiceMetrics service={selectedService} onBack={handleBackToServices} />
+            )}
           </div>
         </div>
       </div>
@@ -276,19 +321,7 @@ function App() {
     <div className={`app ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
       {renderSidebar()}
       <div className="main-content">
-        <div className="header">
-          <div className="header-right">
-            <button
-              className="theme-switcher"
-              onClick={toggleTheme}
-              title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
-            >
-              <span className="theme-icon">
-                {theme === 'dark' ? '☀️' : '🌙'}
-              </span>
-            </button>
-          </div>
-        </div>
+        {renderHeader()}
         <div className="content">
           <div className="placeholder-view">
             <div className="placeholder-icon">🚧</div>
