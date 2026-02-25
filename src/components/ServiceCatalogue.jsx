@@ -1,11 +1,8 @@
-import { useState } from 'react'
 import '../styles/ServiceCatalogue.css'
 import { demoRepositories, repositoryServices } from '../data/servicesData'
 import ServiceTable from './ServiceTable'
 
-function ServiceCatalogue({ onServiceClick }) {
-  const [mountedRepo, setMountedRepo] = useState(null)
-  const [selectedRepo, setSelectedRepo] = useState('')
+function ServiceCatalogue({ onServiceClick, onScorecardClick, mountedRepo, setMountedRepo, selectedRepo, setSelectedRepo }) {
 
   const handleMount = () => {
     if (selectedRepo) {
@@ -67,7 +64,11 @@ function ServiceCatalogue({ onServiceClick }) {
       )}
 
       {mountedRepo && currentServices.length > 0 && (
-        <ServiceTable services={currentServices} onServiceClick={onServiceClick} />
+        <ServiceTable
+          services={currentServices}
+          onServiceClick={onServiceClick}
+          onScorecardClick={onScorecardClick}
+        />
       )}
 
       {mountedRepo && currentServices.length === 0 && (
