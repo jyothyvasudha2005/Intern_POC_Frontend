@@ -37,17 +37,6 @@ function ServiceScorecard({ service, onBack }) {
         ]
       },
       {
-        id: 'dora-metrics',
-        name: 'DORA Metrics',
-        score: calculateDORAScore(service),
-        metrics: [
-          { label: 'Deployment Frequency', value: 12, unit: 'per week', target: 10 },
-          { label: 'Lead Time', value: 2.5, unit: 'hours', target: 4, inverse: true },
-          { label: 'MTTR', value: service.metrics?.pagerduty?.mttr || '15 min', target: '30 min' },
-          { label: 'Change Failure Rate', value: 5, unit: '%', target: 10, inverse: true }
-        ]
-      },
-      {
         id: 'production-readiness',
         name: 'Production Readiness',
         score: calculateProductionReadinessScore(service),
@@ -88,7 +77,6 @@ function ServiceScorecard({ service, onBack }) {
     const categories = [
       calculateCodeQualityScore(service),
       calculateSecurityScore(service),
-      calculateDORAScore(service),
       calculateProductionReadinessScore(service),
       calculateAPIReadinessScore(service),
       calculatePRMetricsScore(service)
@@ -103,10 +91,6 @@ function ServiceScorecard({ service, onBack }) {
 
   function calculateSecurityScore(service) {
     return 85 // Placeholder - would be calculated from security metrics
-  }
-
-  function calculateDORAScore(service) {
-    return 78 // Placeholder - would be calculated from DORA metrics
   }
 
   function calculateProductionReadinessScore(service) {

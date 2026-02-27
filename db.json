@@ -1,0 +1,300 @@
+{
+  "services": [
+    {
+      "id": 1,
+      "name": "User Service",
+      "team": "Platform Team",
+      "status": "Healthy",
+      "icon": "👤",
+      "github": "https://github.com/example/user-service",
+      "jira": "https://jira.example.com/projects/USER",
+      "pagerduty": "https://pagerduty.com/services/user-service",
+      "prMetrics": {
+        "avgCommitsPerPR": 12,
+        "openPRCount": 3,
+        "avgLOCPerPR": 850,
+        "weeklyMergedPRs": 7
+      },
+      "codeQuality": {
+        "codeCoverage": 82,
+        "vulnerabilities": 1,
+        "codeSmells": 8,
+        "codeDuplication": 3
+      },
+      "securityMaturity": {
+        "owaspCompliance": "Higher Assurance",
+        "branchProtection": true,
+        "requiredApprovals": 2
+      },
+      "doraMetrics": {
+        "changeFailureRate": 4.2,
+        "deploymentFrequency": 12,
+        "mttr": 3.5
+      },
+      "productionReadiness": {
+        "pagerdutyIntegration": true,
+        "observabilityDashboard": true,
+        "lastDeployment": "2024-02-25T10:30:00Z"
+      },
+      "jiraMetrics": {
+        "openHighPriorityBugs": 0,
+        "openStories": 5
+      }
+    },
+    {
+      "id": 2,
+      "name": "Payment Service",
+      "team": "Payments Team",
+      "status": "Warning",
+      "icon": "💳",
+      "github": "https://github.com/example/payment-service",
+      "jira": "https://jira.example.com/projects/PAY",
+      "pagerduty": "https://pagerduty.com/services/payment-service",
+      "prMetrics": {
+        "avgCommitsPerPR": 18,
+        "openPRCount": 5,
+        "avgLOCPerPR": 1200,
+        "weeklyMergedPRs": 5
+      },
+      "codeQuality": {
+        "codeCoverage": 75,
+        "vulnerabilities": 4,
+        "codeSmells": 45,
+        "codeDuplication": 18
+      },
+      "securityMaturity": {
+        "owaspCompliance": "Improved",
+        "branchProtection": true,
+        "requiredApprovals": 2
+      },
+      "doraMetrics": {
+        "changeFailureRate": 12.5,
+        "deploymentFrequency": 8,
+        "mttr": 18
+      },
+      "productionReadiness": {
+        "pagerdutyIntegration": true,
+        "observabilityDashboard": true,
+        "lastDeployment": "2024-02-24T15:20:00Z"
+      },
+      "jiraMetrics": {
+        "openHighPriorityBugs": 2,
+        "openStories": 8
+      },
+      "serviceHistory": {
+        "deployments": [
+          { "date": "2024-02-24T15:20:00Z", "version": "v1.8.5", "status": "success", "duration": 18 },
+          { "date": "2024-02-22T09:45:00Z", "version": "v1.8.4", "status": "failed", "duration": 10 },
+          { "date": "2024-02-20T13:30:00Z", "version": "v1.8.3", "status": "success", "duration": 20 },
+          { "date": "2024-02-18T11:15:00Z", "version": "v1.8.2", "status": "success", "duration": 17 },
+          { "date": "2024-02-16T16:00:00Z", "version": "v1.8.1", "status": "success", "duration": 19 }
+        ],
+        "incidents": [
+          { "date": "2024-02-23T20:15:00Z", "severity": "high", "title": "Payment processing failure", "resolvedIn": 15.5 },
+          { "date": "2024-02-21T12:30:00Z", "severity": "medium", "title": "Transaction timeout", "resolvedIn": 10.2 },
+          { "date": "2024-02-19T08:45:00Z", "severity": "medium", "title": "Refund API slow", "resolvedIn": 8.5 },
+          { "date": "2024-02-17T14:20:00Z", "severity": "low", "title": "Minor latency", "resolvedIn": 3.0 }
+        ],
+        "performanceMetrics": [
+          { "date": "2024-02-26", "responseTime": 220, "errorRate": 1.8, "throughput": 850 },
+          { "date": "2024-02-25", "responseTime": 235, "errorRate": 2.1, "throughput": 820 },
+          { "date": "2024-02-24", "responseTime": 210, "errorRate": 1.5, "throughput": 880 },
+          { "date": "2024-02-23", "responseTime": 245, "errorRate": 2.5, "throughput": 790 },
+          { "date": "2024-02-22", "responseTime": 225, "errorRate": 1.9, "throughput": 840 },
+          { "date": "2024-02-21", "responseTime": 240, "errorRate": 2.3, "throughput": 810 },
+          { "date": "2024-02-20", "responseTime": 215, "errorRate": 1.6, "throughput": 870 }
+        ]
+      }
+    },
+    {
+      "id": 3,
+      "name": "Order Service",
+      "team": "Commerce Team",
+      "status": "Healthy",
+      "icon": "🛒",
+      "github": "https://github.com/example/order-service",
+      "jira": "https://jira.example.com/projects/ORDER",
+      "pagerduty": "https://pagerduty.com/services/order-service",
+      "prMetrics": {
+        "avgCommitsPerPR": 10,
+        "openPRCount": 2,
+        "avgLOCPerPR": 650,
+        "weeklyMergedPRs": 8
+      },
+      "codeQuality": {
+        "codeCoverage": 88,
+        "vulnerabilities": 0,
+        "codeSmells": 5,
+        "codeDuplication": 2
+      },
+      "securityMaturity": {
+        "owaspCompliance": "Higher Assurance",
+        "branchProtection": true,
+        "requiredApprovals": 2
+      },
+      "doraMetrics": {
+        "changeFailureRate": 3.8,
+        "deploymentFrequency": 15,
+        "mttr": 2.5
+      },
+      "productionReadiness": {
+        "pagerdutyIntegration": true,
+        "observabilityDashboard": true,
+        "lastDeployment": "2024-02-26T08:15:00Z"
+      },
+      "jiraMetrics": {
+        "openHighPriorityBugs": 0,
+        "openStories": 3
+      },
+      "serviceHistory": {
+        "deployments": [
+          { "date": "2024-02-26T08:15:00Z", "version": "v2.5.1", "status": "success", "duration": 12 },
+          { "date": "2024-02-24T14:30:00Z", "version": "v2.5.0", "status": "success", "duration": 15 },
+          { "date": "2024-02-22T10:20:00Z", "version": "v2.4.9", "status": "success", "duration": 11 },
+          { "date": "2024-02-20T16:45:00Z", "version": "v2.4.8", "status": "failed", "duration": 8 },
+          { "date": "2024-02-18T09:10:00Z", "version": "v2.4.7", "status": "success", "duration": 13 }
+        ],
+        "incidents": [
+          { "date": "2024-02-25T15:30:00Z", "severity": "low", "title": "Slow response time", "resolvedIn": 2.5 },
+          { "date": "2024-02-20T18:00:00Z", "severity": "high", "title": "Service timeout", "resolvedIn": 4.2 }
+        ],
+        "performanceMetrics": [
+          { "date": "2024-02-26", "responseTime": 145, "errorRate": 0.2, "throughput": 1250 },
+          { "date": "2024-02-25", "responseTime": 152, "errorRate": 0.3, "throughput": 1180 },
+          { "date": "2024-02-24", "responseTime": 148, "errorRate": 0.1, "throughput": 1300 },
+          { "date": "2024-02-23", "responseTime": 155, "errorRate": 0.4, "throughput": 1150 },
+          { "date": "2024-02-22", "responseTime": 142, "errorRate": 0.2, "throughput": 1280 },
+          { "date": "2024-02-21", "responseTime": 150, "errorRate": 0.3, "throughput": 1200 },
+          { "date": "2024-02-20", "responseTime": 165, "errorRate": 0.8, "throughput": 1050 }
+        ]
+      }
+    },
+    {
+      "id": 4,
+      "name": "Notification Service",
+      "team": "Platform Team",
+      "status": "Healthy",
+      "icon": "🔔",
+      "github": "https://github.com/example/notification-service",
+      "jira": "https://jira.example.com/projects/NOTIF",
+      "pagerduty": "https://pagerduty.com/services/notification-service",
+      "prMetrics": {
+        "avgCommitsPerPR": 15,
+        "openPRCount": 4,
+        "avgLOCPerPR": 1100,
+        "weeklyMergedPRs": 6
+      },
+      "codeQuality": {
+        "codeCoverage": 78,
+        "vulnerabilities": 3,
+        "codeSmells": 35,
+        "codeDuplication": 12
+      },
+      "securityMaturity": {
+        "owaspCompliance": "Improved",
+        "branchProtection": true,
+        "requiredApprovals": 2
+      },
+      "doraMetrics": {
+        "changeFailureRate": 8.5,
+        "deploymentFrequency": 10,
+        "mttr": 12
+      },
+      "productionReadiness": {
+        "pagerdutyIntegration": true,
+        "observabilityDashboard": true,
+        "lastDeployment": "2024-02-25T18:45:00Z"
+      },
+      "jiraMetrics": {
+        "openHighPriorityBugs": 1,
+        "openStories": 6
+      },
+      "serviceHistory": {
+        "deployments": [
+          { "date": "2024-02-25T18:45:00Z", "version": "v3.2.0", "status": "success", "duration": 14 },
+          { "date": "2024-02-23T11:20:00Z", "version": "v3.1.8", "status": "success", "duration": 16 },
+          { "date": "2024-02-21T15:30:00Z", "version": "v3.1.7", "status": "success", "duration": 13 },
+          { "date": "2024-02-19T09:15:00Z", "version": "v3.1.6", "status": "success", "duration": 15 },
+          { "date": "2024-02-17T14:00:00Z", "version": "v3.1.5", "status": "failed", "duration": 7 }
+        ],
+        "incidents": [
+          { "date": "2024-02-24T10:15:00Z", "severity": "medium", "title": "Email delivery delay", "resolvedIn": 6.5 },
+          { "date": "2024-02-21T22:30:00Z", "severity": "low", "title": "Push notification lag", "resolvedIn": 3.0 },
+          { "date": "2024-02-18T16:45:00Z", "severity": "high", "title": "SMS gateway failure", "resolvedIn": 8.2 }
+        ],
+        "performanceMetrics": [
+          { "date": "2024-02-26", "responseTime": 95, "errorRate": 0.5, "throughput": 5200 },
+          { "date": "2024-02-25", "responseTime": 102, "errorRate": 0.6, "throughput": 4950 },
+          { "date": "2024-02-24", "responseTime": 110, "errorRate": 1.2, "throughput": 4800 },
+          { "date": "2024-02-23", "responseTime": 98, "errorRate": 0.4, "throughput": 5100 },
+          { "date": "2024-02-22", "responseTime": 92, "errorRate": 0.3, "throughput": 5300 },
+          { "date": "2024-02-21", "responseTime": 105, "errorRate": 0.7, "throughput": 4900 },
+          { "date": "2024-02-20", "responseTime": 115, "errorRate": 1.5, "throughput": 4600 }
+        ]
+      }
+    },
+    {
+      "id": 5,
+      "name": "Payment Gateway",
+      "team": "Payments Team",
+      "status": "Healthy",
+      "icon": "💳",
+      "github": "https://github.com/example/payment-gateway",
+      "jira": "https://jira.example.com/projects/PAYGW",
+      "pagerduty": "https://pagerduty.com/services/payment-gateway",
+      "prMetrics": {
+        "avgCommitsPerPR": 8,
+        "openPRCount": 2,
+        "avgLOCPerPR": 750,
+        "weeklyMergedPRs": 5
+      },
+      "codeQuality": {
+        "codeCoverage": 92,
+        "vulnerabilities": 0,
+        "codeSmells": 6,
+        "codeDuplication": 2
+      },
+      "securityMaturity": {
+        "owaspCompliance": "Higher Assurance",
+        "branchProtection": true,
+        "requiredApprovals": 3
+      },
+      "doraMetrics": {
+        "changeFailureRate": 2.8,
+        "deploymentFrequency": 8,
+        "mttr": 1.5
+      },
+      "productionReadiness": {
+        "pagerdutyIntegration": true,
+        "observabilityDashboard": true,
+        "lastDeployment": "2024-02-26T06:30:00Z"
+      },
+      "jiraMetrics": {
+        "openHighPriorityBugs": 0,
+        "openStories": 4
+      },
+      "serviceHistory": {
+        "deployments": [
+          { "date": "2024-02-26T06:30:00Z", "version": "v4.1.2", "status": "success", "duration": 10 },
+          { "date": "2024-02-24T08:15:00Z", "version": "v4.1.1", "status": "success", "duration": 11 },
+          { "date": "2024-02-22T12:45:00Z", "version": "v4.1.0", "status": "success", "duration": 12 },
+          { "date": "2024-02-20T10:30:00Z", "version": "v4.0.9", "status": "success", "duration": 9 },
+          { "date": "2024-02-18T14:20:00Z", "version": "v4.0.8", "status": "success", "duration": 10 }
+        ],
+        "incidents": [
+          { "date": "2024-02-23T14:20:00Z", "severity": "low", "title": "Minor latency spike", "resolvedIn": 1.2 }
+        ],
+        "performanceMetrics": [
+          { "date": "2024-02-26", "responseTime": 85, "errorRate": 0.05, "throughput": 3200 },
+          { "date": "2024-02-25", "responseTime": 88, "errorRate": 0.08, "throughput": 3150 },
+          { "date": "2024-02-24", "responseTime": 82, "errorRate": 0.03, "throughput": 3300 },
+          { "date": "2024-02-23", "responseTime": 90, "errorRate": 0.12, "throughput": 3100 },
+          { "date": "2024-02-22", "responseTime": 84, "errorRate": 0.06, "throughput": 3250 },
+          { "date": "2024-02-21", "responseTime": 87, "errorRate": 0.09, "throughput": 3180 },
+          { "date": "2024-02-20", "responseTime": 86, "errorRate": 0.07, "throughput": 3220 }
+        ]
+      }
+    }
+  ]
+}
+

@@ -119,68 +119,7 @@ const Scorecard = () => {
         </button>
       </div>
 
-      
-      {/* Services Scorecards Table */}
-      <div className="scorecard-section">
-        <div className="section-header">
-          <div className="section-title-wrapper">
-            <span className="section-icon">🎯</span>
-            <h2 className="section-title">Services Scorecards</h2>
-          </div>
-          <button className="action-btn">
-            <span>⋯</span>
-          </button>
-        </div>
-        <div className="services-table-container">
-          <table className="services-scorecard-table">
-            <thead>
-              <tr>
-                <th>Title</th>
-                <th>PR Metrics</th>
-                <th>Code Quality</th>
-                <th>Security Maturity</th>
-                <th>DORA Metrics</th>
-                <th>Production Readiness</th>
-                <th>API Readiness</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {servicesScorecard.map((service) => (
-                <tr key={service.id}>
-                  <td>
-                    <div className="service-title-cell">
-                      <span className="service-icon">{service.icon}</span>
-                      <span className="service-name">{service.title}</span>
-                    </div>
-                  </td>
-                  <td>{renderBadge(service.prMetrics)}</td>
-                  <td>{renderBadge(service.codeQuality)}</td>
-                  <td>{renderBadge(service.securityMaturity)}</td>
-                  <td>{renderBadge(service.doraMetrics)}</td>
-                  <td>
-                    <div className="production-readiness-cell">
-                      {renderProgressBar(service.productionReadiness)}
-                    </div>
-                  </td>
-                  <td>{renderBadge(service.prMetrics)}</td>
-                  <td>
-                    <div className="action-cell">
-                      <button className="action-icon-btn" title="Quick actions">⚡</button>
-                      <button className="action-icon-btn" title="More options">⋯</button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          <div className="table-footer">
-            <span className="results-count">{servicesScorecard.length} results</span>
-          </div>
-        </div>
-      </div>
 
-      
       {/* Top Section: Scorecards Grid */}
       <div className="scorecards-top-grid">
         {/* Health Scorecard */}
@@ -202,24 +141,7 @@ const Scorecard = () => {
           </div>
         </div>
 
-        {/* DORA Metrics Scorecard */}
-        <div className="scorecard-widget">
-          <div className="widget-header">
-            <span className="widget-icon">📈</span>
-            <h3 className="widget-title">DORA Metrics Scorecard</h3>
-          </div>
-          <div className="widget-content">
-            {renderCircularChart(productionReadinessScorecard)}
-            <div className="chart-legend">
-              {productionReadinessScorecard.categories.map((cat, idx) => (
-                <div key={idx} className="legend-item">
-                  <span className="legend-dot" style={{ backgroundColor: cat.color }}></span>
-                  <span className="legend-label">{cat.name}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
+
 
         {/* Security Scorecard */}
         <div className="scorecard-widget">
@@ -260,7 +182,66 @@ const Scorecard = () => {
         </div>
       </div>
 
-      
+
+      {/* Services Scorecards Table */}
+      <div className="scorecard-section">
+        <div className="section-header">
+          <div className="section-title-wrapper">
+            <span className="section-icon">🎯</span>
+            <h2 className="section-title">Services Scorecards</h2>
+          </div>
+          <button className="action-btn">
+            <span>⋯</span>
+          </button>
+        </div>
+        <div className="services-table-container">
+          <table className="services-scorecard-table">
+            <thead>
+              <tr>
+                <th>Title</th>
+                <th>PR Metrics</th>
+                <th>Code Quality</th>
+                <th>Security Maturity</th>
+                <th>Production Readiness</th>
+                <th>API Readiness</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {servicesScorecard.map((service) => (
+                <tr key={service.id}>
+                  <td>
+                    <div className="service-title-cell">
+                      <span className="service-icon">{service.icon}</span>
+                      <span className="service-name">{service.title}</span>
+                    </div>
+                  </td>
+                  <td>{renderBadge(service.prMetrics)}</td>
+                  <td>{renderBadge(service.codeQuality)}</td>
+                  <td>{renderBadge(service.securityMaturity)}</td>
+                  <td>
+                    <div className="production-readiness-cell">
+                      {renderProgressBar(service.productionReadiness)}
+                    </div>
+                  </td>
+                  <td>{renderBadge(service.prMetrics)}</td>
+                  <td>
+                    <div className="action-cell">
+                      <button className="action-icon-btn" title="Quick actions">⚡</button>
+                      <button className="action-icon-btn" title="More options">⋯</button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <div className="table-footer">
+            <span className="results-count">{servicesScorecard.length} results</span>
+          </div>
+        </div>
+      </div>
+
+
       {/* Scorecards per Team */}
       <div className="scorecard-section">
         <div className="section-header">
@@ -281,7 +262,7 @@ const Scorecard = () => {
                 <th>Production Readiness</th>
                 <th>PR Metrics</th>
                 <th>Code Quality</th>
-                <th>DORA Metrics</th>
+                <th>Security Maturity</th>
               </tr>
             </thead>
             <tbody>
@@ -301,7 +282,7 @@ const Scorecard = () => {
                   <td>{renderProgressBar(team.productionReadiness)}</td>
                   <td>{renderProgressBar(team.prMetrics)}</td>
                   <td>{renderProgressBar(team.codeQuality)}</td>
-                  <td>{renderProgressBar(team.doraMetrics)}</td>
+                  <td>{renderProgressBar(team.securityMaturity)}</td>
                 </tr>
               ))}
             </tbody>

@@ -15,7 +15,6 @@ export const servicesScorecard = [
     prMetrics: 'basic',
     codeQuality: 'bronze',
     securityMaturity: 'basic',
-    doraMetrics: 'bronze',
     productionReadiness: 65
   },
   {
@@ -25,7 +24,6 @@ export const servicesScorecard = [
     prMetrics: 'basic',
     codeQuality: 'bronze',
     securityMaturity: 'basic',
-    doraMetrics: 'silver',
     productionReadiness: 58
   },
   {
@@ -35,7 +33,6 @@ export const servicesScorecard = [
     prMetrics: 'basic',
     codeQuality: 'silver',
     securityMaturity: 'basic',
-    doraMetrics: 'gold',
     productionReadiness: 72
   },
   {
@@ -45,7 +42,6 @@ export const servicesScorecard = [
     prMetrics: 'basic',
     codeQuality: 'bronze',
     securityMaturity: 'basic',
-    doraMetrics: 'bronze',
     productionReadiness: 55
   },
   {
@@ -55,7 +51,6 @@ export const servicesScorecard = [
     prMetrics: 'basic',
     codeQuality: 'bronze',
     securityMaturity: 'basic',
-    doraMetrics: 'silver',
     productionReadiness: 68
   },
   {
@@ -65,7 +60,6 @@ export const servicesScorecard = [
     prMetrics: 'bronze',
     codeQuality: 'bronze',
     securityMaturity: 'basic',
-    doraMetrics: 'gold',
     productionReadiness: 75
   },
   {
@@ -75,7 +69,6 @@ export const servicesScorecard = [
     prMetrics: 'silver',
     codeQuality: 'gold',
     securityMaturity: 'silver',
-    doraMetrics: 'gold',
     productionReadiness: 88
   },
   {
@@ -85,7 +78,6 @@ export const servicesScorecard = [
     prMetrics: 'gold',
     codeQuality: 'silver',
     securityMaturity: 'gold',
-    doraMetrics: 'gold',
     productionReadiness: 92
   },
   {
@@ -95,7 +87,6 @@ export const servicesScorecard = [
     prMetrics: 'silver',
     codeQuality: 'silver',
     securityMaturity: 'silver',
-    doraMetrics: 'silver',
     productionReadiness: 78
   },
   {
@@ -105,7 +96,6 @@ export const servicesScorecard = [
     prMetrics: 'bronze',
     codeQuality: 'silver',
     securityMaturity: 'bronze',
-    doraMetrics: 'silver',
     productionReadiness: 70
   },
   {
@@ -115,7 +105,6 @@ export const servicesScorecard = [
     prMetrics: 'silver',
     codeQuality: 'bronze',
     securityMaturity: 'silver',
-    doraMetrics: 'bronze',
     productionReadiness: 62
   }
 ]
@@ -130,7 +119,6 @@ export const teamsScorecard = [
     productionReadiness: 72,
     prMetrics: 68,
     codeQuality: 75,
-    doraMetrics: 80,
     securityMaturity: 65
   },
   {
@@ -141,7 +129,6 @@ export const teamsScorecard = [
     productionReadiness: 45,
     prMetrics: 40,
     codeQuality: 50,
-    doraMetrics: 48,
     securityMaturity: 42
   },
   {
@@ -152,7 +139,6 @@ export const teamsScorecard = [
     productionReadiness: 78,
     prMetrics: 75,
     codeQuality: 80,
-    doraMetrics: 82,
     securityMaturity: 74
   },
   {
@@ -163,7 +149,6 @@ export const teamsScorecard = [
     productionReadiness: 68,
     prMetrics: 65,
     codeQuality: 70,
-    doraMetrics: 72,
     securityMaturity: 66
   },
   {
@@ -174,7 +159,6 @@ export const teamsScorecard = [
     productionReadiness: 82,
     prMetrics: 80,
     codeQuality: 85,
-    doraMetrics: 88,
     securityMaturity: 78
   },
   {
@@ -185,7 +169,6 @@ export const teamsScorecard = [
     productionReadiness: 70,
     prMetrics: 68,
     codeQuality: 72,
-    doraMetrics: 75,
     securityMaturity: 66
   },
   {
@@ -196,7 +179,6 @@ export const teamsScorecard = [
     productionReadiness: 55,
     prMetrics: 52,
     codeQuality: 58,
-    doraMetrics: 60,
     securityMaturity: 50
   }
 ]
