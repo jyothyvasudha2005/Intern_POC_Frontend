@@ -1,5 +1,8 @@
 import { useState } from 'react'
 import '../styles/ServiceTable.css'
+import githubIcon from '../assets/github-sign.png'
+import jiraIcon from '../assets/jira.png'
+import pagerdutyIcon from '../assets/pagerduty.png'
 
 function ServiceTable({ services, onServiceClick, onScorecardClick }) {
   const [sortColumn, setSortColumn] = useState('name')
@@ -84,38 +87,38 @@ function ServiceTable({ services, onServiceClick, onScorecardClick }) {
               </td>
               <td>{service.team}</td>
               <td>
-                <a 
-                  href={service.github} 
-                  target="_blank" 
+                <a
+                  href={service.github}
+                  target="_blank"
                   rel="noopener noreferrer"
                   onClick={(e) => e.stopPropagation()}
                   className="external-link"
                 >
-                  <span className="link-icon">🔗</span>
+                  <img src={githubIcon} alt="GitHub" className="link-icon-img" />
                   View Repo
                 </a>
               </td>
               <td>
-                <a 
-                  href={service.jira} 
-                  target="_blank" 
+                <a
+                  href={service.jira}
+                  target="_blank"
                   rel="noopener noreferrer"
                   onClick={(e) => e.stopPropagation()}
                   className="external-link"
                 >
-                  <span className="link-icon">🎫</span>
+                  <img src={jiraIcon} alt="Jira" className="link-icon-img" />
                   View Board
                 </a>
               </td>
               <td>
-                <a 
-                  href={service.pagerduty} 
-                  target="_blank" 
+                <a
+                  href={service.pagerduty}
+                  target="_blank"
                   rel="noopener noreferrer"
                   onClick={(e) => e.stopPropagation()}
                   className="external-link"
                 >
-                  <span className="link-icon">🚨</span>
+                  <img src={pagerdutyIcon} alt="PagerDuty" className="link-icon-img" />
                   View Service
                 </a>
               </td>

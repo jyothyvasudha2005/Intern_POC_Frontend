@@ -53,7 +53,7 @@ function Home({ onNavigate, user }) {
 
       <div className="home-content">
         <div className="welcome-card">
-          <h2>Welcome to SyncOps</h2>
+          <h2>Welcome to <span style={{ color: '#2200ff' }}>Get To Prod</span></h2>
           <p>Your centralized platform for managing services, monitoring performance, and analyzing integrations.</p>
           <div className="quick-stats">
             <div className="stat-box">

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import '../styles/Login.css'
+import logoImage from '../assets/Red Blue Chinese Dragon Noodle Restaurant Logo.png'
 
 function Login({ onLogin }) {
   const [email, setEmail] = useState('')
@@ -26,7 +27,7 @@ function Login({ onLogin }) {
         email: email,
         avatar: email.charAt(0).toUpperCase()
       }
-      localStorage.setItem('syncops-user', JSON.stringify(user))
+      localStorage.setItem('gtp-user', JSON.stringify(user))
       onLogin(user)
       setIsLoading(false)
     }, 800)
@@ -43,10 +44,12 @@ function Login({ onLogin }) {
       <div className="login-card">
         <div className="login-header">
           <div className="login-logo">
-            <div className="login-logo-icon">S</div>
-            <span className="login-logo-text">SyncOps</span>
+            <div className="login-logo-circle">
+              <img src={logoImage} alt="GTP Logo" className="login-logo-image" />
+            </div>
+            <span className="login-logo-text">GTP</span>
           </div>
-          <h1 className="login-title">Welcome Back</h1>
+          <h1 className="login-title">Welcome</h1>
           <p className="login-subtitle">Sign in to access your dashboard</p>
         </div>
 
@@ -109,10 +112,6 @@ function Login({ onLogin }) {
         <div className="login-footer">
           <p>Don't have an account? <a href="#">Sign up</a></p>
         </div>
-      </div>
-
-      <div className="login-info">
-        <p className="demo-hint">💡 Demo: Use any email and password to login</p>
       </div>
     </div>
   )

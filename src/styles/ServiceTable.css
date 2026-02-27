@@ -110,6 +110,19 @@
   font-size: 14px;
 }
 
+.link-icon-img {
+  width: 18px;
+  height: 18px;
+  object-fit: contain;
+  filter: brightness(0.9);
+  transition: all 0.2s;
+}
+
+.external-link:hover .link-icon-img {
+  filter: brightness(1.1);
+  transform: scale(1.1);
+}
+
 .status-badge {
   display: inline-block;
   padding: 6px 12px;

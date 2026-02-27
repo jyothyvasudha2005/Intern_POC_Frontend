@@ -6,6 +6,7 @@ import ServiceCatalogue from './components/ServiceCatalogue'
 import ServiceMetrics from './components/ServiceMetrics'
 import ServiceScorecard from './components/ServiceScorecard'
 import Scorecard from './components/Scorecard'
+import logoImage from './assets/Red Blue Chinese Dragon Noodle Restaurant Logo.png'
 
 function App() {
   const [user, setUser] = useState(null)
@@ -15,18 +16,16 @@ function App() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [userInfoCollapsed, setUserInfoCollapsed] = useState(false)
   const [theme, setTheme] = useState(() => {
-    return localStorage.getItem('syncops-theme') || 'dark'
+    return localStorage.getItem('gtp-theme') || 'dark'
   })
 
   // Persist repository selection state
   const [mountedRepo, setMountedRepo] = useState(null)
   const [selectedRepo, setSelectedRepo] = useState('')
 
-  //mudiyathunu solran serome
-
   // Check for existing user on mount
   useEffect(() => {
-    const savedUser = localStorage.getItem('syncops-user')
+    const savedUser = localStorage.getItem('gtp-user')
     if (savedUser) {
       setUser(JSON.parse(savedUser))
     }
@@ -35,7 +34,7 @@ function App() {
   // Apply theme
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme)
-    localStorage.setItem('syncops-theme', theme)
+    localStorage.setItem('gtp-theme', theme)
   }, [theme])
 
   const toggleTheme = () => {
@@ -56,7 +55,7 @@ function App() {
   }
 
   const handleLogout = () => {
-    localStorage.removeItem('syncops-user')
+    localStorage.removeItem('gtp-user')
     setUser(null)
     setCurrentView('home')
   }
@@ -94,7 +93,7 @@ function App() {
       'regression-testing': 'Regression Testing',
       'integration-analysis': 'Integration Analysis'
     }
-    return titles[currentView] || 'SyncOps'
+    return titles[currentView] || 'Get To Prod'
   }
 
   // Get page description based on current view
@@ -126,13 +125,48 @@ function App() {
       </div>
       <div className="header-right">
         <button
-          className="theme-switcher"
+          className="icon-button user-button"
+          onClick={() => {/* User profile action */}}
+          title="User Profile"
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+            <circle cx="12" cy="7" r="4"></circle>
+          </svg>
+        </button>
+        <button
+          className="icon-button notification-button"
+          onClick={() => {/* Notifications action */}}
+          title="Notifications"
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+            <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+          </svg>
+          <span className="notification-badge">3</span>
+        </button>
+        <button
+          className="icon-button theme-switcher"
           onClick={toggleTheme}
           title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
         >
-          <span className="theme-icon">
-            {theme === 'dark' ? '☀️' : '🌙'}
-          </span>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            {theme === 'dark' ? (
+              <>
+                <circle cx="12" cy="12" r="5"></circle>
+                <line x1="12" y1="1" x2="12" y2="3"></line>
+                <line x1="12" y1="21" x2="12" y2="23"></line>
+                <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                <line x1="1" y1="12" x2="3" y2="12"></line>
+                <line x1="21" y1="12" x2="23" y2="12"></line>
+                <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+              </>
+            ) : (
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+            )}
+          </svg>
         </button>
       </div>
     </div>
@@ -143,31 +177,51 @@ function App() {
     <div className={`sidebar ${sidebarCollapsed ? 'collapsed' : ''}`}>
       <div className="sidebar-header">
         <div className="logo">
-          <div className="logo-icon">S</div>
-          {!sidebarCollapsed && <span className="logo-text">SyncOps</span>}
+          <img src={logoImage} alt="GTP Logo" className="logo-image" />
+          {!sidebarCollapsed && (
+            <div className="logo-text-container">
+              <span className="logo-text-main">Get To Prod</span>
+              <span className="logo-text-sub">GTP</span>
+            </div>
+          )}
         </div>
         <button className="sidebar-toggle" onClick={toggleSidebar} title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}>
-          {sidebarCollapsed ? '→' : '←'}
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            {sidebarCollapsed ? (
+              <path d="M9 18l6-6-6-6"></path>
+            ) : (
+              <path d="M15 18l-6-6 6-6"></path>
+            )}
+          </svg>
         </button>
       </div>
 
       <nav className="nav">
         <div className="nav-section">
-          {!sidebarCollapsed && <div className="nav-section-title">MAIN</div>}
+          {!sidebarCollapsed && <div className="nav-section-title">NAVIGATION</div>}
           <button
             className={`nav-item ${currentView === 'home' ? 'active' : ''}`}
             onClick={() => handleNavigate('home')}
-            title="Home"
+            title="Dashboard"
           >
-            <span>🏠</span>
-            {!sidebarCollapsed && <span>Home</span>}
+            <svg className="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <rect x="3" y="3" width="7" height="7"></rect>
+              <rect x="14" y="3" width="7" height="7"></rect>
+              <rect x="14" y="14" width="7" height="7"></rect>
+              <rect x="3" y="14" width="7" height="7"></rect>
+            </svg>
+            {!sidebarCollapsed && <span>Dashboard</span>}
           </button>
           <button
             className={`nav-item ${currentView === 'service-catalogue' ? 'active' : ''}`}
             onClick={() => handleNavigate('service-catalogue')}
             title="Service Catalogue"
           >
-            <span>📦</span>
+            <svg className="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+              <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+              <line x1="12" y1="22.08" x2="12" y2="12"></line>
+            </svg>
             {!sidebarCollapsed && <span>Service Catalogue</span>}
           </button>
           <button
@@ -175,7 +229,11 @@ function App() {
             onClick={() => handleNavigate('scorecard-viewer')}
             title="Scorecard Viewer"
           >
-            <span>📊</span>
+            <svg className="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <line x1="18" y1="20" x2="18" y2="10"></line>
+              <line x1="12" y1="20" x2="12" y2="4"></line>
+              <line x1="6" y1="20" x2="6" y2="14"></line>
+            </svg>
             {!sidebarCollapsed && <span>Scorecard Viewer</span>}
           </button>
           <button
@@ -183,7 +241,9 @@ function App() {
             onClick={() => handleNavigate('regression-testing')}
             title="Regression Testing"
           >
-            <span>🧪</span>
+            <svg className="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+            </svg>
             {!sidebarCollapsed && <span>Regression Testing</span>}
           </button>
           <button
@@ -191,7 +251,13 @@ function App() {
             onClick={() => handleNavigate('integration-analysis')}
             title="Integration Analysis"
           >
-            <span>🔗</span>
+            <svg className="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="18" cy="5" r="3"></circle>
+              <circle cx="6" cy="12" r="3"></circle>
+              <circle cx="18" cy="19" r="3"></circle>
+              <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
+              <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+            </svg>
             {!sidebarCollapsed && <span>Integration Analysis</span>}
           </button>
         </div>
@@ -281,7 +347,7 @@ function App() {
             {viewMode === 'scorecard' ? (
               <ServiceScorecard service={selectedService} onBack={handleBackToServices} />
             ) : (
-              <ServiceMetrics service={selectedService} onBack={handleBackToServices} />
+              <ServiceMetrics serviceId={selectedService.id} onClose={handleBackToServices} />
             )}
           </div>
         </div>
