@@ -167,5 +167,13 @@
   .welcome-card {
     padding: 24px;
   }
+
+  .chatbot-section {
+    margin-top: 20px;
+  }
 }
 
+/* Chatbot Section */
+.chatbot-section {
+  margin-top: 32px;
+}

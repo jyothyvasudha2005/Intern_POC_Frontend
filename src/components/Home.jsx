@@ -1,4 +1,5 @@
 import '../styles/Home.css'
+import DeveloperChatbot from './DeveloperChatbot'
 
 function Home({ onNavigate, user }) {
   const modules = [
@@ -73,6 +74,11 @@ function Home({ onNavigate, user }) {
               <div className="stat-label">Alerts</div>
             </div>
           </div>
+        </div>
+
+        {/* Developer Chatbot */}
+        <div className="chatbot-section">
+          <DeveloperChatbot />
         </div>
       </div>
     </div>
