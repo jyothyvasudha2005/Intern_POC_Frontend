@@ -65,8 +65,10 @@ function App() {
   }
 
   const handleServiceClick = (service) => {
+    console.log('🔍 Service clicked:', service)
     setSelectedService(service)
     setViewMode('details')
+    console.log('✅ Selected service set to:', service.name)
   }
 
   const handleScorecardClick = (service) => {
@@ -335,8 +337,10 @@ function App() {
 
   // Service Metrics/Scorecard view (when a service is selected)
   if (selectedService) {
+    console.log('📊 Rendering service view. ViewMode:', viewMode, 'Service:', selectedService.name)
     // For ServiceMetrics, render without the content wrapper for full-page layout
     if (viewMode !== 'scorecard') {
+      console.log('✅ Rendering ServiceMetrics for:', selectedService.name)
       return (
         <div className={`app ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
           {renderSidebar()}

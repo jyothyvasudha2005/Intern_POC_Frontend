@@ -45,6 +45,39 @@ export const repositoryServices = {
           uptime: 99.95,
           onCall: 'John Doe'
         }
+      },
+      // Detailed scorecard metrics
+      prMetrics: {
+        avgCommitsPerPR: 12,
+        openPRCount: 3,
+        avgLOCPerPR: 1200,
+        weeklyMergedPRs: 5
+      },
+      codeQuality: {
+        codeCoverage: 87,
+        vulnerabilities: 2,
+        codeSmells: 35,
+        codeDuplication: 15
+      },
+      securityMaturity: {
+        owaspCompliance: 'Higher Assurance',
+        branchProtection: true,
+        requiredApprovals: 2
+      },
+      doraMetrics: {
+        changeFailureRate: 12,
+        deploymentFrequency: 5,
+        mttr: 18
+      },
+      productionReadiness: {
+        pagerdutyIntegration: true,
+        observabilityDashboard: true
+      },
+      jiraMetrics: {
+        openHighPriorityBugs: 2,
+        totalIssues: 8,
+        inProgress: 3,
+        resolved: 42
       }
     },
     {
@@ -85,6 +118,39 @@ export const repositoryServices = {
           uptime: 99.98,
           onCall: 'Jane Smith'
         }
+      },
+      // Detailed scorecard metrics
+      prMetrics: {
+        avgCommitsPerPR: 8,
+        openPRCount: 5,
+        avgLOCPerPR: 980,
+        weeklyMergedPRs: 7
+      },
+      codeQuality: {
+        codeCoverage: 92,
+        vulnerabilities: 1,
+        codeSmells: 18,
+        codeDuplication: 8
+      },
+      securityMaturity: {
+        owaspCompliance: 'Higher Assurance',
+        branchProtection: true,
+        requiredApprovals: 3
+      },
+      doraMetrics: {
+        changeFailureRate: 8,
+        deploymentFrequency: 6,
+        mttr: 12
+      },
+      productionReadiness: {
+        pagerdutyIntegration: true,
+        observabilityDashboard: true
+      },
+      jiraMetrics: {
+        openHighPriorityBugs: 3,
+        totalIssues: 12,
+        inProgress: 5,
+        resolved: 58
       }
     },
     {
@@ -125,6 +191,39 @@ export const repositoryServices = {
           uptime: 98.5,
           onCall: 'Mike Johnson'
         }
+      },
+      // Detailed scorecard metrics
+      prMetrics: {
+        avgCommitsPerPR: 18,
+        openPRCount: 7,
+        avgLOCPerPR: 1850,
+        weeklyMergedPRs: 3
+      },
+      codeQuality: {
+        codeCoverage: 78,
+        vulnerabilities: 5,
+        codeSmells: 68,
+        codeDuplication: 25
+      },
+      securityMaturity: {
+        owaspCompliance: 'Improved',
+        branchProtection: true,
+        requiredApprovals: 1
+      },
+      doraMetrics: {
+        changeFailureRate: 18,
+        deploymentFrequency: 3,
+        mttr: 25
+      },
+      productionReadiness: {
+        pagerdutyIntegration: true,
+        observabilityDashboard: false
+      },
+      jiraMetrics: {
+        openHighPriorityBugs: 5,
+        totalIssues: 15,
+        inProgress: 8,
+        resolved: 72
       }
     },
     {

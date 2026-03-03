@@ -208,7 +208,7 @@ function renderOverview(service) {
     { category: 'Code Quality', score: calculateQualityScore(service.codeQuality), color: COLORS.success },
     { category: 'Security', score: calculateSecurityScore(service.securityMaturity), color: COLORS.warning },
     { category: 'DORA', score: calculateDORAScore(service.doraMetrics), color: COLORS.info },
-    { category: 'Production', score: service.productionReadiness.pagerdutyIntegration && service.productionReadiness.observabilityDashboard ? 100 : 50, color: COLORS.danger }
+    { category: 'Production', score: service.productionReadiness?.pagerdutyIntegration && service.productionReadiness?.observabilityDashboard ? 100 : 50, color: COLORS.danger }
   ]
 
   return (
@@ -232,28 +232,28 @@ function renderOverview(service) {
             <div className="stat-icon" style={{ background: COLORS.primary }}>🔄</div>
             <div className="stat-content">
               <div className="stat-label">Weekly Merged PRs</div>
-              <div className="stat-value">{service.prMetrics.weeklyMergedPRs}</div>
+              <div className="stat-value">{service.prMetrics?.weeklyMergedPRs || 'N/A'}</div>
             </div>
           </div>
           <div className="stat-card">
             <div className="stat-icon" style={{ background: COLORS.success }}>✅</div>
             <div className="stat-content">
               <div className="stat-label">Code Coverage</div>
-              <div className="stat-value">{service.codeQuality.codeCoverage}%</div>
+              <div className="stat-value">{service.codeQuality?.codeCoverage ? `${service.codeQuality.codeCoverage}%` : 'N/A'}</div>
             </div>
           </div>
           <div className="stat-card">
             <div className="stat-icon" style={{ background: COLORS.warning }}>🔒</div>
             <div className="stat-content">
               <div className="stat-label">Security Level</div>
-              <div className="stat-value">{service.securityMaturity.owaspCompliance}</div>
+              <div className="stat-value">{service.securityMaturity?.owaspCompliance || 'N/A'}</div>
             </div>
           </div>
           <div className="stat-card">
             <div className="stat-icon" style={{ background: COLORS.danger }}>🚨</div>
             <div className="stat-content">
               <div className="stat-label">High Priority Bugs</div>
-              <div className="stat-value">{service.jiraMetrics.openHighPriorityBugs}</div>
+              <div className="stat-value">{service.jiraMetrics?.openHighPriorityBugs || 0}</div>
             </div>
           </div>
         </div>
@@ -942,38 +942,42 @@ function renderCodeowners(service) {
 
 // Helper calculation functions
 function calculatePRScore(prMetrics) {
+  if (!prMetrics) return 0
   let score = 0
-  if (prMetrics.avgCommitsPerPR <= 14) score += 25
-  if (prMetrics.openPRCount <= 4) score += 25
-  if (prMetrics.avgLOCPerPR <= 1500) score += 25
-  if (prMetrics.weeklyMergedPRs >= 4) score += 25
+  if (prMetrics.avgCommitsPerPR && prMetrics.avgCommitsPerPR <= 14) score += 25
+  if (prMetrics.openPRCount !== undefined && prMetrics.openPRCount <= 4) score += 25
+  if (prMetrics.avgLOCPerPR && prMetrics.avgLOCPerPR <= 1500) score += 25
+  if (prMetrics.weeklyMergedPRs && prMetrics.weeklyMergedPRs >= 4) score += 25
   return score
 }
 
 function calculateQualityScore(codeQuality) {
+  if (!codeQuality) return 0
   let score = 0
-  if (codeQuality.codeCoverage >= 70) score += 25
-  if (codeQuality.vulnerabilities <= 5) score += 25
-  if (codeQuality.codeSmells <= 50) score += 25
-  if (codeQuality.codeDuplication <= 20) score += 25
+  if (codeQuality.codeCoverage && codeQuality.codeCoverage >= 70) score += 25
+  if (codeQuality.vulnerabilities !== undefined && codeQuality.vulnerabilities <= 5) score += 25
+  if (codeQuality.codeSmells !== undefined && codeQuality.codeSmells <= 50) score += 25
+  if (codeQuality.codeDuplication !== undefined && codeQuality.codeDuplication <= 20) score += 25
   return score
 }
 
 function calculateSecurityScore(securityMaturity) {
+  if (!securityMaturity) return 0
   let score = 0
   if (securityMaturity.owaspCompliance === 'Higher Assurance') score += 50
   else if (securityMaturity.owaspCompliance === 'Improved') score += 30
-  else score += 10
+  else if (securityMaturity.owaspCompliance) score += 10
   if (securityMaturity.branchProtection) score += 25
-  if (securityMaturity.requiredApprovals >= 2) score += 25
+  if (securityMaturity.requiredApprovals && securityMaturity.requiredApprovals >= 2) score += 25
   return score
 }
 
 function calculateDORAScore(doraMetrics) {
+  if (!doraMetrics) return 0
   let score = 0
-  if (doraMetrics.changeFailureRate <= 15) score += 33
-  if (doraMetrics.deploymentFrequency >= 4) score += 33
-  if (doraMetrics.mttr < 24) score += 34
+  if (doraMetrics.changeFailureRate !== undefined && doraMetrics.changeFailureRate <= 15) score += 33
+  if (doraMetrics.deploymentFrequency && doraMetrics.deploymentFrequency >= 4) score += 33
+  if (doraMetrics.mttr !== undefined && doraMetrics.mttr < 24) score += 34
   return score
 }
 
