@@ -1,10 +1,13 @@
 import { useState } from 'react'
 import '../styles/DeveloperSelfService.css'
+import { API_ENDPOINTS } from '../config/api'
 
 function DeveloperSelfService({ onNavigate }) {
   const [isCreatingIssue, setIsCreatingIssue] = useState(false)
   const [issueData, setIssueData] = useState({
     summary: '',
+    projectKey: '',
+    issueType: 'Task',
     description: '',
     priority: 'Medium'
   })
@@ -12,25 +15,39 @@ function DeveloperSelfService({ onNavigate }) {
   const [notification, setNotification] = useState(null)
 
   const handleCreateIssue = async () => {
+    // Validation
     if (!issueData.summary.trim()) {
       setNotification({ type: 'error', message: 'Please enter a summary' })
       setTimeout(() => setNotification(null), 3000)
       return
     }
 
+    if (!issueData.projectKey.trim()) {
+      setNotification({ type: 'error', message: 'Please enter a project key' })
+      setTimeout(() => setNotification(null), 3000)
+      return
+    }
+
     setIsCreatingIssue(true)
-    
+
+    // Prepare the data to send
+    const requestData = {
+      summary: issueData.summary,
+      projectKey: issueData.projectKey,
+      issueType: issueData.issueType,
+      description: issueData.description,
+      priority: issueData.priority
+    }
+
+    console.log('📤 Sending issue data to backend:', requestData)
+
     try {
-      const response = await fetch('http://10.140.8.28:8089/jira/api/create-issue', {
+      const response = await fetch(API_ENDPOINTS.jira.createIssue, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          summary: issueData.summary,
-          description: issueData.description,
-          priority: issueData.priority
-        })
+        body: JSON.stringify(requestData)
       })
 
       if (!response.ok) {
@@ -42,8 +59,14 @@ function DeveloperSelfService({ onNavigate }) {
       
       setNotification({ type: 'success', message: 'Issue created successfully!' })
       setShowIssueForm(false)
-      setIssueData({ summary: '', description: '', priority: 'Medium' })
-      
+      setIssueData({
+        summary: '',
+        projectKey: '',
+        issueType: 'Task',
+        description: '',
+        priority: 'Medium'
+      })
+
       setTimeout(() => setNotification(null), 3000)
     } catch (error) {
       console.error('Error creating issue:', error)
@@ -96,11 +119,29 @@ function DeveloperSelfService({ onNavigate }) {
           <div className="issue-form">
             <input
               type="text"
-              placeholder="Issue Summary *"
+              placeholder="Summary *"
               className="form-input"
               value={issueData.summary}
               onChange={(e) => setIssueData({ ...issueData, summary: e.target.value })}
             />
+            <input
+              type="text"
+              placeholder="Project Key *"
+              className="form-input"
+              value={issueData.projectKey}
+              onChange={(e) => setIssueData({ ...issueData, projectKey: e.target.value })}
+            />
+            <select
+              className="form-select"
+              value={issueData.issueType}
+              onChange={(e) => setIssueData({ ...issueData, issueType: e.target.value })}
+            >
+              <option value="Task">Task</option>
+              <option value="Bug">Bug</option>
+              <option value="Story">Story</option>
+              <option value="Epic">Epic</option>
+              <option value="Subtask">Subtask</option>
+            </select>
             <textarea
               placeholder="Description (optional)"
               className="form-textarea"
@@ -113,11 +154,13 @@ function DeveloperSelfService({ onNavigate }) {
               value={issueData.priority}
               onChange={(e) => setIssueData({ ...issueData, priority: e.target.value })}
             >
-              <option value="Low">Low Priority</option>
-              <option value="Medium">Medium Priority</option>
-              <option value="High">High Priority</option>
+              <option value="Lowest">Lowest</option>
+              <option value="Low">Low</option>
+              <option value="Medium">Medium</option>
+              <option value="High">High</option>
+              <option value="Highest">Highest</option>
             </select>
-            <button 
+            <button
               className="form-submit-btn"
               onClick={handleCreateIssue}
               disabled={isCreatingIssue}

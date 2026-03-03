@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import '../styles/Home.css'
 import DeveloperChatbot from './DeveloperChatbot'
 import DeveloperSelfService from './DeveloperSelfService'
+import { API_ENDPOINTS } from '../config/api'
 
 function Home({ onNavigate, user }) {
   const [services, setServices] = useState([])
@@ -55,7 +56,7 @@ function Home({ onNavigate, user }) {
 
         console.log('Fetching services from API...')
 
-        const response = await fetch('http://10.140.8.28:8089/onboarding/api/services', {
+        const response = await fetch(API_ENDPOINTS.onboarding.services, {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
