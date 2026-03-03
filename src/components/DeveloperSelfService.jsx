@@ -5,6 +5,8 @@ function DeveloperSelfService({ onNavigate }) {
   const [isCreatingIssue, setIsCreatingIssue] = useState(false)
   const [issueData, setIssueData] = useState({
     summary: '',
+    projectkey: 'JIRATEST',
+    issueType: 'Task',
     description: '',
     priority: 'Medium'
   })
@@ -12,6 +14,12 @@ function DeveloperSelfService({ onNavigate }) {
   const [notification, setNotification] = useState(null)
 
   const handleCreateIssue = async () => {
+    if (!issueData.projectkey.trim()) {
+      setNotification({ type: 'error', message: 'Please enter a project key' })
+      setTimeout(() => setNotification(null), 3000)
+      return
+    }
+
     if (!issueData.summary.trim()) {
       setNotification({ type: 'error', message: 'Please enter a summary' })
       setTimeout(() => setNotification(null), 3000)
@@ -19,18 +27,25 @@ function DeveloperSelfService({ onNavigate }) {
     }
 
     setIsCreatingIssue(true)
-    
+
+    // Prepare request body with exact field names expected by backend
+    const requestBody = {
+      summary: issueData.summary,
+      projectkey: issueData.projectkey,
+      issueType: issueData.issueType,
+      description: issueData.description,
+      priority: issueData.priority
+    }
+
+    console.log('📤 Sending issue data to backend:', requestBody)
+
     try {
-      const response = await fetch('http://10.140.8.28:8089/jira/api/create-issue', {
+      const response = await fetch('/api/jira/api/create-issue', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          summary: issueData.summary,
-          description: issueData.description,
-          priority: issueData.priority
-        })
+        body: JSON.stringify(requestBody)
       })
 
       if (!response.ok) {
@@ -42,7 +57,14 @@ function DeveloperSelfService({ onNavigate }) {
       
       setNotification({ type: 'success', message: 'Issue created successfully!' })
       setShowIssueForm(false)
-      setIssueData({ summary: '', description: '', priority: 'Medium' })
+      setIssueData({
+        summary: '',
+        projectkey: '',
+        // projectkey: 'JIRATEST',
+        issueType: 'Task',
+        description: '',
+        priority: 'Medium'
+      })
       
       setTimeout(() => setNotification(null), 3000)
     } catch (error) {
@@ -96,6 +118,23 @@ function DeveloperSelfService({ onNavigate }) {
           <div className="issue-form">
             <input
               type="text"
+              placeholder="Project Key *"
+              className="form-input"
+              value={issueData.projectkey}
+              onChange={(e) => setIssueData({ ...issueData, projectkey: e.target.value })}
+            />
+            <select
+              className="form-select"
+              value={issueData.issueType}
+              onChange={(e) => setIssueData({ ...issueData, issueType: e.target.value })}
+            >
+              <option value="Task">Task</option>
+              <option value="Bug">Bug</option>
+              <option value="Story">Story</option>
+              <option value="Epic">Epic</option>
+            </select>
+            <input
+              type="text"
               placeholder="Issue Summary *"
               className="form-input"
               value={issueData.summary}
@@ -117,7 +156,7 @@ function DeveloperSelfService({ onNavigate }) {
               <option value="Medium">Medium Priority</option>
               <option value="High">High Priority</option>
             </select>
-            <button 
+            <button
               className="form-submit-btn"
               onClick={handleCreateIssue}
               disabled={isCreatingIssue}
