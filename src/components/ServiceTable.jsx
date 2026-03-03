@@ -50,6 +50,14 @@ function ServiceTable({ services, onServiceClick, onScorecardClick }) {
                 )}
               </div>
             </th>
+            <th onClick={() => handleSort('repository')}>
+              <div className="th-content">
+                Repository
+                {sortColumn === 'repository' && (
+                  <span className="sort-icon">{sortDirection === 'asc' ? '↑' : '↓'}</span>
+                )}
+              </div>
+            </th>
             <th onClick={() => handleSort('team')}>
               <div className="th-content">
                 Team
@@ -74,8 +82,8 @@ function ServiceTable({ services, onServiceClick, onScorecardClick }) {
         </thead>
         <tbody>
           {sortedServices.map((service) => (
-            <tr 
-              key={service.id} 
+            <tr
+              key={`${service.repositoryKey || 'default'}-${service.id}`}
               onClick={() => onServiceClick(service)}
               className="service-row"
             >
@@ -84,6 +92,11 @@ function ServiceTable({ services, onServiceClick, onScorecardClick }) {
                   <span className="service-icon">{service.icon || '📦'}</span>
                   <span className="service-name">{service.name}</span>
                 </div>
+              </td>
+              <td>
+                <span className="repository-badge">
+                  {service.repository || 'Unknown'}
+                </span>
               </td>
               <td>{service.team}</td>
               <td>

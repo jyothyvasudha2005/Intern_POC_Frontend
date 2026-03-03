@@ -2,68 +2,76 @@ import '../styles/ServiceCatalogue.css'
 import { demoRepositories, repositoryServices } from '../data/servicesData'
 import ServiceTable from './ServiceTable'
 
-function ServiceCatalogue({ onServiceClick, onScorecardClick, mountedRepo, setMountedRepo, selectedRepo, setSelectedRepo }) {
+function ServiceCatalogue({ onServiceClick, onScorecardClick, selectedRepo, setSelectedRepo }) {
 
-  const handleMount = () => {
-    if (selectedRepo) {
-      setMountedRepo(selectedRepo)
+  // Get all services from all repositories
+  const getAllServices = () => {
+    const allServices = []
+    Object.entries(repositoryServices).forEach(([repoKey, services]) => {
+      const repoName = demoRepositories.find(r => r.value === repoKey)?.name || repoKey
+      // Add repository info to each service
+      const servicesWithRepo = services.map(service => ({
+        ...service,
+        repository: repoName,
+        repositoryKey: repoKey
+      }))
+      allServices.push(...servicesWithRepo)
+    })
+    return allServices
+  }
+
+  // Filter services based on selected repository
+  const getFilteredServices = () => {
+    if (!selectedRepo || selectedRepo === 'all') {
+      return getAllServices()
     }
+    const services = repositoryServices[selectedRepo] || []
+    const repoName = demoRepositories.find(r => r.value === selectedRepo)?.name || selectedRepo
+    return services.map(service => ({
+      ...service,
+      repository: repoName,
+      repositoryKey: selectedRepo
+    }))
   }
 
-  const handleDemount = () => {
-    setMountedRepo(null)
-    setSelectedRepo('')
-  }
-
-  const currentServices = mountedRepo ? repositoryServices[mountedRepo] || [] : []
+  const currentServices = getFilteredServices()
+  const totalServices = getAllServices().length
 
   return (
     <div className="service-catalogue-container">
       <div className="repo-controls">
         <div className="repo-select-wrapper">
-          <label htmlFor="repo-select" className="repo-label">Repository:</label>
+          <label htmlFor="repo-select" className="repo-label">Filter by Repository:</label>
           <select
             id="repo-select"
             className="repo-select"
-            value={selectedRepo}
-            onChange={(e) => setSelectedRepo(e.target.value)}
-            disabled={!!mountedRepo}
+            value={selectedRepo || 'all'}
+            onChange={(e) => setSelectedRepo(e.target.value === 'all' ? '' : e.target.value)}
           >
-            <option value="">Select a repository...</option>
-            {demoRepositories.map(repo => (
-              <option key={repo.id} value={repo.value}>{repo.name}</option>
-            ))}
+            <option value="all">All Repositories ({totalServices} services)</option>
+            {demoRepositories.map(repo => {
+              const repoServiceCount = repositoryServices[repo.value]?.length || 0
+              return (
+                <option key={repo.id} value={repo.value}>
+                  {repo.name} ({repoServiceCount} services)
+                </option>
+              )
+            })}
           </select>
         </div>
-
-        {!mountedRepo ? (
-          <button
-            className="mount-button"
-            onClick={handleMount}
-            disabled={!selectedRepo}
-          >
-            <span className="button-icon">🔗</span>
-            Mount Now
-          </button>
-        ) : (
-          <button className="demount-button" onClick={handleDemount}>
-            <span className="button-icon">🔓</span>
-            Demount
-          </button>
-        )}
       </div>
 
-      {mountedRepo && (
+      {selectedRepo && selectedRepo !== 'all' && (
         <div className="mounted-repo-info">
           <span className="info-icon">📁</span>
           <span className="info-text">
-            Mounted: <strong>{demoRepositories.find(r => r.value === mountedRepo)?.name}</strong>
+            Showing: <strong>{demoRepositories.find(r => r.value === selectedRepo)?.name}</strong>
           </span>
           <span className="service-count">{currentServices.length} services</span>
         </div>
       )}
 
-      {mountedRepo && currentServices.length > 0 && (
+      {currentServices.length > 0 && (
         <ServiceTable
           services={currentServices}
           onServiceClick={onServiceClick}
@@ -71,19 +79,11 @@ function ServiceCatalogue({ onServiceClick, onScorecardClick, mountedRepo, setMo
         />
       )}
 
-      {mountedRepo && currentServices.length === 0 && (
+      {currentServices.length === 0 && (
         <div className="empty-state">
           <div className="empty-icon">📭</div>
           <h3>No Services Found</h3>
-          <p>No services found in this repository.</p>
-        </div>
-      )}
-
-      {!mountedRepo && (
-        <div className="empty-state">
-          <div className="empty-icon">🔍</div>
-          <h3>Select a Repository</h3>
-          <p>Please select and mount a repository to view its services.</p>
+          <p>No services found in the selected repository.</p>
         </div>
       )}
     </div>
