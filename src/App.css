@@ -290,6 +290,8 @@
   flex-direction: column;
   background-color: var(--bg-primary);
   transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow-y: auto;
+  height: 100vh;
 }
 
 .app.sidebar-collapsed .main-content {

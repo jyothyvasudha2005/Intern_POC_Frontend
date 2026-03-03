@@ -4,9 +4,6 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from 'recharts'
 import '../styles/ServiceMetrics.css'
-import githubIcon from '../assets/github-sign.png'
-import jiraIcon from '../assets/jira.png'
-import pagerdutyIcon from '../assets/pagerduty.png'
 import { getServiceById } from '../services/api'
 
 const COLORS = {
@@ -43,10 +40,8 @@ function ServiceMetrics({ serviceId, onClose }) {
 
   if (loading) {
     return (
-      <div className="metrics-modal">
-        <div className="metrics-container">
-          <div className="loading-spinner">Loading metrics...</div>
-        </div>
+      <div className="service-details-page">
+        <div className="loading-spinner">Loading service details...</div>
       </div>
     )
   }
@@ -54,6 +49,8 @@ function ServiceMetrics({ serviceId, onClose }) {
   if (!service) {
     return null
   }
+
+  console.log('🎯 ServiceMetrics rendering with service:', service.name)
 
   // Helper function to get badge level for PR metrics
   const getPRBadge = (metric, value) => {
@@ -104,80 +101,101 @@ function ServiceMetrics({ serviceId, onClose }) {
   }
 
   return (
-    <div className="metrics-modal" onClick={onClose}>
-      <div className="metrics-container" onClick={(e) => e.stopPropagation()}>
-        {/* Header */}
-        <div className="metrics-header">
-          <div className="metrics-title-section">
-            <span className="service-icon-large">{service.icon}</span>
-            <div>
-              <h2 className="metrics-title">{service.name}</h2>
-              <p className="metrics-subtitle">{service.team} • {service.status}</p>
-            </div>
-          </div>
-          <div className="metrics-header-actions">
-            <a href={service.github} target="_blank" rel="noopener noreferrer" className="icon-link">
-              <img src={githubIcon} alt="GitHub" className="header-icon" />
-            </a>
-            <a href={service.jira} target="_blank" rel="noopener noreferrer" className="icon-link">
-              <img src={jiraIcon} alt="Jira" className="header-icon" />
-            </a>
-            <a href={service.pagerduty} target="_blank" rel="noopener noreferrer" className="icon-link">
-              <img src={pagerdutyIcon} alt="PagerDuty" className="header-icon" />
-            </a>
-            <button className="close-btn" onClick={onClose}>✕</button>
-          </div>
-        </div>
+    <div className="service-details-page">
+      {/* Breadcrumb Navigation */}
+      <div className="service-breadcrumb">
+        <button className="breadcrumb-link" onClick={onClose}>
+          Service
+        </button>
+        <span className="breadcrumb-separator">/</span>
+        <span className="breadcrumb-current">{service.name}</span>
+      </div>
 
-        {/* Tabs */}
-        <div className="metrics-tabs">
+      {/* Service Title Header */}
+      <div className="service-title-header">
+        <div className="service-title-left">
+          <span className="service-icon-badge">{service.icon}</span>
+          <h1 className="service-main-title">{service.name}</h1>
+        </div>
+        <div className="service-title-actions">
+          <button className="action-icon-btn" title="Favorite">⭐</button>
+          <button className="action-icon-btn" title="More options">⋯</button>
+        </div>
+      </div>
+
+      {/* Tabs Navigation */}
+      <div className="service-tabs-container">
+        <div className="service-tabs">
           <button
-            className={`tab-btn ${activeTab === 'overview' ? 'active' : ''}`}
+            className={`service-tab ${activeTab === 'overview' ? 'active' : ''}`}
             onClick={() => setActiveTab('overview')}
           >
-            📊 Overview
+            Overview
           </button>
           <button
-            className={`tab-btn ${activeTab === 'pr' ? 'active' : ''}`}
-            onClick={() => setActiveTab('pr')}
+            className={`service-tab ${activeTab === 'scorecards' ? 'active' : ''}`}
+            onClick={() => setActiveTab('scorecards')}
           >
-            🔄 PR Metrics
+            Scorecards
           </button>
           <button
-            className={`tab-btn ${activeTab === 'quality' ? 'active' : ''}`}
-            onClick={() => setActiveTab('quality')}
+            className={`service-tab ${activeTab === 'related' ? 'active' : ''}`}
+            onClick={() => setActiveTab('related')}
           >
-            ✨ Code Quality
+            Related Entities
           </button>
           <button
-            className={`tab-btn ${activeTab === 'security' ? 'active' : ''}`}
-            onClick={() => setActiveTab('security')}
+            className={`service-tab ${activeTab === 'runs' ? 'active' : ''}`}
+            onClick={() => setActiveTab('runs')}
           >
-            🔒 Security
+            Runs
           </button>
           <button
-            className={`tab-btn ${activeTab === 'dora' ? 'active' : ''}`}
-            onClick={() => setActiveTab('dora')}
+            className={`service-tab ${activeTab === 'audit' ? 'active' : ''}`}
+            onClick={() => setActiveTab('audit')}
           >
-            🚀 DORA
+            Audit Log
           </button>
           <button
-            className={`tab-btn ${activeTab === 'history' ? 'active' : ''}`}
-            onClick={() => setActiveTab('history')}
+            className={`service-tab ${activeTab === 'readme' ? 'active' : ''}`}
+            onClick={() => setActiveTab('readme')}
           >
-            📈 History
+            README
+          </button>
+          <button
+            className={`service-tab ${activeTab === 'github-readme' ? 'active' : ''}`}
+            onClick={() => setActiveTab('github-readme')}
+          >
+            GitHub README
+          </button>
+          <button
+            className={`service-tab ${activeTab === 'codeowners' ? 'active' : ''}`}
+            onClick={() => setActiveTab('codeowners')}
+          >
+            GitHub CODEOWNERS
+          </button>
+          <button className="service-tab-add" title="Add tab">+</button>
+        </div>
+        <div className="tab-view-controls">
+          <button className="view-control-btn active" title="Table view">
+            <span>⊞</span> Table
+          </button>
+          <button className="view-control-btn" title="Graph view">
+            <span>◉</span> Graph
           </button>
         </div>
+      </div>
 
-        {/* Content */}
-        <div className="metrics-content">
-          {activeTab === 'overview' && renderOverview(service)}
-          {activeTab === 'pr' && renderPRMetrics(service, getPRBadge)}
-          {activeTab === 'quality' && renderCodeQuality(service, getQualityBadge)}
-          {activeTab === 'security' && renderSecurity(service)}
-          {activeTab === 'dora' && renderDORA(service)}
-          {activeTab === 'history' && renderHistory(service)}
-        </div>
+      {/* Tab Content */}
+      <div className="service-details-content">
+        {activeTab === 'overview' && renderOverview(service)}
+        {activeTab === 'scorecards' && renderScorecards(service, getPRBadge, getQualityBadge)}
+        {activeTab === 'related' && renderRelatedEntities(service)}
+        {activeTab === 'runs' && renderRuns(service)}
+        {activeTab === 'audit' && renderAuditLog(service)}
+        {activeTab === 'readme' && renderReadme(service)}
+        {activeTab === 'github-readme' && renderGitHubReadme(service)}
+        {activeTab === 'codeowners' && renderCodeowners(service)}
       </div>
     </div>
   )
@@ -494,8 +512,8 @@ function renderDORA(service) {
   )
 }
 
-// Service History Tab
-function renderHistory(service) {
+// Service History Tab (available for future use)
+function _renderHistory(service) {
   if (!service.serviceHistory) {
     return (
       <div className="tab-content">
@@ -617,6 +635,305 @@ function renderHistory(service) {
               ))}
             </div>
           )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// Scorecards Tab - Combines all metrics
+function renderScorecards(service, getPRBadge, getQualityBadge) {
+  return (
+    <div className="tab-content">
+      <div className="scorecards-grid">
+        {/* PR Metrics Card */}
+        <div className="scorecard-section">
+          <h3 className="section-title">📊 PR Metrics</h3>
+          {renderPRMetrics(service, getPRBadge)}
+        </div>
+
+        {/* Code Quality Card */}
+        <div className="scorecard-section">
+          <h3 className="section-title">✨ Code Quality</h3>
+          {renderCodeQuality(service, getQualityBadge)}
+        </div>
+
+        {/* Security Card */}
+        <div className="scorecard-section">
+          <h3 className="section-title">🔒 Security Maturity</h3>
+          {renderSecurity(service)}
+        </div>
+
+        {/* DORA Metrics Card */}
+        <div className="scorecard-section">
+          <h3 className="section-title">🚀 DORA Metrics</h3>
+          {renderDORA(service)}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// Related Entities Tab
+function renderRelatedEntities(_service) {
+  // Note: service parameter available for future use to show actual related entities
+  return (
+    <div className="tab-content">
+      <div className="related-entities-header">
+        <h2 className="entities-title">Related Entities</h2>
+        <div className="entities-controls">
+          <button className="control-btn">
+            <span className="icon">⚙</span>
+          </button>
+          <button className="control-btn">
+            <span className="icon">⋮</span>
+          </button>
+          <button className="control-btn">
+            <span className="icon">⊞</span>
+          </button>
+          <button className="control-btn">
+            <span className="icon">↓</span>
+          </button>
+        </div>
+      </div>
+
+      <div className="entities-tabs">
+        <button className="entity-tab active">
+          <span className="tab-icon">📦</span> Module <span className="tab-badge">+</span>
+        </button>
+        <button className="entity-tab">
+          <span className="tab-icon">🗄️</span> Repository <span className="tab-badge">+</span>
+        </button>
+        <button className="entity-tab">
+          <span className="tab-icon">👤</span> User <span className="tab-badge">+</span>
+        </button>
+        <button className="entity-tab">
+          <span className="tab-icon">👥</span> Team <span className="tab-badge">+</span>
+        </button>
+        <button className="entity-tab">
+          <span className="tab-icon">👥</span> GitHub Team <span className="tab-badge">+</span>
+        </button>
+        <button className="entity-tab">
+          <span className="tab-icon">🏢</span> Organization <span className="tab-badge">+</span>
+        </button>
+        <button className="entity-tab-add">+</button>
+      </div>
+
+      <div className="entities-toolbar">
+        <div className="toolbar-left">
+          <input type="text" className="search-columns" placeholder="🔍 Search columns" />
+        </div>
+        <div className="toolbar-right">
+          <button className="toolbar-icon-btn" title="Filter">≡</button>
+          <button className="toolbar-icon-btn" title="Sort">⇅</button>
+          <button className="toolbar-icon-btn" title="Group">⊞</button>
+          <button className="toolbar-icon-btn" title="Settings">⚙</button>
+          <button className="toolbar-icon-btn" title="Download">↓</button>
+        </div>
+      </div>
+
+      <div className="entities-table-wrapper">
+        <table className="entities-data-table">
+          <thead>
+            <tr>
+              <th className="col-title">
+                <div className="th-content">
+                  <span className="col-icon">📝</span>
+                  Title
+                </div>
+              </th>
+              <th className="col-update">
+                <div className="th-content">
+                  <span className="col-icon">🕐</span>
+                  Last Update
+                </div>
+              </th>
+              <th className="col-created">
+                <div className="th-content">
+                  <span className="col-icon">📅</span>
+                  Entity Creation Date
+                </div>
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr className="entity-row">
+              <td>
+                <div className="entity-title">
+                  <span className="entity-icon">📦</span>
+                  <span className="entity-name">drm / drp-drs</span>
+                </div>
+              </td>
+              <td className="entity-date">5 days ago</td>
+              <td className="entity-date">14 days ago</td>
+            </tr>
+          </tbody>
+        </table>
+        <div className="table-footer">
+          <span className="result-count">1 results</span>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// Runs Tab
+function renderRuns(service) {
+  return (
+    <div className="tab-content">
+      <div className="runs-container">
+        <div className="runs-header">
+          <h3>CI/CD Pipeline Runs</h3>
+          <p className="runs-description">Recent deployment and build runs for {service.name}</p>
+        </div>
+        <div className="runs-list">
+          <div className="run-item">
+            <div className="run-status success">✓</div>
+            <div className="run-details">
+              <div className="run-title">Production Deployment</div>
+              <div className="run-meta">main branch • {service.lastDeployed}</div>
+            </div>
+            <div className="run-duration">2m 34s</div>
+          </div>
+          <div className="run-item">
+            <div className="run-status success">✓</div>
+            <div className="run-details">
+              <div className="run-title">Build & Test</div>
+              <div className="run-meta">main branch • 4 hours ago</div>
+            </div>
+            <div className="run-duration">5m 12s</div>
+          </div>
+          <div className="run-item">
+            <div className="run-status success">✓</div>
+            <div className="run-details">
+              <div className="run-title">Security Scan</div>
+              <div className="run-meta">main branch • 1 day ago</div>
+            </div>
+            <div className="run-duration">3m 45s</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// Audit Log Tab
+function renderAuditLog(service) {
+  return (
+    <div className="tab-content">
+      <div className="audit-container">
+        <div className="audit-header">
+          <h3>Audit Log</h3>
+          <p className="audit-description">Recent changes and activities for {service.name}</p>
+        </div>
+        <div className="audit-timeline">
+          <div className="audit-item">
+            <div className="audit-icon">📝</div>
+            <div className="audit-content">
+              <div className="audit-title">Service configuration updated</div>
+              <div className="audit-meta">by John Doe • {service.lastDeployed}</div>
+            </div>
+          </div>
+          <div className="audit-item">
+            <div className="audit-icon">🚀</div>
+            <div className="audit-content">
+              <div className="audit-title">Deployed to production</div>
+              <div className="audit-meta">by CI/CD Pipeline • 4 hours ago</div>
+            </div>
+          </div>
+          <div className="audit-item">
+            <div className="audit-icon">🔒</div>
+            <div className="audit-content">
+              <div className="audit-title">Security scan completed</div>
+              <div className="audit-meta">by Security Bot • 1 day ago</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// README Tab
+function renderReadme(service) {
+  return (
+    <div className="tab-content">
+      <div className="readme-container">
+        <div className="readme-header">
+          <h2>{service.name}</h2>
+          <p className="readme-description">{service.description}</p>
+        </div>
+        <div className="readme-content">
+          <h3>Overview</h3>
+          <p>This service is part of the {service.repository} and is maintained by the {service.team}.</p>
+
+          <h3>Key Features</h3>
+          <ul>
+            <li>High availability with {service.metrics?.pagerduty?.uptime || 99.9}% uptime</li>
+            <li>Automated CI/CD pipeline</li>
+            <li>Comprehensive monitoring and alerting</li>
+            <li>Security compliance with {service.securityMaturity?.owaspCompliance || 'OWASP'} standards</li>
+          </ul>
+
+          <h3>Technical Details</h3>
+          <ul>
+            <li><strong>Version:</strong> {service.version}</li>
+            <li><strong>Environment:</strong> {service.environment}</li>
+            <li><strong>Language:</strong> {service.metrics?.github?.language || 'N/A'}</li>
+            <li><strong>Code Coverage:</strong> {service.codeQuality?.codeCoverage || service.metrics?.github?.coverage || 0}%</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// GitHub README Tab
+function renderGitHubReadme(service) {
+  return (
+    <div className="tab-content">
+      <div className="readme-container">
+        <div className="readme-header">
+          <h2>GitHub README</h2>
+          <a href={service.github} target="_blank" rel="noopener noreferrer" className="github-link">
+            View on GitHub →
+          </a>
+        </div>
+        <div className="readme-content">
+          <p>This would display the README.md file from the GitHub repository.</p>
+          <p>Repository: <a href={service.github} target="_blank" rel="noopener noreferrer">{service.github}</a></p>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// GitHub CODEOWNERS Tab
+function renderCodeowners(service) {
+  return (
+    <div className="tab-content">
+      <div className="codeowners-container">
+        <div className="codeowners-header">
+          <h2>CODEOWNERS</h2>
+          <p className="codeowners-description">Code ownership and review requirements</p>
+        </div>
+        <div className="codeowners-content">
+          <div className="codeowners-section">
+            <h3>Team Ownership</h3>
+            <div className="owner-item">
+              <span className="owner-icon">👥</span>
+              <span className="owner-name">{service.team}</span>
+              <span className="owner-role">Primary Owner</span>
+            </div>
+          </div>
+          <div className="codeowners-section">
+            <h3>Review Requirements</h3>
+            <ul>
+              <li>Minimum {service.securityMaturity?.requiredApprovals || 2} approvals required</li>
+              <li>Branch protection: {service.securityMaturity?.branchProtection ? 'Enabled' : 'Disabled'}</li>
+              <li>Code review required before merge</li>
+            </ul>
+          </div>
         </div>
       </div>
     </div>

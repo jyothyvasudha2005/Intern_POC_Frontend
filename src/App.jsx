@@ -19,8 +19,7 @@ function App() {
     return localStorage.getItem('gtp-theme') || 'dark'
   })
 
-  // Persist repository selection state
-  const [mountedRepo, setMountedRepo] = useState(null)
+  // Repository filter state
   const [selectedRepo, setSelectedRepo] = useState('')
 
   // Check for existing user on mount
@@ -325,8 +324,6 @@ function App() {
             <ServiceCatalogue
               onServiceClick={handleServiceClick}
               onScorecardClick={handleScorecardClick}
-              mountedRepo={mountedRepo}
-              setMountedRepo={setMountedRepo}
               selectedRepo={selectedRepo}
               setSelectedRepo={setSelectedRepo}
             />
@@ -338,17 +335,26 @@ function App() {
 
   // Service Metrics/Scorecard view (when a service is selected)
   if (selectedService) {
+    // For ServiceMetrics, render without the content wrapper for full-page layout
+    if (viewMode !== 'scorecard') {
+      return (
+        <div className={`app ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
+          {renderSidebar()}
+          <div className="main-content">
+            <ServiceMetrics serviceId={selectedService.id} onClose={handleBackToServices} />
+          </div>
+        </div>
+      )
+    }
+
+    // For ServiceScorecard, keep the original layout
     return (
       <div className={`app ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
         {renderSidebar()}
         <div className="main-content">
           {renderHeader()}
           <div className="content">
-            {viewMode === 'scorecard' ? (
-              <ServiceScorecard service={selectedService} onBack={handleBackToServices} />
-            ) : (
-              <ServiceMetrics serviceId={selectedService.id} onClose={handleBackToServices} />
-            )}
+            <ServiceScorecard service={selectedService} onBack={handleBackToServices} />
           </div>
         </div>
       </div>

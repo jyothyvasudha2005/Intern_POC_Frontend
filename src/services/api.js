@@ -4,7 +4,10 @@
  * Replace BASE_URL with your Go backend URL when ready
  */
 
+import { repositoryServices } from '../data/servicesData'
+
 const BASE_URL = 'http://localhost:3001'
+const USE_DUMMY_DATA = true // Set to false when backend is ready
 
 /**
  * Generic fetch wrapper with error handling
@@ -31,52 +34,109 @@ async function fetchAPI(endpoint, options = {}) {
 }
 
 /**
+ * Get all services from dummy data
+ */
+function getAllServicesFromDummyData() {
+  const allServices = []
+  Object.values(repositoryServices).forEach(services => {
+    allServices.push(...services)
+  })
+  return allServices
+}
+
+/**
  * Service Endpoints
  * These endpoint names match the Go backend structure
  */
 
 // Get all services
 export async function getAllServices() {
+  if (USE_DUMMY_DATA) {
+    // Return dummy data
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        resolve(getAllServicesFromDummyData())
+      }, 300) // Simulate network delay
+    })
+  }
   return fetchAPI('/services')
 }
 
 // Get single service by ID
 export async function getServiceById(id) {
+  if (USE_DUMMY_DATA) {
+    // Return dummy data
+    return new Promise((resolve, reject) => {
+      setTimeout(() => {
+        const allServices = getAllServicesFromDummyData()
+        const service = allServices.find(s => s.id === id)
+        if (service) {
+          resolve(service)
+        } else {
+          reject(new Error(`Service with id ${id} not found`))
+        }
+      }, 300) // Simulate network delay
+    })
+  }
   return fetchAPI(`/services/${id}`)
 }
 
 // Get PR Metrics for a service
 export async function getPRMetrics(serviceId) {
+  if (USE_DUMMY_DATA) {
+    const service = await getServiceById(serviceId)
+    return service.metrics?.github || {}
+  }
   const service = await getServiceById(serviceId)
   return service.prMetrics
 }
 
 // Get Code Quality metrics
 export async function getCodeQuality(serviceId) {
+  if (USE_DUMMY_DATA) {
+    const service = await getServiceById(serviceId)
+    return service.metrics?.github || {}
+  }
   const service = await getServiceById(serviceId)
   return service.codeQuality
 }
 
 // Get Security Maturity metrics
 export async function getSecurityMaturity(serviceId) {
+  if (USE_DUMMY_DATA) {
+    const service = await getServiceById(serviceId)
+    return service.metrics?.github || {}
+  }
   const service = await getServiceById(serviceId)
   return service.securityMaturity
 }
 
 // Get DORA Metrics
 export async function getDORAMetrics(serviceId) {
+  if (USE_DUMMY_DATA) {
+    const service = await getServiceById(serviceId)
+    return service.metrics?.github || {}
+  }
   const service = await getServiceById(serviceId)
   return service.doraMetrics
 }
 
 // Get Production Readiness
 export async function getProductionReadiness(serviceId) {
+  if (USE_DUMMY_DATA) {
+    const service = await getServiceById(serviceId)
+    return service.metrics?.pagerduty || {}
+  }
   const service = await getServiceById(serviceId)
   return service.productionReadiness
 }
 
 // Get Jira Metrics
 export async function getJiraMetrics(serviceId) {
+  if (USE_DUMMY_DATA) {
+    const service = await getServiceById(serviceId)
+    return service.metrics?.jira || {}
+  }
   const service = await getServiceById(serviceId)
   return service.jiraMetrics
 }
