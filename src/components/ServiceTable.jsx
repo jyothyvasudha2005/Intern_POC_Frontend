@@ -2,11 +2,19 @@ import { useState } from 'react'
 import '../styles/ServiceTable.css'
 import githubIcon from '../assets/github-sign.png'
 import jiraIcon from '../assets/jira.png'
-import pagerdutyIcon from '../assets/pagerduty.png'
 
 function ServiceTable({ services, onServiceClick, onScorecardClick }) {
   const [sortColumn, setSortColumn] = useState('name')
   const [sortDirection, setSortDirection] = useState('asc')
+
+  const handleRowClick = (service) => {
+    console.log('🖱️ Row clicked in ServiceTable:', service.name)
+    if (onServiceClick) {
+      onServiceClick(service)
+    } else {
+      console.error('❌ onServiceClick is not defined!')
+    }
+  }
 
   const handleSort = (column) => {
     if (sortColumn === column) {
@@ -68,7 +76,6 @@ function ServiceTable({ services, onServiceClick, onScorecardClick }) {
             </th>
             <th>GitHub</th>
             <th>Jira</th>
-            <th>PagerDuty</th>
             <th onClick={() => handleSort('status')}>
               <div className="th-content">
                 Status
@@ -84,7 +91,7 @@ function ServiceTable({ services, onServiceClick, onScorecardClick }) {
           {sortedServices.map((service) => (
             <tr
               key={`${service.repositoryKey || 'default'}-${service.id}`}
-              onClick={() => onServiceClick(service)}
+              onClick={() => handleRowClick(service)}
               className="service-row"
             >
               <td className="service-name-cell">
@@ -121,18 +128,6 @@ function ServiceTable({ services, onServiceClick, onScorecardClick }) {
                 >
                   <img src={jiraIcon} alt="Jira" className="link-icon-img" />
                   View Board
-                </a>
-              </td>
-              <td>
-                <a
-                  href={service.pagerduty}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={(e) => e.stopPropagation()}
-                  className="external-link"
-                >
-                  <img src={pagerdutyIcon} alt="PagerDuty" className="link-icon-img" />
-                  View Service
                 </a>
               </td>
               <td>

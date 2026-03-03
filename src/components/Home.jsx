@@ -3,98 +3,108 @@ import '../styles/Home.css'
 import DeveloperChatbot from './DeveloperChatbot'
 import DeveloperSelfService from './DeveloperSelfService'
 
+// Mock data OUTSIDE component to prevent re-creation
+const mockServices = [
+  {
+    title: 'ARC Parts Purchase Order Service',
+    repositoryUrl: 'https://github.com/example/arc-parts',
+    disposition: 'Active',
+    region: 'US',
+    product: 'Automotive Retail Cloud (ARC)',
+    persona: 'Per'
+  },
+  {
+    title: 'drp-drs-aec-cp-scx-core',
+    repositoryUrl: 'https://github.com/example/drp-core',
+    disposition: 'Active',
+    region: 'US',
+    product: 'DRP',
+    persona: null
+  },
+  {
+    title: 'persona-ai-global-persona-ai-gitlab-pipeline-policies',
+    repositoryUrl: 'https://github.com/example/persona-ai',
+    disposition: 'Migration',
+    region: 'Global',
+    product: 'Persona',
+    persona: 'Per'
+  }
+]
+
+// Global fetch tracker to prevent multiple calls
+let fetchAttempts = 0
+const MAX_FETCH_ATTEMPTS = 1
+
 function Home({ onNavigate, user }) {
-  const [services, setServices] = useState([])
-  const [loading, setLoading] = useState(true)
+  const [services, setServices] = useState(mockServices) // Start with mock data
+  const [loading, setLoading] = useState(false) // Don't load automatically
   const [error, setError] = useState(null)
-  const [useMockData, setUseMockData] = useState(false)
+  const [useMockData, setUseMockData] = useState(true) // Default to mock data
+  const [hasFetched, setHasFetched] = useState(false)
 
-  // Mock data for testing when backend is not available
-  const mockServices = [
-    {
-      title: 'ARC Parts Purchase Order Service',
-      repositoryUrl: 'https://github.com/example/arc-parts',
-      disposition: 'Active',
-      region: 'US',
-      product: 'Automotive Retail Cloud (ARC)',
-      persona: 'Per'
-    },
-    {
-      title: 'drp-drs-aec-cp-scx-core',
-      repositoryUrl: 'https://github.com/example/drp-core',
-      disposition: 'Active',
-      region: 'US',
-      product: 'DRP',
-      persona: null
-    },
-    {
-      title: 'persona-ai-global-persona-ai-gitlab-pipeline-policies',
-      repositoryUrl: 'https://github.com/example/persona-ai',
-      disposition: 'Migration',
-      region: 'Global',
-      product: 'Persona',
-      persona: 'Per'
-    }
-  ]
-  // Fetch services from API or use mock data
+  // NO automatic fetching - only manual
   useEffect(() => {
-    const fetchServices = async () => {
-      try {
-        setLoading(true)
+    console.log('🏠 Home component mounted - Using MOCK data by default')
+    console.log('💡 API fetching is DISABLED to prevent CORS errors')
+  }, [])
 
-        // If mock data is enabled, use it instead of API
-        if (useMockData) {
-          console.log('Using mock data...')
-          setTimeout(() => {
-            setServices(mockServices)
-            setError(null)
-            setLoading(false)
-          }, 500) // Simulate network delay
-          return
-        }
-
-        console.log('Fetching services from API...')
-
-        const response = await fetch('http://10.140.8.28:8089/onboarding/api/services', {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          mode: 'cors', // Enable CORS
-        })
-
-        console.log('Response status:', response.status)
-
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`)
-        }
-
-        const data = await response.json()
-        console.log('Services data received:', data)
-        setServices(data)
-        setError(null)
-      } catch (err) {
-        console.error('Error fetching services:', err)
-
-        // Provide more detailed error message
-        let errorMessage = 'Failed to fetch services. '
-        if (err.message.includes('Failed to fetch')) {
-          errorMessage += 'Cannot connect to backend server. Please check:\n' +
-                         '1. Backend server is running on 10.140.8.28:8089\n' +
-                         '2. You are on the same WiFi network\n' +
-                         '3. Firewall is not blocking the connection'
-        } else {
-          errorMessage += err.message
-        }
-
-        setError(errorMessage)
-      } finally {
-        setLoading(false)
-      }
+  // Manual fetch function (not used automatically)
+  const fetchServices = async () => {
+    // Prevent multiple attempts
+    if (fetchAttempts >= MAX_FETCH_ATTEMPTS) {
+      console.log('🛑 Already attempted to fetch. Refresh page to try again.')
+      return
     }
 
-    fetchServices()
-  }, [useMockData, mockServices])
+    if (hasFetched) {
+      console.log('🛑 Already fetched. Using cached data.')
+      return
+    }
+
+    try {
+      setLoading(true)
+      fetchAttempts++
+      console.log(`🔄 Fetching services from API... (Attempt ${fetchAttempts}/${MAX_FETCH_ATTEMPTS})`)
+
+      const response = await fetch('http://10.140.8.28:8089/onboarding/api/services', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        mode: 'cors',
+      })
+
+      console.log('Response status:', response.status)
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+
+      const data = await response.json()
+      console.log('✅ Services data received:', data)
+      setServices(data)
+      setError(null)
+      setUseMockData(false)
+      setHasFetched(true)
+    } catch (err) {
+      console.error('❌ Error fetching services:', err)
+
+      let errorMessage = 'Failed to fetch services. '
+      if (err.message.includes('Failed to fetch') || err.message.includes('403')) {
+        errorMessage += 'CORS error or backend unavailable. Using mock data.'
+      } else {
+        errorMessage += err.message
+      }
+
+      setError(errorMessage)
+      setServices(mockServices) // Fallback to mock
+      setUseMockData(true)
+      setHasFetched(true)
+    } finally {
+      setLoading(false)
+      console.log('🛑 Fetch attempt complete. Will not retry.')
+    }
+  }
 
   const modules = [
     {
