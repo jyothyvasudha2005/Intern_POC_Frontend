@@ -71,19 +71,27 @@ export const onboardService = async (serviceData) => {
   }
 
   try {
+    // Construct payload matching backend API requirements
     const payload = {
-      serviceName: serviceData.name,
+      serviceName: serviceData.name || serviceData.serviceName || '',
       description: serviceData.description || '',
       team: serviceData.team || '',
       repositoryUrl: serviceData.github || serviceData.repositoryUrl || '',
-      lifecycle: serviceData.environment || 'development',
+      lifecycle: serviceData.environment || serviceData.lifecycle || 'development',
       language: serviceData.language || 'Unknown',
-      tags: serviceData.tags || []
+      tags: Array.isArray(serviceData.tags) ? serviceData.tags : []
     }
 
+    // Validate required fields
+    if (!payload.serviceName) {
+      throw new Error('Service name is required')
+    }
+
+    console.log('📤 Sending onboarding request:', payload)
+
     const response = await apiClient.post(API_ENDPOINTS.ONBOARDING_CREATE, payload)
-    
-    console.log('✅ Service onboarded via API')
+
+    console.log('✅ Service onboarded via API:', response.data)
     return {
       success: true,
       data: response.data,
@@ -91,9 +99,12 @@ export const onboardService = async (serviceData) => {
     }
   } catch (error) {
     console.error('❌ Error onboarding service:', error.message)
+    console.error('Error details:', error.response?.data)
+
     return {
       success: false,
-      error: error.response?.data?.message || error.message,
+      error: error.response?.data?.error || error.response?.data?.message || error.message,
+      details: error.response?.data?.details || null,
       isMock: false
     }
   }

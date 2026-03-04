@@ -192,7 +192,7 @@ function ServiceMetrics({ serviceId, onClose }) {
         {activeTab === 'scorecards' && renderScorecards(service, getPRBadge, getQualityBadge)}
         {activeTab === 'related' && renderRelatedEntities(service)}
         {activeTab === 'runs' && renderRuns(service)}
-        {activeTab === 'audit' && renderAuditLog(service)}
+        {activeTab === 'audit' && renderAuditLogTable(service)}
         {activeTab === 'readme' && renderReadme(service)}
         {activeTab === 'github-readme' && renderGitHubReadme(service)}
         {activeTab === 'codeowners' && renderCodeowners(service)}
@@ -201,59 +201,174 @@ function ServiceMetrics({ serviceId, onClose }) {
   )
 }
 
-// Overview Tab
+// Overview Tab - Port-style Details
 function renderOverview(service) {
-  const allMetrics = [
-    { category: 'PR Metrics', score: calculatePRScore(service.prMetrics), color: COLORS.primary },
-    { category: 'Code Quality', score: calculateQualityScore(service.codeQuality), color: COLORS.success },
-    { category: 'Security', score: calculateSecurityScore(service.securityMaturity), color: COLORS.warning },
-    { category: 'DORA', score: calculateDORAScore(service.doraMetrics), color: COLORS.info },
-    { category: 'Production', score: service.productionReadiness?.pagerdutyIntegration && service.productionReadiness?.observabilityDashboard ? 100 : 50, color: COLORS.danger }
-  ]
+  const getStatusBadge = (status) => {
+    const statusMap = {
+      'Healthy': { color: '#44ff44', text: 'Healthy' },
+      'active': { color: '#44ff44', text: 'Active' },
+      'Unknown': { color: '#888', text: 'Unknown' }
+    }
+    return statusMap[status] || statusMap['Unknown']
+  }
+
+  const healthBadge = getStatusBadge(service.healthStatus || service.status)
+  const pagerdutyBadge = getStatusBadge(service.pagerdutyStatus)
 
   return (
     <div className="tab-content">
-      <div className="overview-grid">
-        <div className="chart-card">
-          <h3>Overall Health Score</h3>
-          <ResponsiveContainer width="100%" height={300}>
-            <RadarChart data={allMetrics}>
-              <PolarGrid stroke="#E5E7EB" />
-              <PolarAngleAxis dataKey="category" tick={{ fill: 'var(--text-primary)', fontSize: 12 }} />
-              <PolarRadiusAxis angle={90} domain={[0, 100]} tick={{ fill: 'var(--text-secondary)', fontSize: 10 }} />
-              <Radar name="Score" dataKey="score" stroke={COLORS.primary} fill={COLORS.primary} fillOpacity={0.6} />
-              <Tooltip />
-            </RadarChart>
-          </ResponsiveContainer>
+      <div className="port-details-grid">
+        {/* Left Column - Details */}
+        <div className="port-details-section">
+          <h3 className="port-section-title">
+            <span className="port-icon">ℹ️</span>
+            Details
+          </h3>
+          <div className="port-details-list">
+            <div className="port-detail-item">
+              <div className="port-detail-label">
+                <span className="port-label-icon">📝</span>
+                Title
+              </div>
+              <div className="port-detail-value">{service.title || service.name}</div>
+            </div>
+
+            <div className="port-detail-item">
+              <div className="port-detail-label">
+                <span className="port-label-icon">💎</span>
+                Language
+              </div>
+              <div className="port-detail-value">
+                <span className="port-badge language-badge">{service.language || service.metrics?.github?.language || 'Unknown'}</span>
+              </div>
+            </div>
+
+            <div className="port-detail-item">
+              <div className="port-detail-label">
+                <span className="port-label-icon">⚙️</span>
+                Type
+              </div>
+              <div className="port-detail-value">
+                <span className="port-badge type-badge">{service.type || 'Backend'}</span>
+              </div>
+            </div>
+
+            <div className="port-detail-item">
+              <div className="port-detail-label">
+                <span className="port-label-icon">🔄</span>
+                Lifecycle
+              </div>
+              <div className="port-detail-value">
+                <span className="port-badge lifecycle-badge">{service.lifecycle || service.environment}</span>
+              </div>
+            </div>
+
+            <div className="port-detail-item">
+              <div className="port-detail-label">
+                <span className="port-label-icon">⚙️</span>
+                Runbooks
+              </div>
+              <div className="port-detail-value port-links">
+                {service.runbooks && service.runbooks.length > 0 ? (
+                  service.runbooks.map((link, idx) => (
+                    <a key={idx} href={link} target="_blank" rel="noopener noreferrer" className="port-link-icon" title="Runbook">
+                      🔗
+                    </a>
+                  ))
+                ) : '-'}
+              </div>
+            </div>
+
+            <div className="port-detail-item">
+              <div className="port-detail-label">
+                <span className="port-label-icon">📊</span>
+                Monitor Dashboards
+              </div>
+              <div className="port-detail-value port-links">
+                {service.monitorDashboards && service.monitorDashboards.length > 0 ? (
+                  service.monitorDashboards.map((link, idx) => (
+                    <a key={idx} href={link} target="_blank" rel="noopener noreferrer" className="port-link-icon" title="Dashboard">
+                      📈
+                    </a>
+                  ))
+                ) : '-'}
+              </div>
+            </div>
+
+            <div className="port-detail-item">
+              <div className="port-detail-label">
+                <span className="port-label-icon">👤</span>
+                On Call
+              </div>
+              <div className="port-detail-value">{service.onCall || service.metrics?.pagerduty?.onCall || '-'}</div>
+            </div>
+
+            <div className="port-detail-item">
+              <div className="port-detail-label">
+                <span className="port-label-icon">🔗</span>
+                URL
+              </div>
+              <div className="port-detail-value">
+                {service.url || service.github ? (
+                  <a href={service.url || service.github} target="_blank" rel="noopener noreferrer" className="port-link">
+                    🔗
+                  </a>
+                ) : '-'}
+              </div>
+            </div>
+
+            <div className="port-detail-item">
+              <div className="port-detail-label">
+                <span className="port-label-icon">🔄</span>
+                Sync Status in Prod
+              </div>
+              <div className="port-detail-value">
+                <span className="port-badge sync-badge">{service.syncStatusInProd || 'Unknown'}</span>
+              </div>
+            </div>
+          </div>
         </div>
 
-        <div className="stats-grid">
-          <div className="stat-card">
-            <div className="stat-icon" style={{ background: COLORS.primary }}>🔄</div>
-            <div className="stat-content">
-              <div className="stat-label">Weekly Merged PRs</div>
-              <div className="stat-value">{service.prMetrics?.weeklyMergedPRs || 'N/A'}</div>
+        {/* Right Column - Service Scorecards */}
+        <div className="port-scorecards-section">
+          <h3 className="port-section-title">
+            <span className="port-icon">🏆</span>
+            Service Scorecards
+          </h3>
+          <div className="port-scorecards-list">
+            <div className="port-scorecard-item">
+              <div className="port-scorecard-label">Has Wiz Scan</div>
+              <div className="port-scorecard-value">
+                <span className="port-badge badge-false">False</span>
+              </div>
             </div>
-          </div>
-          <div className="stat-card">
-            <div className="stat-icon" style={{ background: COLORS.success }}>✅</div>
-            <div className="stat-content">
-              <div className="stat-label">Code Coverage</div>
-              <div className="stat-value">{service.codeQuality?.codeCoverage ? `${service.codeQuality.codeCoverage}%` : 'N/A'}</div>
+
+            <div className="port-scorecard-item">
+              <div className="port-scorecard-label">PR Metrics</div>
+              <div className="port-scorecard-value">
+                <span className="port-badge badge-basic">Basic</span>
+              </div>
             </div>
-          </div>
-          <div className="stat-card">
-            <div className="stat-icon" style={{ background: COLORS.warning }}>🔒</div>
-            <div className="stat-content">
-              <div className="stat-label">Security Level</div>
-              <div className="stat-value">{service.securityMaturity?.owaspCompliance || 'N/A'}</div>
+
+            <div className="port-scorecard-item">
+              <div className="port-scorecard-label">DORA Metrics</div>
+              <div className="port-scorecard-value">
+                <span className="port-badge badge-elite">Elite</span>
+              </div>
             </div>
-          </div>
-          <div className="stat-card">
-            <div className="stat-icon" style={{ background: COLORS.danger }}>🚨</div>
-            <div className="stat-content">
-              <div className="stat-label">High Priority Bugs</div>
-              <div className="stat-value">{service.jiraMetrics?.openHighPriorityBugs || 0}</div>
+
+            <div className="port-scorecard-item">
+              <div className="port-scorecard-label">Code Quality</div>
+              <div className="port-scorecard-value">
+                <span className="port-badge badge-bronze">Bronze</span>
+              </div>
+            </div>
+
+            <div className="port-scorecard-item">
+              <div className="port-scorecard-label">Security Maturity</div>
+              <div className="port-scorecard-value">
+                <span className="port-badge badge-basic">Basic</span>
+              </div>
             </div>
           </div>
         </div>
@@ -848,6 +963,91 @@ function renderAuditLog(service) {
               <div className="audit-meta">by Security Bot • 1 day ago</div>
             </div>
           </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function getCommitsForService(service) {
+  const author = service.lastCommitter || service.metrics?.github?.lastCommitter || 'Auto-bot'
+  const lastCommitTime = service.metrics?.github?.lastCommit || service.lastDeployed || 'recently'
+
+  return [
+    {
+      id: 1,
+      message: `Refine ${(service.title || service.name || 'service')} deployment pipeline`,
+      author,
+      time: lastCommitTime,
+      sha: 'a1b2c3d'
+    },
+    {
+      id: 2,
+      message: 'Update dependencies and apply security patches',
+      author,
+      time: '1 day ago',
+      sha: 'e5f6g7h'
+    },
+    {
+      id: 3,
+      message: 'Improve logging and observability',
+      author,
+      time: '2 days ago',
+      sha: 'i8j9k0l'
+    },
+    {
+      id: 4,
+      message: 'Refactor legacy modules for better maintainability',
+      author,
+      time: '3 days ago',
+      sha: 'm1n2o3p'
+    },
+    {
+      id: 5,
+      message: 'Initial service bootstrap',
+      author,
+      time: '1 week ago',
+      sha: 'q4r5s6t'
+    }
+  ]
+}
+
+function renderAuditLogTable(service) {
+  const commits = getCommitsForService(service)
+
+  return (
+    <div className="tab-content">
+      <div className="audit-container">
+        <div className="audit-header">
+          <h3>Audit Log</h3>
+          <p className="audit-description">Recent commits and activities for {service.name}</p>
+        </div>
+
+        <div className="audit-table-container">
+          <table className="audit-table">
+            <thead>
+              <tr>
+                <th>Message</th>
+                <th>Author</th>
+                <th>Time</th>
+                <th>Commit</th>
+              </tr>
+            </thead>
+            <tbody>
+              {commits.map((commit) => (
+                <tr key={commit.id}>
+                  <td className="commit-message-cell">
+                    <div className="commit-message">{commit.message}</div>
+                  </td>
+                  <td>{commit.author}</td>
+                  <td>{commit.time}</td>
+                  <td>
+                    <code className="commit-sha">{commit.sha}</code>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>

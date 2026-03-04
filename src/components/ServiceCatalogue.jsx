@@ -141,7 +141,13 @@ function ServiceCatalogue({ onServiceClick, onScorecardClick, selectedRepo, setS
       await loadServices()
     } else {
       console.error('❌ Failed to onboard service:', result.error)
-      alert('Failed to onboard service: ' + result.error)
+      if (result.details) {
+        console.error('Error details:', result.details)
+      }
+      const errorMessage = result.details
+        ? `${result.error}\n\nDetails: ${result.details}`
+        : result.error
+      alert('Failed to onboard service: ' + errorMessage)
     }
 
     // Create local service object for immediate display (fallback)

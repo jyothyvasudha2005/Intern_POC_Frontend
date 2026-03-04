@@ -1,7 +1,5 @@
 import { useState, useEffect } from 'react'
 import '../styles/Home.css'
-import DeveloperChatbot from './DeveloperChatbot'
-import DeveloperSelfService from './DeveloperSelfService'
 
 // Mock data OUTSIDE component to prevent re-creation
 const mockServices = [
@@ -177,16 +175,6 @@ function Home({ onNavigate, user }) {
               <div className="stat-number">3</div>
               <div className="stat-label">Alerts</div>
             </div>
-          </div>
-        </div>
-
-        {/* Developer Tools Section */}
-        <div className="developer-tools-section">
-          <div className="chatbot-section">
-            <DeveloperChatbot />
-          </div>
-          <div className="self-service-section">
-            <DeveloperSelfService onNavigate={onNavigate} />
           </div>
         </div>
 

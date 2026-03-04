@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import './App.css'
 import Login from './components/Login'
 import Home from './components/Home'
+import DeveloperDashboard from './components/DeveloperDashboard'
 import ServiceCatalogue from './components/ServiceCatalogue'
 import ServiceMetrics from './components/ServiceMetrics'
 import ServiceScorecard from './components/ServiceScorecard'
@@ -88,7 +89,8 @@ function App() {
     }
 
     const titles = {
-      'home': 'Dashboard',
+      'home': 'Services Dashboard',
+      'developer-dashboard': 'Developer Dashboard',
       'service-catalogue': 'Service Catalogue',
       'scorecard-viewer': 'Scorecard Viewer',
       'regression-testing': 'Regression Testing',
@@ -106,7 +108,8 @@ function App() {
     }
 
     const descriptions = {
-      'home': 'Welcome to your DevOps management platform',
+      'home': 'View and manage all your services',
+      'developer-dashboard': 'Your personal workspace with PRs, tasks, and AI assistant',
       'service-catalogue': 'Browse and manage your services across repositories',
       'scorecard-viewer': 'View quality scorecards across all services and teams',
       'regression-testing': 'Automated regression testing for your services',
@@ -203,7 +206,7 @@ function App() {
           <button
             className={`nav-item ${currentView === 'home' ? 'active' : ''}`}
             onClick={() => handleNavigate('home')}
-            title="Dashboard"
+            title="Services Dashboard"
           >
             <svg className="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <rect x="3" y="3" width="7" height="7"></rect>
@@ -211,7 +214,18 @@ function App() {
               <rect x="14" y="14" width="7" height="7"></rect>
               <rect x="3" y="14" width="7" height="7"></rect>
             </svg>
-            {!sidebarCollapsed && <span>Dashboard</span>}
+            {!sidebarCollapsed && <span>Services</span>}
+          </button>
+          <button
+            className={`nav-item ${currentView === 'developer-dashboard' ? 'active' : ''}`}
+            onClick={() => handleNavigate('developer-dashboard')}
+            title="Developer Dashboard"
+          >
+            <svg className="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <polyline points="16 18 22 12 16 6"></polyline>
+              <polyline points="8 6 2 12 8 18"></polyline>
+            </svg>
+            {!sidebarCollapsed && <span>Developer</span>}
           </button>
           <button
             className={`nav-item ${currentView === 'service-catalogue' ? 'active' : ''}`}
@@ -300,7 +314,7 @@ function App() {
     return <Login onLogin={handleLogin} />
   }
 
-  // If on home view, show home dashboard
+  // If on home view, show home dashboard (Services only)
   if (currentView === 'home') {
     return (
       <div className={`app ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
@@ -309,6 +323,21 @@ function App() {
           {renderHeader()}
           <div className="content">
             <Home onNavigate={handleNavigate} user={user} />
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // Developer Dashboard view
+  if (currentView === 'developer-dashboard') {
+    return (
+      <div className={`app ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
+        {renderSidebar()}
+        <div className="main-content">
+          {renderHeader()}
+          <div className="content">
+            <DeveloperDashboard onNavigate={handleNavigate} user={user} />
           </div>
         </div>
       </div>

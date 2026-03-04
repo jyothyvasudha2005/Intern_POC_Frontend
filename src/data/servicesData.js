@@ -10,16 +10,37 @@ export const repositoryServices = {
     {
       id: 1,
       name: 'User Service',
+      title: 'User Service',
       icon: '👤',
       team: 'Platform Team',
+      owningTeam: 'Platform Team',
       github: 'https://github.com/example/user-service',
+      url: 'https://github.com/example/user-service',
       jira: 'https://jira.example.com/projects/USER',
       pagerduty: 'https://pagerduty.com/services/user-service',
       status: 'Healthy',
       description: 'Manages user authentication, profiles, and permissions',
       version: 'v2.4.1',
       environment: 'Production',
+      lifecycle: 'Production',
       lastDeployed: '2 hours ago',
+      language: 'Go',
+      lastCommitter: 'John Doe',
+      onCall: 'John Doe',
+      tier: 'Tier 1',
+      slack: '#platform-team',
+      sonarProject: 'user-service',
+      domain: 'Authentication',
+      locked: false,
+      // Port-style details
+      healthStatus: 'Healthy',
+      pagerdutyStatus: 'active',
+      numberOfOpenIncidents: 1,
+      syncStatusInProd: 'Unknown',
+      type: 'Backend',
+      runbooks: ['https://runbook.example.com/user-service'],
+      monitorDashboards: ['https://grafana.example.com/user-service'],
+
       metrics: {
         github: {
           language: 'Go',
@@ -27,6 +48,7 @@ export const repositoryServices = {
           mergedPRs: 45,
           contributors: 12,
           lastCommit: '2 hours ago',
+          lastCommitter: 'John Doe',
           coverage: 87
         },
         jira: {
@@ -83,16 +105,38 @@ export const repositoryServices = {
     {
       id: 2,
       name: 'Product Catalog Service',
+      title: 'Product Catalog Service',
       icon: '📦',
       team: 'Catalog Team',
+      owningTeam: 'Catalog Team',
       github: 'https://github.com/example/product-catalog',
+      url: 'https://github.com/example/product-catalog',
       jira: 'https://jira.example.com/projects/CATALOG',
       pagerduty: 'https://pagerduty.com/services/product-catalog',
       status: 'Healthy',
       description: 'Manages product listings, inventory, and search',
       version: 'v3.1.0',
       environment: 'Production',
+      lifecycle: 'Production',
       lastDeployed: '1 day ago',
+      language: 'Python',
+      lastCommitter: 'Jane Smith',
+      onCall: 'Jane Smith',
+      tier: 'Tier 1',
+      slack: '#catalog-team',
+      sonarProject: 'product-catalog',
+      domain: 'E-Commerce',
+      locked: false,
+
+      // Port-style details
+      healthStatus: 'Healthy',
+      pagerdutyStatus: 'active',
+      numberOfOpenIncidents: 0,
+      syncStatusInProd: 'Unknown',
+      type: 'Backend',
+      runbooks: ['https://runbook.example.com/product-catalog'],
+      monitorDashboards: ['https://grafana.example.com/product-catalog'],
+
       metrics: {
         github: {
           language: 'Python',
@@ -100,6 +144,7 @@ export const repositoryServices = {
           mergedPRs: 67,
           contributors: 8,
           lastCommit: '5 hours ago',
+          lastCommitter: 'Jane Smith',
           coverage: 92
         },
         jira: {

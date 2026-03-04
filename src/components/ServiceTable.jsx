@@ -50,36 +50,50 @@ function ServiceTable({ services, onServiceClick, onScorecardClick }) {
       <table className="service-table">
         <thead>
           <tr>
-            <th onClick={() => handleSort('name')}>
+            <th onClick={() => handleSort('title')}>
               <div className="th-content">
-                Service Name
-                {sortColumn === 'name' && (
+                Title
+                {sortColumn === 'title' && (
                   <span className="sort-icon">{sortDirection === 'asc' ? '↑' : '↓'}</span>
                 )}
               </div>
             </th>
-            <th onClick={() => handleSort('repository')}>
+            <th onClick={() => handleSort('lifecycle')}>
               <div className="th-content">
-                Repository
-                {sortColumn === 'repository' && (
+                Lifecycle
+                {sortColumn === 'lifecycle' && (
                   <span className="sort-icon">{sortDirection === 'asc' ? '↑' : '↓'}</span>
                 )}
               </div>
             </th>
-            <th onClick={() => handleSort('team')}>
+            <th>URL</th>
+            <th onClick={() => handleSort('language')}>
               <div className="th-content">
-                Team
-                {sortColumn === 'team' && (
+                Language
+                {sortColumn === 'language' && (
                   <span className="sort-icon">{sortDirection === 'asc' ? '↑' : '↓'}</span>
                 )}
               </div>
             </th>
-            <th>GitHub</th>
-            <th>Jira</th>
-            <th onClick={() => handleSort('status')}>
+            <th>Last Committer</th>
+            <th>OnCall</th>
+            <th onClick={() => handleSort('tier')}>
               <div className="th-content">
-                Status
-                {sortColumn === 'status' && (
+                Tier
+                {sortColumn === 'tier' && (
+                  <span className="sort-icon">{sortDirection === 'asc' ? '↑' : '↓'}</span>
+                )}
+              </div>
+            </th>
+            <th>Slack</th>
+            <th>Sonar Project</th>
+            <th>Domain</th>
+            <th>Details</th>
+            <th>Locked</th>
+            <th onClick={() => handleSort('owningTeam')}>
+              <div className="th-content">
+                Owning Team
+                {sortColumn === 'owningTeam' && (
                   <span className="sort-icon">{sortDirection === 'asc' ? '↑' : '↓'}</span>
                 )}
               </div>
@@ -97,44 +111,95 @@ function ServiceTable({ services, onServiceClick, onScorecardClick }) {
               <td className="service-name-cell">
                 <div className="service-name-content">
                   <span className="service-icon">{service.icon || '📦'}</span>
-                  <span className="service-name">{service.name}</span>
+                  <span className="service-name">{service.title || service.name}</span>
                 </div>
               </td>
               <td>
-                <span className="repository-badge">
-                  {service.repository || 'Unknown'}
+                <span className="lifecycle-badge">
+                  {service.lifecycle || service.environment || 'Unknown'}
                 </span>
               </td>
-              <td>{service.team}</td>
               <td>
                 <a
-                  href={service.github}
+                  href={service.url || service.github}
                   target="_blank"
                   rel="noopener noreferrer"
                   onClick={(e) => e.stopPropagation()}
                   className="external-link"
+                  title={service.url || service.github}
                 >
-                  <img src={githubIcon} alt="GitHub" className="link-icon-img" />
-                  View Repo
+                  <img src={githubIcon} alt="URL" className="link-icon-img" />
                 </a>
               </td>
               <td>
-                <a
-                  href={service.jira}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={(e) => e.stopPropagation()}
-                  className="external-link"
-                >
-                  <img src={jiraIcon} alt="Jira" className="link-icon-img" />
-                  View Board
-                </a>
-              </td>
-              <td>
-                <span className={getStatusClass(service.status)}>
-                  {service.status}
+                <span className="language-badge">
+                  {service.language || service.metrics?.github?.language || 'Unknown'}
                 </span>
               </td>
+              <td>{service.lastCommitter || service.metrics?.github?.lastCommitter || '-'}</td>
+              <td>{service.onCall || service.metrics?.pagerduty?.onCall || '-'}</td>
+              <td>
+                <span className={`tier-badge ${service.tier?.toLowerCase().replace(' ', '-')}`}>
+                  {service.tier || '-'}
+                </span>
+              </td>
+              <td>
+                {service.slack ? (
+                  <a
+                    href={`https://slack.com/app_redirect?channel=${service.slack.replace('#', '')}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={(e) => e.stopPropagation()}
+                    className="slack-link"
+                  >
+                    {service.slack}
+                  </a>
+                ) : '-'}
+              </td>
+              <td>{service.sonarProject || '-'}</td>
+              <td>{service.domain || '-'}</td>
+              <td>
+                <div className="service-details-box">
+                  <div className="service-detail-row">
+                    <span className="service-detail-label">Lifecycle</span>
+                    <span className="service-detail-value">
+                      {service.lifecycle || service.environment || 'Unknown'}
+                    </span>
+                  </div>
+                  <div className="service-detail-row">
+                    <span className="service-detail-label">Language</span>
+                    <span className="service-detail-value">
+                      {service.language || service.metrics?.github?.language || 'Unknown'}
+                    </span>
+                  </div>
+                  <div className="service-detail-row">
+                    <span className="service-detail-label">Team</span>
+                    <span className="service-detail-value">
+                      {service.owningTeam || service.team || 'Unknown'}
+                    </span>
+                  </div>
+                  <div className="service-detail-row">
+                    <span className="service-detail-label">On Call</span>
+                    <span className="service-detail-value">
+                      {service.onCall || service.metrics?.pagerduty?.onCall || '-'}
+                    </span>
+                  </div>
+                  <div className="service-detail-row">
+                    <span className="service-detail-label">Tier</span>
+                    <span className="service-detail-value">{service.tier || '-'}</span>
+                  </div>
+                  <div className="service-detail-row">
+                    <span className="service-detail-label">Domain</span>
+                    <span className="service-detail-value">{service.domain || '-'}</span>
+                  </div>
+                </div>
+              </td>
+              <td>
+                <span className={`lock-status ${service.locked ? 'locked' : 'unlocked'}`}>
+                  {service.locked ? '🔒' : '🔓'}
+                </span>
+              </td>
+              <td>{service.owningTeam || service.team || '-'}</td>
               <td>
                 <div className="action-buttons">
                   <button
