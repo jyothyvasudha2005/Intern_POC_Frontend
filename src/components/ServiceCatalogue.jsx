@@ -1,16 +1,17 @@
 import { useState, useEffect } from 'react'
 import '../styles/ServiceCatalogue.css'
-import { demoRepositories, repositoryServices } from '../data/servicesData'
+import { demoRepositories } from '../data/servicesData'
 import ServiceTable from './ServiceTable'
-import { getAllServices as fetchAllServices, onboardService } from '../services/onboardingService'
+import { getRepositoriesForCatalogue, getOrganizations } from '../services/sonarService'
+import { onboardService } from '../services/onboardingService'
 
 function ServiceCatalogue({ onServiceClick, onScorecardClick, selectedRepo, setSelectedRepo }) {
   const [showAddModal, setShowAddModal] = useState(false)
-  const [services, setServices] = useState(repositoryServices['ecommerce-platform'] || [])
-  const [isLoading, setIsLoading] = useState(false)
-  const [isMockData, setIsMockData] = useState(true)
-  const [hasAttemptedFetch, setHasAttemptedFetch] = useState(false)
-  const [loadError, setLoadError] = useState(null)
+		const [services, setServices] = useState([])
+		const [isLoading, setIsLoading] = useState(false)
+		const [loadError, setLoadError] = useState(null)
+    const [organizations, setOrganizations] = useState([])
+    const [selectedOrgId, setSelectedOrgId] = useState('')
   const [newService, setNewService] = useState({
     serviceName: '',
     displayName: '',
@@ -20,63 +21,64 @@ function ServiceCatalogue({ onServiceClick, onScorecardClick, selectedRepo, setS
     description: ''
   })
 
-  // NO automatic loading - user must click button
-  useEffect(() => {
-    console.log('📦 ServiceCatalogue mounted - Using MOCK data by default')
-    console.log('💡 Click "Fetch from API" button to load real data')
-  }, [])
+		// Automatically load organizations and services from API on mount
+		useEffect(() => {
+			console.log('📦 ServiceCatalogue mounted - loading organizations and services from API')
+			initializeCatalogue()
+			// eslint-disable-next-line react-hooks/exhaustive-deps
+		}, [])
 
-  const loadServices = async () => {
-    // Prevent multiple calls - only allow ONE attempt
-    if (hasAttemptedFetch) {
-      console.log('🛑 Already attempted to fetch from API. Refresh page to try again.')
-      return
-    }
+			const initializeCatalogue = async () => {
+				try {
+					const orgResult = await getOrganizations()
+					if (orgResult.success && Array.isArray(orgResult.data) && orgResult.data.length > 0) {
+						setOrganizations(orgResult.data)
+						const defaultOrgId = selectedOrgId || orgResult.data[0].id
+						setSelectedOrgId(defaultOrgId)
+						await loadServicesForOrg(defaultOrgId)
+					} else {
+						setOrganizations([])
+						setServices([])
+						setLoadError(orgResult.error || 'Failed to load organizations from SonarShell')
+					}
+				} catch (error) {
+					console.error('❌ Error loading organizations from SonarShell:', error.message)
+					setOrganizations([])
+					setServices([])
+					setLoadError(error.message)
+				}
+			}
 
-    if (isLoading) {
-      console.log('⏸️ Already loading services, please wait...')
-      return
-    }
-
-    console.log('🔄 Fetching services from API...')
-    setIsLoading(true)
-    setLoadError(null)
-    setHasAttemptedFetch(true) // Mark as attempted - won't try again
-
-    try {
-      const result = await fetchAllServices()
-
-      if (result.success) {
-        setServices(result.data)
-        setIsMockData(result.isMock)
-
-        if (result.isMock) {
-          console.log('📦 API returned no data - Using MOCK data')
-          setLoadError('API returned no data')
-        } else {
-          console.log('✅ Successfully loaded REAL data from API')
-        }
-      } else {
-        // API call failed
-        setLoadError(result.error || 'Failed to load services')
-        console.error('❌ Failed to load services:', result.error)
-
-        // Keep using mock data
-        setServices(repositoryServices['ecommerce-platform'] || [])
-        setIsMockData(true)
-      }
-    } catch (error) {
-      setLoadError(error.message)
-      console.error('❌ Error loading services:', error.message)
-
-      // Keep using mock data
-      setServices(repositoryServices['ecommerce-platform'] || [])
-      setIsMockData(true)
-    } finally {
-      setIsLoading(false)
-      console.log('🛑 Fetch attempt complete. Will not retry automatically.')
-    }
-  }
+			const loadServicesForOrg = async (orgId) => {
+			if (isLoading) {
+				console.log('⏸️ Already loading services, please wait...')
+				return
+			}
+		
+			console.log('🔄 Fetching services from SonarShell API...')
+			setIsLoading(true)
+			setLoadError(null)
+		
+			try {
+					// Load repositories (services) from the SonarShell swagger_2 endpoints
+					const result = await getRepositoriesForCatalogue(orgId)
+		
+				if (result.success) {
+					setServices(result.data || [])
+					console.log('✅ Successfully loaded repository data from SonarShell')
+				} else {
+					setServices([])
+					setLoadError(result.error || 'Failed to load services')
+					console.error('❌ Failed to load services from SonarShell:', result.error)
+				}
+			} catch (error) {
+				setServices([])
+				setLoadError(error.message)
+				console.error('❌ Error loading services from SonarShell:', error.message)
+			} finally {
+				setIsLoading(false)
+			}
+		}
 
   // Filter services based on selected repository
   const getFilteredServices = () => {
@@ -89,8 +91,24 @@ function ServiceCatalogue({ onServiceClick, onScorecardClick, selectedRepo, setS
     )
   }
 
-  const currentServices = getFilteredServices()
-  const totalServices = services.length
+	  const currentServices = getFilteredServices()
+		const totalServices = services.length
+		const repoCounts = services.reduce((acc, service) => {
+			const key = service.repositoryKey || service.repository || service.name
+			if (!key) return acc
+			acc[key] = (acc[key] || 0) + 1
+			return acc
+		}, {})
+		const repoKeys = Object.keys(repoCounts)
+	
+		const handleOrgChange = async (e) => {
+			const orgId = e.target.value
+			setSelectedOrgId(orgId)
+			if (setSelectedRepo) {
+				setSelectedRepo('')
+			}
+			await loadServicesForOrg(orgId)
+		}
 
   const handleAddService = () => {
     setShowAddModal(true)
@@ -116,187 +134,93 @@ function ServiceCatalogue({ onServiceClick, onScorecardClick, selectedRepo, setS
     }))
   }
 
-  const handleSubmit = async (e) => {
-    e.preventDefault()
+	  const handleSubmit = async (e) => {
+	    e.preventDefault()
 
-    // Create new service object
-    const serviceData = {
-      name: newService.displayName || newService.serviceName,
-      team: newService.owningTeam,
-      github: `https://github.com/example/${newService.serviceName}`,
-      repositoryUrl: `https://github.com/example/${newService.serviceName}`,
-      description: newService.description,
-      environment: newService.lifecycleStatus || 'development',
-      language: 'Unknown',
-      tags: []
-    }
+	    // Create new service object
+	    const serviceData = {
+	      name: newService.displayName || newService.serviceName,
+	      team: newService.owningTeam,
+	      github: `https://github.com/example/${newService.serviceName}`,
+	      repositoryUrl: `https://github.com/example/${newService.serviceName}`,
+	      description: newService.description,
+	      environment: newService.lifecycleStatus || 'development',
+	      language: 'Unknown',
+	      tags: []
+	    }
 
-    // Call API to onboard service
-    const result = await onboardService(serviceData)
+	    // Call API to onboard service
+	    const result = await onboardService(serviceData)
 
-    if (result.success) {
-      console.log('✅ Service onboarded:', result.isMock ? '(MOCK)' : '(API)')
+	    if (result.success) {
+	      console.log('✅ Service onboarded via API')
+	      // Reload services from API so the new service appears in the catalogue
+	      await loadServicesForOrg(selectedOrgId)
+	      // Close modal and reset form
+	      handleCloseModal()
+	    } else {
+	      console.error('❌ Failed to onboard service:', result.error)
+	      if (result.details) {
+	        console.error('Error details:', result.details)
+	      }
+	      const errorMessage = result.details
+	        ? `${result.error}\n\nDetails: ${result.details}`
+	        : result.error
+	      alert('Failed to onboard service: ' + errorMessage)
+	    }
+	  }
 
-      // Reload services
-      await loadServices()
-    } else {
-      console.error('❌ Failed to onboard service:', result.error)
-      if (result.details) {
-        console.error('Error details:', result.details)
-      }
-      const errorMessage = result.details
-        ? `${result.error}\n\nDetails: ${result.details}`
-        : result.error
-      alert('Failed to onboard service: ' + errorMessage)
-    }
+	  return (
+	    <div className="service-catalogue-container">
+	      {/* Error Message */}
+	      {loadError && (
+	        <div className="data-source-banner error-data">
+	          <span className="banner-icon">❌</span>
+	          <span className="banner-text">
+	            <strong>API Error:</strong> {loadError}. No services are currently available.
+	          </span>
+	        </div>
+	      )}
 
-    // Create local service object for immediate display (fallback)
-    const service = {
-      id: Date.now(),
-      name: newService.displayName || newService.serviceName,
-      icon: '📦',
-      team: newService.owningTeam,
-      github: `https://github.com/example/${newService.serviceName}`,
-      jira: `https://jira.example.com/projects/${newService.serviceName.toUpperCase()}`,
-      status: newService.lifecycleStatus || 'Healthy',
-      description: newService.description,
-      version: 'v1.0.0',
-      environment: 'Development',
-      lastDeployed: 'Just now',
-      metrics: {
-        github: {
-          language: 'N/A',
-          openPRs: 0,
-          mergedPRs: 0,
-          contributors: 0,
-          lastCommit: 'N/A',
-          coverage: 0
-        },
-        jira: {
-          openIssues: 0,
-          inProgress: 0,
-          resolved: 0,
-          bugs: 0,
-          avgResolutionTime: 'N/A',
-          sprintProgress: 0
-        },
-        pagerduty: {
-          activeIncidents: 0,
-          totalIncidents: 0,
-          mttr: 'N/A',
-          mtta: 'N/A',
-          uptime: 100,
-          onCall: 'N/A'
-        }
-      },
-      prMetrics: {
-        avgCommitsPerPR: 0,
-        openPRCount: 0,
-        avgLOCPerPR: 0,
-        weeklyMergedPRs: 0
-      },
-      codeQuality: {
-        codeCoverage: 0,
-        vulnerabilities: 0,
-        codeSmells: 0,
-        codeDuplication: 0
-      },
-      securityMaturity: {
-        owaspCompliance: 'Basic',
-        branchProtection: false,
-        requiredApprovals: 0
-      },
-      doraMetrics: {
-        changeFailureRate: 0,
-        deploymentFrequency: 0,
-        mttr: 0
-      },
-      productionReadiness: {
-        pagerdutyIntegration: false,
-        observabilityDashboard: false
-      },
-      jiraMetrics: {
-        openHighPriorityBugs: 0,
-        totalIssues: 0,
-        inProgress: 0,
-        resolved: 0
-      }
-    }
-
-    // Add to the selected repository or default to first one
-    const targetRepo = selectedRepo || demoRepositories[0].value
-    if (!repositoryServices[targetRepo]) {
-      repositoryServices[targetRepo] = []
-    }
-    repositoryServices[targetRepo].push(service)
-
-    // Close modal and reset form
-    handleCloseModal()
-
-    // Show success message (optional)
-    console.log('✅ Service added successfully:', service.name)
-  }
-
-  return (
-    <div className="service-catalogue-container">
-      {/* Error Message */}
-      {loadError && (
-        <div className="data-source-banner error-data">
-          <span className="banner-icon">❌</span>
-          <span className="banner-text">
-            <strong>API Error:</strong> {loadError} - Using cached mock data
-          </span>
-        </div>
-      )}
-
-      {/* Data Source Indicator */}
-      {!loadError && isMockData && (
-        <div className="data-source-banner mock-data">
-          <span className="banner-icon">⚠️</span>
-          <span className="banner-text">
-            Using <strong>MOCK DATA</strong> - API not available or returned no data
-          </span>
-        </div>
-      )}
-      {!loadError && !isMockData && !isLoading && (
-        <div className="data-source-banner real-data">
-          <span className="banner-icon">✅</span>
-          <span className="banner-text">
-            Using <strong>REAL DATA</strong> from API
-          </span>
-        </div>
-      )}
-
-      <div className="repo-controls">
-        <div className="repo-select-wrapper">
-          <label htmlFor="repo-select" className="repo-label">Filter by Repository:</label>
-          <select
-            id="repo-select"
-            className="repo-select"
-            value={selectedRepo || 'all'}
-            onChange={(e) => setSelectedRepo(e.target.value === 'all' ? '' : e.target.value)}
-          >
-            <option value="all">All Repositories ({totalServices} services)</option>
-            {demoRepositories.map(repo => {
-              const repoServiceCount = repositoryServices[repo.value]?.length || 0
-              return (
-                <option key={repo.id} value={repo.value}>
-                  {repo.name} ({repoServiceCount} services)
-                </option>
-              )
-            })}
-          </select>
-        </div>
+		      <div className="repo-controls">
+		        <div className="repo-select-wrapper">
+		          <label htmlFor="org-select" className="repo-label">Organization:</label>
+		          <select
+		            id="org-select"
+		            className="repo-select"
+		            value={selectedOrgId || ''}
+		            onChange={handleOrgChange}
+		            disabled={organizations.length === 0 || isLoading}
+		          >
+			            {organizations.length === 0 && (
+			              <option value="">
+			                {isLoading ? 'Loading organizations...' : 'No organizations available'}
+			              </option>
+			            )}
+			            {organizations.map(org => (
+			              <option key={org.id} value={org.id}>
+			                {org.name || `Org ${org.id}`}
+			              </option>
+			            ))}
+		          </select>
+		        </div>
+		        <div className="repo-select-wrapper">
+		          <label htmlFor="repo-select" className="repo-label">Filter by Repository:</label>
+		          <select
+		            id="repo-select"
+		            className="repo-select"
+		            value={selectedRepo || 'all'}
+		            onChange={(e) => setSelectedRepo(e.target.value === 'all' ? '' : e.target.value)}
+		          >
+			            <option value="all">All Repositories ({totalServices} services)</option>
+			            {repoKeys.map(key => (
+			              <option key={key} value={key}>
+			                {key} ({repoCounts[key]} services)
+			              </option>
+			            ))}
+		          </select>
+		        </div>
         <div className="repo-actions">
-          <button
-            className="fetch-api-btn"
-            onClick={loadServices}
-            disabled={isLoading || hasAttemptedFetch}
-            title={hasAttemptedFetch ? 'Already attempted. Refresh page to retry.' : 'Fetch services from API'}
-          >
-            <span className="btn-icon">{isLoading ? '⏳' : '🔄'}</span>
-            {isLoading ? 'Fetching...' : hasAttemptedFetch ? 'Fetched' : 'Fetch from API'}
-          </button>
           <button className="add-service-btn" onClick={handleAddService}>
             <span className="btn-icon">+</span>
             Add New Service
@@ -304,17 +228,41 @@ function ServiceCatalogue({ onServiceClick, onScorecardClick, selectedRepo, setS
         </div>
       </div>
 
-      {selectedRepo && selectedRepo !== 'all' && (
+	      {selectedRepo && selectedRepo !== 'all' && (
         <div className="mounted-repo-info">
           <span className="info-icon">📁</span>
           <span className="info-text">
-            Showing: <strong>{demoRepositories.find(r => r.value === selectedRepo)?.name}</strong>
+	            Showing: <strong>{selectedRepo}</strong>
           </span>
           <span className="service-count">{currentServices.length} services</span>
         </div>
       )}
 
-      {currentServices.length > 0 && (
+      {/* Loading State */}
+      {isLoading && (
+        <div className="loading-state">
+          <div className="loading-spinner-container">
+            <div className="loading-spinner"></div>
+            <h3>Loading Repositories...</h3>
+            <p>Fetching data from backend API</p>
+          </div>
+        </div>
+      )}
+
+      {/* Error State */}
+      {!isLoading && loadError && (
+        <div className="error-state">
+          <div className="error-icon">⚠️</div>
+          <h3>Failed to Load Services</h3>
+          <p>{loadError}</p>
+          <button className="retry-btn" onClick={() => loadServicesForOrg(selectedOrgId)}>
+            🔄 Retry
+          </button>
+        </div>
+      )}
+
+      {/* Services Table */}
+      {!isLoading && !loadError && currentServices.length > 0 && (
         <ServiceTable
           services={currentServices}
           onServiceClick={onServiceClick}
@@ -322,7 +270,8 @@ function ServiceCatalogue({ onServiceClick, onScorecardClick, selectedRepo, setS
         />
       )}
 
-      {currentServices.length === 0 && (
+      {/* Empty State */}
+      {!isLoading && !loadError && currentServices.length === 0 && (
         <div className="empty-state">
           <div className="empty-icon">📭</div>
           <h3>No Services Found</h3>

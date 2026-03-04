@@ -364,21 +364,21 @@ function App() {
     )
   }
 
-  // Service Metrics/Scorecard view (when a service is selected)
-  if (selectedService) {
-    console.log('📊 Rendering service view. ViewMode:', viewMode, 'Service:', selectedService.name)
-    // For ServiceMetrics, render without the content wrapper for full-page layout
-    if (viewMode !== 'scorecard') {
-      console.log('✅ Rendering ServiceMetrics for:', selectedService.name)
-      return (
-        <div className={`app ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
-          {renderSidebar()}
-          <div className="main-content">
-            <ServiceMetrics serviceId={selectedService.id} onClose={handleBackToServices} />
-          </div>
-        </div>
-      )
-    }
+      // Service Metrics/Scorecard view (when a service is selected)
+      if (selectedService) {
+        console.log('📊 Rendering service view. ViewMode:', viewMode, 'Service:', selectedService.name)
+        // For ServiceMetrics, render without the content wrapper for full-page layout
+        if (viewMode !== 'scorecard') {
+          console.log('✅ Rendering ServiceMetrics for:', selectedService.name)
+          return (
+            <div className={`app ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
+              {renderSidebar()}
+              <div className="main-content">
+                <ServiceMetrics service={selectedService} onClose={handleBackToServices} />
+              </div>
+            </div>
+          )
+        }
 
     // For ServiceScorecard, keep the original layout
     return (

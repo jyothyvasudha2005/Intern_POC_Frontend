@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import '../styles/ServiceTable.css'
-import githubIcon from '../assets/github-sign.png'
+import githubIcon from '../assets/github-sign.jpg'
 import jiraIcon from '../assets/jira.png'
 
 function ServiceTable({ services, onServiceClick, onScorecardClick }) {
@@ -88,7 +88,6 @@ function ServiceTable({ services, onServiceClick, onScorecardClick }) {
             <th>Slack</th>
             <th>Sonar Project</th>
             <th>Domain</th>
-            <th>Details</th>
             <th>Locked</th>
             <th onClick={() => handleSort('owningTeam')}>
               <div className="th-content">
@@ -158,42 +157,6 @@ function ServiceTable({ services, onServiceClick, onScorecardClick }) {
               </td>
               <td>{service.sonarProject || '-'}</td>
               <td>{service.domain || '-'}</td>
-              <td>
-                <div className="service-details-box">
-                  <div className="service-detail-row">
-                    <span className="service-detail-label">Lifecycle</span>
-                    <span className="service-detail-value">
-                      {service.lifecycle || service.environment || 'Unknown'}
-                    </span>
-                  </div>
-                  <div className="service-detail-row">
-                    <span className="service-detail-label">Language</span>
-                    <span className="service-detail-value">
-                      {service.language || service.metrics?.github?.language || 'Unknown'}
-                    </span>
-                  </div>
-                  <div className="service-detail-row">
-                    <span className="service-detail-label">Team</span>
-                    <span className="service-detail-value">
-                      {service.owningTeam || service.team || 'Unknown'}
-                    </span>
-                  </div>
-                  <div className="service-detail-row">
-                    <span className="service-detail-label">On Call</span>
-                    <span className="service-detail-value">
-                      {service.onCall || service.metrics?.pagerduty?.onCall || '-'}
-                    </span>
-                  </div>
-                  <div className="service-detail-row">
-                    <span className="service-detail-label">Tier</span>
-                    <span className="service-detail-value">{service.tier || '-'}</span>
-                  </div>
-                  <div className="service-detail-row">
-                    <span className="service-detail-label">Domain</span>
-                    <span className="service-detail-value">{service.domain || '-'}</span>
-                  </div>
-                </div>
-              </td>
               <td>
                 <span className={`lock-status ${service.locked ? 'locked' : 'unlocked'}`}>
                   {service.locked ? '🔒' : '🔓'}

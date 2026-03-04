@@ -1,14 +1,15 @@
 /* Chatbot Container */
 .chatbot-container {
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-color);
-  border-radius: 12px;
-  overflow: hidden;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-  display: flex;
-  flex-direction: column;
-  height: 480px;
-  max-width: 100%;
+	background: var(--bg-secondary);
+	border: 1px solid var(--border-color);
+	border-radius: 12px;
+	overflow: hidden;
+	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+	display: flex;
+	flex-direction: column;
+	height: 480px;
+	width: 420px;
+	max-width: 100%;
 }
 
 /* Header */
@@ -343,7 +344,9 @@
 /* Responsive Design */
 @media (max-width: 768px) {
   .chatbot-container {
-    height: 420px;
+		height: 420px;
+		width: 100%;
+		max-width: 100%;
   }
 
   .suggestions-grid {
