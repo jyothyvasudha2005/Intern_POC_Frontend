@@ -31,6 +31,9 @@ export const API_ENDPOINTS = {
   ONBOARDING_CREATE: '/onboarding/api/onboard',
   ONBOARDING_GET_ALL: '/onboarding/api/services',
   ONBOARDING_GET_BY_ID: '/onboarding/api/services',
+  // New v1 Service Catalog endpoints (OpenAPI swagger_2)
+  ONBOARDING_GET_ALL_V1: '/onboarding/api/v1/service',
+  ONBOARDING_GET_BY_ID_V1: '/onboarding/api/v1/service',
 
   // ScoreCard Service
   SCORECARD_HEALTH: '/scorecard/health',
@@ -40,8 +43,21 @@ export const API_ENDPOINTS = {
 
   // SonarShell Service
   SONAR_HEALTH: '/sonar/health',
+  // Core Sonar metrics
   SONAR_GET_METRICS: '/sonar/api/v1/sonar/metrics',
   SONAR_FULL_SETUP: '/sonar/api/v1/setup/full',
+
+  // SonarShell - Organizations & Repositories
+  SONAR_ORGS_LIST: '/sonar/api/v1/orgs',
+  SONAR_REPOS_FETCH: '/sonar/api/v1/repos/fetch',
+
+  // SonarShell - GitHub metrics
+  SONAR_GITHUB_METRICS: '/sonar/api/v1/github/metrics',
+  SONAR_GITHUB_METRICS_ALL: '/sonar/api/v1/github/metrics/all',
+  SONAR_GITHUB_COMMITS: '/sonar/api/v1/github/commits',
+
+  // SonarShell - Jira metrics
+  SONAR_JIRA_METRICS: '/sonar/api/v1/jira/metrics',
 }
 
 // API Configuration

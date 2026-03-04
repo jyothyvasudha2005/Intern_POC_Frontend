@@ -4,7 +4,12 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from 'recharts'
 import '../styles/ServiceMetrics.css'
-import { getServiceById } from '../services/api'
+import {
+  getGitHubMetricsForRepo,
+  getSonarMetricsForRepo,
+  getJiraMetricsForProject,
+  getCommitsForRepo
+} from '../services/sonarService'
 
 const COLORS = {
   primary: '#6C5DD3',
@@ -17,40 +22,140 @@ const COLORS = {
   bronze: '#CD7F32'
 }
 
-function ServiceMetrics({ serviceId, onClose }) {
-  const [service, setService] = useState(null)
-  const [loading, setLoading] = useState(true)
+function ServiceMetrics({ service, onClose }) {
   const [activeTab, setActiveTab] = useState('overview')
-
-  useEffect(() => {
-    loadServiceData()
-  }, [serviceId])
-
-  async function loadServiceData() {
-    try {
-      setLoading(true)
-      const data = await getServiceById(serviceId)
-      setService(data)
-    } catch (error) {
-      console.error('Failed to load service data:', error)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  if (loading) {
-    return (
-      <div className="service-details-page">
-        <div className="loading-spinner">Loading service details...</div>
-      </div>
-    )
-  }
+  const [enrichedService, setEnrichedService] = useState(service)
+  const [isLoadingMetrics, setIsLoadingMetrics] = useState(false)
+  const [commits, setCommits] = useState([])
+  const [rawApiData, setRawApiData] = useState({
+    github: null,
+    sonar: null,
+    jira: null,
+    commits: null
+  })
 
   if (!service) {
     return null
   }
 
   console.log('🎯 ServiceMetrics rendering with service:', service.name)
+
+  // Fetch real metrics when service changes
+  useEffect(() => {
+    const fetchMetrics = async () => {
+      if (!service || !service.name) return
+
+      setIsLoadingMetrics(true)
+      console.log('📊 Fetching metrics for service:', service.name)
+
+      try {
+        // Fetch all metrics in parallel
+        const [githubResult, sonarResult, jiraResult, commitsResult] = await Promise.all([
+          getGitHubMetricsForRepo(service.name),
+          getSonarMetricsForRepo(service.name),
+          service.jira_project_key ? getJiraMetricsForProject(service.jira_project_key) : Promise.resolve({ success: false, data: null }),
+          getCommitsForRepo(service.name)
+        ])
+
+        // Map the fetched metrics to the service object
+        const updatedService = { ...service }
+
+        // GitHub Metrics
+        if (githubResult.success && githubResult.data) {
+          const ghMetrics = githubResult.data
+          updatedService.metrics = updatedService.metrics || {}
+          updatedService.metrics.github = {
+            language: ghMetrics.language || service.language || 'Unknown',
+            openPRs: ghMetrics.open_prs || 0,
+            mergedPRs: ghMetrics.merged_prs || 0,
+            contributors: ghMetrics.contributors || 0,
+            lastCommit: ghMetrics.last_commit_time || '',
+            lastCommitter: ghMetrics.last_committer || service.lastCommitter || 'Unknown',
+            coverage: ghMetrics.coverage || 0,
+          }
+
+          updatedService.prMetrics = {
+            avgCommitsPerPR: ghMetrics.avg_commits_per_pr || 0,
+            openPRCount: ghMetrics.open_prs || 0,
+            avgLOCPerPR: ghMetrics.avg_loc_per_pr || 0,
+            weeklyMergedPRs: ghMetrics.weekly_merged_prs || 0,
+          }
+
+          updatedService.doraMetrics = {
+            changeFailureRate: ghMetrics.change_failure_rate || 0,
+            deploymentFrequency: ghMetrics.deployment_frequency || 0,
+            mttr: ghMetrics.mttr || 0,
+          }
+
+          console.log('✅ GitHub metrics loaded:', ghMetrics)
+        }
+
+        // Sonar Metrics
+        if (sonarResult.success && sonarResult.data) {
+          const sonarMetrics = sonarResult.data
+          updatedService.codeQuality = {
+            codeCoverage: sonarMetrics.coverage || 0,
+            vulnerabilities: sonarMetrics.vulnerabilities || 0,
+            codeSmells: sonarMetrics.code_smells || 0,
+            codeDuplication: sonarMetrics.duplicated_lines_density || 0,
+          }
+
+          updatedService.securityMaturity = {
+            owaspCompliance: sonarMetrics.security_rating || 'Baseline',
+            branchProtection: sonarMetrics.branch_protection || false,
+            requiredApprovals: sonarMetrics.required_approvals || 1,
+          }
+
+          console.log('✅ Sonar metrics loaded:', sonarMetrics)
+        }
+
+        // Jira Metrics
+        if (jiraResult.success && jiraResult.data) {
+          const jiraMetrics = jiraResult.data
+          updatedService.metrics = updatedService.metrics || {}
+          updatedService.metrics.jira = {
+            openIssues: jiraMetrics.open_issues || 0,
+            inProgress: jiraMetrics.in_progress || 0,
+            resolved: jiraMetrics.resolved || 0,
+            bugs: jiraMetrics.bugs || 0,
+            avgResolutionTime: jiraMetrics.avg_resolution_time || 'N/A',
+            sprintProgress: jiraMetrics.sprint_progress || 0,
+          }
+
+          updatedService.jiraMetrics = {
+            openHighPriorityBugs: jiraMetrics.high_priority_bugs || 0,
+            totalIssues: jiraMetrics.total_issues || 0,
+            inProgress: jiraMetrics.in_progress || 0,
+            resolved: jiraMetrics.resolved || 0,
+          }
+
+          console.log('✅ Jira metrics loaded:', jiraMetrics)
+        }
+
+        // Commits
+        if (commitsResult.success && commitsResult.data) {
+          setCommits(commitsResult.data)
+          console.log('✅ Commits loaded:', commitsResult.data.length)
+        }
+
+        // Store raw API responses for display
+        setRawApiData({
+          github: githubResult,
+          sonar: sonarResult,
+          jira: jiraResult,
+          commits: commitsResult
+        })
+
+        setEnrichedService(updatedService)
+      } catch (error) {
+        console.error('❌ Error fetching metrics:', error)
+      } finally {
+        setIsLoadingMetrics(false)
+      }
+    }
+
+    fetchMetrics()
+  }, [service])
 
   // Helper function to get badge level for PR metrics
   const getPRBadge = (metric, value) => {
@@ -174,6 +279,12 @@ function ServiceMetrics({ serviceId, onClose }) {
           >
             GitHub CODEOWNERS
           </button>
+          <button
+            className={`service-tab ${activeTab === 'apidata' ? 'active' : ''}`}
+            onClick={() => setActiveTab('apidata')}
+          >
+            📊 API Data
+          </button>
           <button className="service-tab-add" title="Add tab">+</button>
         </div>
         <div className="tab-view-controls">
@@ -188,14 +299,25 @@ function ServiceMetrics({ serviceId, onClose }) {
 
       {/* Tab Content */}
       <div className="service-details-content">
-        {activeTab === 'overview' && renderOverview(service)}
-        {activeTab === 'scorecards' && renderScorecards(service, getPRBadge, getQualityBadge)}
-        {activeTab === 'related' && renderRelatedEntities(service)}
-        {activeTab === 'runs' && renderRuns(service)}
-        {activeTab === 'audit' && renderAuditLogTable(service)}
-        {activeTab === 'readme' && renderReadme(service)}
-        {activeTab === 'github-readme' && renderGitHubReadme(service)}
-        {activeTab === 'codeowners' && renderCodeowners(service)}
+        {isLoadingMetrics && (
+          <div className="loading-metrics">
+            <div className="loading-spinner">⏳</div>
+            <p>Loading metrics...</p>
+          </div>
+        )}
+        {!isLoadingMetrics && (
+          <>
+            {activeTab === 'overview' && renderOverview(enrichedService)}
+            {activeTab === 'scorecards' && renderScorecards(enrichedService, getPRBadge, getQualityBadge)}
+            {activeTab === 'related' && renderRelatedEntities(enrichedService)}
+            {activeTab === 'runs' && renderRuns(enrichedService)}
+            {activeTab === 'audit' && renderAuditLogTable(enrichedService, commits)}
+            {activeTab === 'readme' && renderReadme(enrichedService)}
+            {activeTab === 'github-readme' && renderGitHubReadme(enrichedService)}
+            {activeTab === 'codeowners' && renderCodeowners(enrichedService)}
+            {activeTab === 'apidata' && renderApiData(rawApiData, enrichedService)}
+          </>
+        )}
       </div>
     </div>
   )
@@ -324,6 +446,69 @@ function renderOverview(service) {
               </div>
               <div className="port-detail-value">
                 <span className="port-badge sync-badge">{service.syncStatusInProd || 'Unknown'}</span>
+              </div>
+            </div>
+            <div className="port-detail-item">
+              <div className="port-detail-label">
+                <span className="port-label-icon">👥</span>
+                Owning Team
+              </div>
+              <div className="port-detail-value">
+                {service.owningTeam || service.team || 'Unknown'}
+              </div>
+            </div>
+            <div className="port-detail-item">
+              <div className="port-detail-label">
+                <span className="port-label-icon">🧑‍💻</span>
+                Last Committer
+              </div>
+              <div className="port-detail-value">
+                {service.lastCommitter || service.metrics?.github?.lastCommitter || '-'}
+              </div>
+            </div>
+            <div className="port-detail-item">
+              <div className="port-detail-label">
+                <span className="port-label-icon">💬</span>
+                Slack Channel
+              </div>
+              <div className="port-detail-value">
+                {service.slack ? (
+                  <a
+                    href={`https://slack.com/app_redirect?channel=${service.slack.replace('#', '')}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="port-link"
+                  >
+                    {service.slack}
+                  </a>
+                ) : '-'}
+              </div>
+            </div>
+            <div className="port-detail-item">
+              <div className="port-detail-label">
+                <span className="port-label-icon">🧪</span>
+                Sonar Project
+              </div>
+              <div className="port-detail-value">
+                {service.sonarProject || '-'}
+              </div>
+            </div>
+            <div className="port-detail-item">
+              <div className="port-detail-label">
+                <span className="port-label-icon">🌐</span>
+                Domain
+              </div>
+              <div className="port-detail-value">
+                {service.domain || '-'}
+              </div>
+            </div>
+            <div className="port-detail-item">
+              <div className="port-detail-label">
+                <span className="port-label-icon">🔒</span>
+                Locked
+              </div>
+              <div className="port-detail-value">
+                {service.locked ? 'Yes' : 'No'}
               </div>
             </div>
           </div>
@@ -970,57 +1155,111 @@ function renderAuditLog(service) {
 }
 
 function getCommitsForService(service) {
-  const author = service.lastCommitter || service.metrics?.github?.lastCommitter || 'Auto-bot'
-  const lastCommitTime = service.metrics?.github?.lastCommit || service.lastDeployed || 'recently'
+	const author = service.lastCommitter || service.metrics?.github?.lastCommitter || 'Auto-bot'
+	const lastCommitTime = service.metrics?.github?.lastCommit || service.lastDeployed || 'recently'
 
-  return [
-    {
-      id: 1,
-      message: `Refine ${(service.title || service.name || 'service')} deployment pipeline`,
-      author,
-      time: lastCommitTime,
-      sha: 'a1b2c3d'
-    },
-    {
-      id: 2,
-      message: 'Update dependencies and apply security patches',
-      author,
-      time: '1 day ago',
-      sha: 'e5f6g7h'
-    },
-    {
-      id: 3,
-      message: 'Improve logging and observability',
-      author,
-      time: '2 days ago',
-      sha: 'i8j9k0l'
-    },
-    {
-      id: 4,
-      message: 'Refactor legacy modules for better maintainability',
-      author,
-      time: '3 days ago',
-      sha: 'm1n2o3p'
-    },
-    {
-      id: 5,
-      message: 'Initial service bootstrap',
-      author,
-      time: '1 week ago',
-      sha: 'q4r5s6t'
-    }
-  ]
+	// First 5: most recent commits (these will be visible by default)
+	const commits = [
+		{
+			id: 1,
+			message: `Refine ${(service.title || service.name || 'service')} deployment pipeline`,
+			author,
+			time: lastCommitTime,
+			sha: 'a1b2c3d'
+		},
+		{
+			id: 2,
+			message: 'Update dependencies and apply security patches',
+			author,
+			time: '1 day ago',
+			sha: 'e5f6g7h'
+		},
+		{
+			id: 3,
+			message: 'Improve logging and observability',
+			author,
+			time: '2 days ago',
+			sha: 'i8j9k0l'
+		},
+		{
+			id: 4,
+			message: 'Refactor legacy modules for better maintainability',
+			author,
+			time: '3 days ago',
+			sha: 'm1n2o3p'
+		},
+		{
+			id: 5,
+			message: 'Initial service bootstrap',
+			author,
+			time: '1 week ago',
+			sha: 'q4r5s6t'
+		}
+	]
+
+	// Additional historical commits so the table can scroll to show more than 5
+	commits.push(
+		{
+			id: 6,
+			message: 'Add feature flags for gradual rollouts',
+			author,
+			time: '2 weeks ago',
+			sha: 'u7v8w9x'
+		},
+		{
+			id: 7,
+			message: 'Optimize database queries in critical paths',
+			author,
+			time: '3 weeks ago',
+			sha: 'y1z2a3b'
+		},
+		{
+			id: 8,
+			message: 'Introduce structured logging and tracing',
+			author,
+			time: '1 month ago',
+			sha: 'c4d5e6f'
+		},
+		{
+			id: 9,
+			message: 'Harden authentication and authorization flows',
+			author,
+			time: '2 months ago',
+			sha: 'g7h8i9j'
+		},
+		{
+			id: 10,
+			message: 'Migrate CI/CD pipeline to shared templates',
+			author,
+			time: '3 months ago',
+			sha: 'k1l2m3n'
+		}
+	)
+
+	return commits
 }
 
-function renderAuditLogTable(service) {
-  const commits = getCommitsForService(service)
+function renderAuditLogTable(service, realCommits = []) {
+  // Use real commits from API if available, otherwise fall back to mock
+  const commits = realCommits.length > 0
+    ? realCommits.map((commit, index) => ({
+        id: commit.sha || `commit-${index}`,
+        message: commit.message || commit.commit_message || 'No message',
+        author: commit.author || commit.committer || 'Unknown',
+        time: commit.timestamp || commit.commit_time || commit.date || 'Unknown',
+        sha: commit.sha || commit.commit_sha || 'N/A'
+      }))
+    : getCommitsForService(service)
 
   return (
     <div className="tab-content">
       <div className="audit-container">
         <div className="audit-header">
           <h3>Audit Log</h3>
-          <p className="audit-description">Recent commits and activities for {service.name}</p>
+          <p className="audit-description">
+            Recent commits and activities for {service.name}
+            {realCommits.length > 0 && <span className="real-data-badge"> (Live Data)</span>}
+          </p>
         </div>
 
         <div className="audit-table-container">
@@ -1034,18 +1273,26 @@ function renderAuditLogTable(service) {
               </tr>
             </thead>
             <tbody>
-              {commits.map((commit) => (
-                <tr key={commit.id}>
-                  <td className="commit-message-cell">
-                    <div className="commit-message">{commit.message}</div>
-                  </td>
-                  <td>{commit.author}</td>
-                  <td>{commit.time}</td>
-                  <td>
-                    <code className="commit-sha">{commit.sha}</code>
+              {commits.length === 0 ? (
+                <tr>
+                  <td colSpan="4" style={{ textAlign: 'center', padding: '2rem' }}>
+                    No commits found
                   </td>
                 </tr>
-              ))}
+              ) : (
+                commits.map((commit) => (
+                  <tr key={commit.id}>
+                    <td className="commit-message-cell">
+                      <div className="commit-message">{commit.message}</div>
+                    </td>
+                    <td>{commit.author}</td>
+                    <td>{commit.time}</td>
+                    <td>
+                      <code className="commit-sha">{commit.sha}</code>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
@@ -1179,6 +1426,243 @@ function calculateDORAScore(doraMetrics) {
   if (doraMetrics.deploymentFrequency && doraMetrics.deploymentFrequency >= 4) score += 33
   if (doraMetrics.mttr !== undefined && doraMetrics.mttr < 24) score += 34
   return score
+}
+
+// API Data Tab - Show mapped API responses in presentable format
+function renderApiData(rawApiData, service) {
+  const renderMetricCard = (label, value, icon = '📊') => (
+    <div className="metric-card-item">
+      <span className="metric-icon">{icon}</span>
+      <div className="metric-info">
+        <span className="metric-label">{label}</span>
+        <span className="metric-value">{value ?? 'N/A'}</span>
+      </div>
+    </div>
+  )
+
+  return (
+    <div className="tab-content">
+      <div className="api-data-container">
+        <div className="api-data-header">
+          <h3>📊 API Response Data - Mapped to Frontend</h3>
+          <p className="api-data-description">
+            This shows the actual data received from backend APIs for <strong>{service.name}</strong>, mapped to match our frontend data structure
+          </p>
+        </div>
+
+        <div className="api-data-sections">
+          {/* GitHub Metrics */}
+          <div className="api-data-section">
+            <div className="api-section-header">
+              <h4>🐙 GitHub Metrics</h4>
+              <span className={`api-status-badge ${rawApiData.github?.success ? 'success' : 'error'}`}>
+                {rawApiData.github?.success ? '✅ Success' : '❌ Failed'}
+              </span>
+            </div>
+            <div className="api-section-content">
+              <div className="api-endpoint">
+                <strong>Endpoint:</strong> <code>GET /sonar/api/v1/github/metrics?repo={service.name}</code>
+              </div>
+
+              {rawApiData.github?.success && rawApiData.github?.data ? (
+                <div className="metrics-grid">
+                  <div className="metrics-category">
+                    <h5>📌 Pull Requests</h5>
+                    <div className="metrics-list">
+                      {renderMetricCard('Open PRs', rawApiData.github.data.open_prs, '🔓')}
+                      {renderMetricCard('Closed PRs', rawApiData.github.data.closed_prs, '✅')}
+                      {renderMetricCard('Merged PRs', rawApiData.github.data.merged_prs, '🔀')}
+                      {renderMetricCard('Total PRs', rawApiData.github.data.total_prs, '📊')}
+                      {renderMetricCard('PRs with Conflicts', rawApiData.github.data.prs_with_conflicts, '⚠️')}
+                    </div>
+                  </div>
+
+                  <div className="metrics-category">
+                    <h5>🐛 Issues</h5>
+                    <div className="metrics-list">
+                      {renderMetricCard('Open Issues', rawApiData.github.data.open_issues, '🔓')}
+                      {renderMetricCard('Closed Issues', rawApiData.github.data.closed_issues, '✅')}
+                    </div>
+                  </div>
+
+                  <div className="metrics-category">
+                    <h5>📝 Commits & Activity</h5>
+                    <div className="metrics-list">
+                      {renderMetricCard('Total Commits', rawApiData.github.data.total_commits, '📝')}
+                      {renderMetricCard('Commits (Last 90 Days)', rawApiData.github.data.commits_last_90_days, '📅')}
+                      {renderMetricCard('Contributors', rawApiData.github.data.contributors, '👥')}
+                      {renderMetricCard('Branches', rawApiData.github.data.branches, '🌿')}
+                      {renderMetricCard('Last Commit', rawApiData.github.data.last_commit_date ? new Date(rawApiData.github.data.last_commit_date).toLocaleString() : 'N/A', '🕐')}
+                      {renderMetricCard('Is Active', rawApiData.github.data.is_active ? 'Yes' : 'No', '🟢')}
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="api-error-message">
+                  {rawApiData.github?.error || 'No data available'}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Sonar Metrics */}
+          <div className="api-data-section">
+            <div className="api-section-header">
+              <h4>🔍 SonarCloud Metrics</h4>
+              <span className={`api-status-badge ${rawApiData.sonar?.success ? 'success' : 'error'}`}>
+                {rawApiData.sonar?.success ? '✅ Success' : '❌ Failed'}
+              </span>
+            </div>
+            <div className="api-section-content">
+              <div className="api-endpoint">
+                <strong>Endpoint:</strong> <code>GET /sonar/api/v1/sonar/metrics?repo={service.name}</code>
+              </div>
+
+              {rawApiData.sonar?.success && rawApiData.sonar?.data ? (
+                <div className="metrics-grid">
+                  <div className="metrics-category">
+                    <h5>🎯 Quality Gate</h5>
+                    <div className="metrics-list">
+                      {renderMetricCard('Project Key', rawApiData.sonar.data.project_key, '🔑')}
+                      {renderMetricCard('Quality Gate Status', rawApiData.sonar.data.quality_gate_status, '🚦')}
+                    </div>
+                  </div>
+
+                  <div className="metrics-category">
+                    <h5>🐛 Code Issues</h5>
+                    <div className="metrics-list">
+                      {renderMetricCard('Bugs', rawApiData.sonar.data.bugs, '🐛')}
+                      {renderMetricCard('Vulnerabilities', rawApiData.sonar.data.vulnerabilities, '🔒')}
+                      {renderMetricCard('Code Smells', rawApiData.sonar.data.code_smells, '👃')}
+                    </div>
+                  </div>
+
+                  <div className="metrics-category">
+                    <h5>📊 Code Quality</h5>
+                    <div className="metrics-list">
+                      {renderMetricCard('Coverage', `${rawApiData.sonar.data.coverage?.toFixed(1) || 0}%`, '📈')}
+                      {renderMetricCard('Duplicated Lines', `${rawApiData.sonar.data.duplicated_lines_density?.toFixed(1) || 0}%`, '📋')}
+                      {renderMetricCard('Lines of Code', rawApiData.sonar.data.lines_of_code, '📝')}
+                      {renderMetricCard('Technical Debt', rawApiData.sonar.data.technical_debt, '⏱️')}
+                    </div>
+                  </div>
+
+                  <div className="metrics-category">
+                    <h5>⭐ Ratings</h5>
+                    <div className="metrics-list">
+                      {renderMetricCard('Security Rating', rawApiData.sonar.data.security_rating, '🔒')}
+                      {renderMetricCard('Reliability Rating', rawApiData.sonar.data.reliability_rating, '🛡️')}
+                      {renderMetricCard('Maintainability Rating', rawApiData.sonar.data.maintainability_rating, '🔧')}
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="api-error-message">
+                  {rawApiData.sonar?.error || 'No data available'}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Jira Metrics */}
+          <div className="api-data-section">
+            <div className="api-section-header">
+              <h4>📋 Jira Metrics</h4>
+              <span className={`api-status-badge ${rawApiData.jira?.success ? 'success' : 'error'}`}>
+                {rawApiData.jira?.success ? '✅ Success' : '❌ Failed'}
+              </span>
+            </div>
+            <div className="api-section-content">
+              <div className="api-endpoint">
+                <strong>Endpoint:</strong> <code>GET /sonar/api/v1/jira/metrics?project_key={service.jira_project_key || 'N/A'}</code>
+              </div>
+
+              {rawApiData.jira?.success && rawApiData.jira?.data ? (
+                <div className="metrics-grid">
+                  <div className="metrics-category">
+                    <h5>🐛 Bugs</h5>
+                    <div className="metrics-list">
+                      {renderMetricCard('Open Bugs', rawApiData.jira.data.open_bugs, '🔓')}
+                      {renderMetricCard('Closed Bugs', rawApiData.jira.data.closed_bugs, '✅')}
+                    </div>
+                  </div>
+
+                  <div className="metrics-category">
+                    <h5>✅ Tasks</h5>
+                    <div className="metrics-list">
+                      {renderMetricCard('Open Tasks', rawApiData.jira.data.open_tasks, '📝')}
+                      {renderMetricCard('Closed Tasks', rawApiData.jira.data.closed_tasks, '✅')}
+                    </div>
+                  </div>
+
+                  <div className="metrics-category">
+                    <h5>📊 Issues</h5>
+                    <div className="metrics-list">
+                      {renderMetricCard('Open Issues', rawApiData.jira.data.open_issues, '🔓')}
+                      {renderMetricCard('Closed Issues', rawApiData.jira.data.closed_issues, '✅')}
+                    </div>
+                  </div>
+
+                  <div className="metrics-category">
+                    <h5>⏱️ Performance</h5>
+                    <div className="metrics-list">
+                      {renderMetricCard('Avg Time to Resolve', `${rawApiData.jira.data.avg_time_to_resolve?.toFixed(1) || 0} hrs`, '⏰')}
+                      {renderMetricCard('Avg Sprint Time', `${rawApiData.jira.data.avg_sprint_time?.toFixed(1) || 0} days`, '📅')}
+                      {renderMetricCard('Active Sprints', rawApiData.jira.data.active_sprints, '🏃')}
+                      {renderMetricCard('Project Key', rawApiData.jira.data.project_key, '🔑')}
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="api-error-message">
+                  {rawApiData.jira?.error || service.jira_project_key ? 'No data available' : 'No Jira project key configured'}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Commits */}
+          <div className="api-data-section">
+            <div className="api-section-header">
+              <h4>📝 Recent Commits</h4>
+              <span className={`api-status-badge ${rawApiData.commits?.success ? 'success' : 'error'}`}>
+                {rawApiData.commits?.success ? `✅ ${rawApiData.commits?.data?.length || 0} commits` : '❌ Failed'}
+              </span>
+            </div>
+            <div className="api-section-content">
+              <div className="api-endpoint">
+                <strong>Endpoint:</strong> <code>GET /sonar/api/v1/github/commits?repo={service.name}</code>
+              </div>
+
+              {rawApiData.commits?.success && rawApiData.commits?.data?.length > 0 ? (
+                <div className="commits-list">
+                  {rawApiData.commits.data.slice(0, 10).map((commit, index) => (
+                    <div key={index} className="commit-item">
+                      <div className="commit-header">
+                        <span className="commit-sha">{commit.sha?.substring(0, 7) || commit.commit_sha?.substring(0, 7) || 'N/A'}</span>
+                        <span className="commit-author">{commit.author || commit.committer || 'Unknown'}</span>
+                        <span className="commit-time">{commit.timestamp || commit.commit_time || commit.date || 'Unknown'}</span>
+                      </div>
+                      <div className="commit-message">{commit.message || commit.commit_message || 'No message'}</div>
+                    </div>
+                  ))}
+                  {rawApiData.commits.data.length > 10 && (
+                    <div className="commits-more">
+                      ... and {rawApiData.commits.data.length - 10} more commits
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="api-error-message">
+                  {rawApiData.commits?.error || 'No commits available'}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
 }
 
 export default ServiceMetrics

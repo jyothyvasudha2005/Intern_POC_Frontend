@@ -243,7 +243,7 @@ function DeveloperDashboard({ onNavigate, user }) {
 
       {/* Chatbot Component */}
       {showChatbot && (
-        <div className="chatbot-container">
+        <div className="chatbot-floating-container">
           <DeveloperChatbot onClose={() => setShowChatbot(false)} />
         </div>
       )}

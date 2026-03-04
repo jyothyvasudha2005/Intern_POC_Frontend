@@ -215,7 +215,7 @@
   font-size: 28px;
 }
 
-.chatbot-container {
+.chatbot-floating-container {
   position: fixed;
   bottom: 110px;
   right: 32px;
@@ -249,11 +249,11 @@
     font-size: 24px;
   }
 
-  .chatbot-container {
-    bottom: 85px;
-    right: 20px;
-    left: 20px;
-    width: auto;
-  }
+	  .chatbot-floating-container {
+	    bottom: 85px;
+	    right: 20px;
+	    left: 20px;
+	    width: auto;
+	  }
 }
 
