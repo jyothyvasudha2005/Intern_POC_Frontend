@@ -4,7 +4,7 @@ import { sendChatMessage, checkChatHealth, getSuggestedQuestions } from '../serv
 import { USE_REAL_API, API_BASE_URL } from '../services/apiConfig'
 import { testChatService } from '../services/apiTest'
 
-function DeveloperChatbot() {
+function DeveloperChatbot({ onClose }) {
   const [messages, setMessages] = useState([
     {
       type: 'bot',
@@ -223,6 +223,7 @@ function DeveloperChatbot() {
         <div className="chatbot-header-actions">
           <button className="chatbot-action-btn" onClick={handleTestAPI} title="Test API Integration">🧪</button>
           <button className="chatbot-action-btn" onClick={handleClearChat} title="Clear chat">🗑️</button>
+          {onClose && <button className="chatbot-action-btn" onClick={onClose} title="Close chatbot">✕</button>}
         </div>
       </div>
 

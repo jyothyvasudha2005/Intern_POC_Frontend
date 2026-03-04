@@ -1237,6 +1237,53 @@
   color: var(--text-secondary);
 }
 
+.audit-table-container {
+  margin-top: 16px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-tertiary);
+  max-height: 220px; /* ~4 rows visible with scroll */
+  overflow-y: auto;
+}
+
+.audit-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.audit-table thead {
+  position: sticky;
+  top: 0;
+  background: var(--bg-tertiary);
+  z-index: 1;
+}
+
+.audit-table th,
+.audit-table td {
+  padding: 10px 12px;
+  text-align: left;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.commit-message-cell {
+  max-width: 360px;
+}
+
+.commit-message {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.commit-sha {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 12px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: var(--bg-secondary);
+}
+
 /* README Container */
 .readme-container {
   background: var(--bg-secondary);
@@ -1397,5 +1444,154 @@
   font-size: 14px;
 }
 
+/* Port-style Details */
+.port-details-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  padding: 24px;
+}
 
+.port-details-section,
+.port-scorecards-section {
+  background: var(--bg-secondary);
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+  padding: 24px;
+}
 
+.port-section-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.port-icon {
+  font-size: 20px;
+}
+
+.port-details-list,
+.port-scorecards-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.port-detail-item,
+.port-scorecard-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.port-detail-item:last-child,
+.port-scorecard-item:last-child {
+  border-bottom: none;
+}
+
+.port-detail-label,
+.port-scorecard-label {
+  font-size: 14px;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 500;
+}
+
+.port-label-icon {
+  font-size: 16px;
+}
+
+.port-detail-value,
+.port-scorecard-value {
+  font-size: 14px;
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.port-badge {
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  display: inline-block;
+}
+
+.language-badge {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+}
+
+.type-badge {
+  background: #4488ff;
+  color: white;
+}
+
+.lifecycle-badge {
+  background: #ff9944;
+  color: white;
+}
+
+.sync-badge {
+  background: #888;
+  color: white;
+}
+
+.badge-false {
+  background: #ff4444;
+  color: white;
+}
+
+.badge-basic {
+  background: #888;
+  color: white;
+}
+
+.badge-bronze {
+  background: #CD7F32;
+  color: white;
+}
+
+.badge-elite {
+  background: #44ff44;
+  color: #000;
+}
+
+.port-links {
+  display: flex;
+  gap: 8px;
+}
+
+.port-link-icon {
+  font-size: 18px;
+  text-decoration: none;
+  transition: transform 0.2s;
+}
+
+.port-link-icon:hover {
+  transform: scale(1.2);
+}
+
+.port-link {
+  font-size: 18px;
+  text-decoration: none;
+  color: var(--accent-primary);
+}
+
+.port-link:hover {
+  transform: scale(1.2);
+}
+
+@media (max-width: 1024px) {
+  .port-details-grid {
+    grid-template-columns: 1fr;
+  }
+}
