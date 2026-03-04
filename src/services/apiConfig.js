@@ -26,11 +26,17 @@ export const API_ENDPOINTS = {
   APPROVAL_CREATE: '/approval/api/v1/approval/create',
   APPROVAL_GET_ALL: '/approval/api/v1/approval/all',
 
-  // Onboarding Service
+  // Onboarding Service (Old endpoints - deprecated)
   ONBOARDING_HEALTH: '/onboarding/health',
   ONBOARDING_CREATE: '/onboarding/api/onboard',
-  ONBOARDING_GET_ALL: '/onboarding/api/services',
-  ONBOARDING_GET_BY_ID: '/onboarding/api/services',
+  ONBOARDING_GET_ALL_OLD: '/onboarding/api/services',
+
+  // Service Catalog API (New endpoints - v1)
+  // Note: These endpoints are on port 8089 under /onboarding/api/v1
+  SERVICE_CATALOG_HEALTH: '/onboarding/health',
+  SERVICE_CATALOG_GET_ALL: '/onboarding/api/v1/service',
+  SERVICE_CATALOG_GET_BY_ID: '/onboarding/api/v1/service', // + /{id}
+  SERVICE_CATALOG_CREATE: '/onboarding/api/v1/service',
 
   // ScoreCard Service
   SCORECARD_HEALTH: '/scorecard/health',

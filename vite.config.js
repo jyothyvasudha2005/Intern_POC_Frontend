@@ -8,7 +8,8 @@ export default defineConfig({
     host: true, // Expose to network
     port: 5173, // Default port
     proxy: {
-      // Proxy all /api requests to the backend
+      // All /api requests to main backend (port 8089)
+      // This includes /api/onboarding/api/v1/service
       '/api': {
         target: 'http://10.140.8.28:8089',
         changeOrigin: true,

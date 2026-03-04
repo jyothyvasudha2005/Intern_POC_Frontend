@@ -4,16 +4,22 @@ import githubIcon from '../assets/github-sign.png'
 import jiraIcon from '../assets/jira.png'
 
 function ServiceTable({ services, onServiceClick, onScorecardClick }) {
-  const [sortColumn, setSortColumn] = useState('name')
+  const [sortColumn, setSortColumn] = useState('title')
   const [sortDirection, setSortDirection] = useState('asc')
+  const [expandedRow, setExpandedRow] = useState(null)
 
   const handleRowClick = (service) => {
-    console.log('🖱️ Row clicked in ServiceTable:', service.name)
+    console.log('🖱️ Row clicked in ServiceTable:', service.title || service.name)
     if (onServiceClick) {
       onServiceClick(service)
     } else {
       console.error('❌ onServiceClick is not defined!')
     }
+  }
+
+  const toggleRowExpansion = (serviceId, e) => {
+    e.stopPropagation() // Prevent row click
+    setExpandedRow(expandedRow === serviceId ? null : serviceId)
   }
 
   const handleSort = (column) => {
@@ -26,14 +32,20 @@ function ServiceTable({ services, onServiceClick, onScorecardClick }) {
   }
 
   const sortedServices = [...services].sort((a, b) => {
-    let aVal = a[sortColumn]
-    let bVal = b[sortColumn]
-    
+    let aVal = a[sortColumn] || ''
+    let bVal = b[sortColumn] || ''
+
+    // Handle nested properties (e.g., ownership.manager.name)
+    if (sortColumn === 'owner') {
+      aVal = a.ownership?.manager?.name || ''
+      bVal = b.ownership?.manager?.name || ''
+    }
+
     if (typeof aVal === 'string') {
       aVal = aVal.toLowerCase()
       bVal = bVal.toLowerCase()
     }
-    
+
     if (sortDirection === 'asc') {
       return aVal > bVal ? 1 : -1
     } else {
@@ -42,7 +54,25 @@ function ServiceTable({ services, onServiceClick, onScorecardClick }) {
   })
 
   const getStatusClass = (status) => {
-    return `status-badge status-${status.toLowerCase()}`
+    return `status-badge status-${(status || 'unknown').toLowerCase()}`
+  }
+
+  const getSeverityClass = (severity) => {
+    const severityMap = {
+      'Critical': 'severity-critical',
+      'High': 'severity-high',
+      'Medium': 'severity-medium',
+      'Low': 'severity-low',
+      'Informational': 'severity-info'
+    }
+    return severityMap[severity] || 'severity-unknown'
+  }
+
+  const getJenkinsStatusIcon = (passingCount, totalCount) => {
+    if (totalCount === 0) return '⚪'
+    if (passingCount === totalCount) return '✅'
+    if (passingCount === 0) return '❌'
+    return '⚠️'
   }
 
   return (
@@ -50,23 +80,15 @@ function ServiceTable({ services, onServiceClick, onScorecardClick }) {
       <table className="service-table">
         <thead>
           <tr>
+            <th style={{ width: '40px' }}>📋</th>
             <th onClick={() => handleSort('title')}>
               <div className="th-content">
-                Title
+                Service Name
                 {sortColumn === 'title' && (
                   <span className="sort-icon">{sortDirection === 'asc' ? '↑' : '↓'}</span>
                 )}
               </div>
             </th>
-            <th onClick={() => handleSort('lifecycle')}>
-              <div className="th-content">
-                Lifecycle
-                {sortColumn === 'lifecycle' && (
-                  <span className="sort-icon">{sortDirection === 'asc' ? '↑' : '↓'}</span>
-                )}
-              </div>
-            </th>
-            <th>URL</th>
             <th onClick={() => handleSort('language')}>
               <div className="th-content">
                 Language
@@ -75,29 +97,34 @@ function ServiceTable({ services, onServiceClick, onScorecardClick }) {
                 )}
               </div>
             </th>
-            <th>Last Committer</th>
-            <th>OnCall</th>
-            <th onClick={() => handleSort('tier')}>
+            <th onClick={() => handleSort('disposition')}>
               <div className="th-content">
-                Tier
-                {sortColumn === 'tier' && (
+                Status
+                {sortColumn === 'disposition' && (
                   <span className="sort-icon">{sortDirection === 'asc' ? '↑' : '↓'}</span>
                 )}
               </div>
             </th>
-            <th>Slack</th>
-            <th>Sonar Project</th>
-            <th>Domain</th>
-            <th>Details</th>
-            <th>Locked</th>
-            <th onClick={() => handleSort('owningTeam')}>
+            <th onClick={() => handleSort('region')}>
               <div className="th-content">
-                Owning Team
-                {sortColumn === 'owningTeam' && (
+                Region
+                {sortColumn === 'region' && (
                   <span className="sort-icon">{sortDirection === 'asc' ? '↑' : '↓'}</span>
                 )}
               </div>
             </th>
+            <th onClick={() => handleSort('owner')}>
+              <div className="th-content">
+                Owner
+                {sortColumn === 'owner' && (
+                  <span className="sort-icon">{sortDirection === 'asc' ? '↑' : '↓'}</span>
+                )}
+              </div>
+            </th>
+            <th>Jenkins</th>
+            <th>Security</th>
+            <th>Incidents</th>
+            <th>Repository</th>
             <th>Actions</th>
           </tr>
         </thead>

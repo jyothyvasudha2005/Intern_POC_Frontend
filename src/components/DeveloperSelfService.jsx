@@ -5,12 +5,11 @@ function DeveloperSelfService({ onNavigate }) {
   const [isCreatingIssue, setIsCreatingIssue] = useState(false)
   const [issueData, setIssueData] = useState({
     summary: '',
-    projectkey: 'JIRATEST',
+    projectkey: '',
     issueType: 'Task',
     description: '',
     priority: 'Medium'
   })
-  const [showIssueForm, setShowIssueForm] = useState(false)
   const [notification, setNotification] = useState(null)
 
   const handleCreateIssue = async () => {
@@ -37,7 +36,7 @@ function DeveloperSelfService({ onNavigate }) {
       priority: issueData.priority
     }
 
-    console.log('📤 Sending issue data to backend:', requestBody)
+    console.log('Sending issue data to backend:', requestBody)
 
     try {
       const response = await fetch('/api/jira/api/create-issue', {
@@ -56,11 +55,9 @@ function DeveloperSelfService({ onNavigate }) {
       console.log('Issue created:', result)
       
       setNotification({ type: 'success', message: 'Issue created successfully!' })
-      setShowIssueForm(false)
       setIssueData({
         summary: '',
         projectkey: '',
-        // projectkey: 'JIRATEST',
         issueType: 'Task',
         description: '',
         priority: 'Medium'
@@ -84,99 +81,167 @@ function DeveloperSelfService({ onNavigate }) {
   }
 
   return (
-    <div className="self-service-container">
-      <div className="self-service-header">
-        <span className="self-service-icon">⚡</span>
-        <h3>Developer Self Service</h3>
+    <div className="self-service-page">
+      {/* Header Section */}
+      <div className="self-service-header-section">
+        <div className="header-content">
+          <div className="title-row">
+            <h1 className="page-main-title">Developer Self Service</h1>
+            <span className="page-badge">
+              <span className="badge-icon">⚡</span>
+              Quick Actions
+            </span>
+          </div>
+          <p className="page-subtitle">
+            Streamline your workflow with automated service onboarding, issue tracking, and deployment tools
+          </p>
+        </div>
       </div>
 
+      {/* Notification */}
       {notification && (
-        <div className={`notification ${notification.type}`}>
-          {notification.type === 'success' ? '✓' : '⚠️'} {notification.message}
+        <div className={`notification-banner ${notification.type}`}>
+          <span className="notification-icon">
+            {notification.type === 'success' ? '✅' : '⚠️'}
+          </span>
+          <span className="notification-text">{notification.message}</span>
         </div>
       )}
 
-      <div className="self-service-actions">
-        {/* Create an Issue */}
-        <div className="service-action-card">
-          <div className="action-icon-wrapper blue">
-            <span className="action-icon">◆</span>
+      {/* Scrollable Content Area */}
+      <div className="self-service-content">
+        {/* Create Jira Issue Section */}
+        <section className="service-section">
+          <div className="section-header">
+            <div className="section-title-group">
+              <span className="section-icon">🎫</span>
+              <h2 className="section-title">Create Jira Issue</h2>
+            </div>
+            <p className="section-description">
+              Quickly create and track issues in your Jira projects
+            </p>
           </div>
-          <div className="action-content">
-            <h4 className="action-title">Create an Issue</h4>
-            <p className="action-description">Create a new issue in a Jira project</p>
-          </div>
-          <button 
-            className="action-trigger-btn"
-            onClick={() => setShowIssueForm(!showIssueForm)}
-          >
-            {showIssueForm ? '✕' : '+'}
-          </button>
-        </div>
 
-        {showIssueForm && (
-          <div className="issue-form">
-            <input
-              type="text"
-              placeholder="Project Key *"
-              className="form-input"
-              value={issueData.projectkey}
-              onChange={(e) => setIssueData({ ...issueData, projectkey: e.target.value })}
-            />
-            <select
-              className="form-select"
-              value={issueData.issueType}
-              onChange={(e) => setIssueData({ ...issueData, issueType: e.target.value })}
-            >
-              <option value="Task">Task</option>
-              <option value="Bug">Bug</option>
-              <option value="Story">Story</option>
-              <option value="Epic">Epic</option>
-            </select>
-            <input
-              type="text"
-              placeholder="Issue Summary *"
-              className="form-input"
-              value={issueData.summary}
-              onChange={(e) => setIssueData({ ...issueData, summary: e.target.value })}
-            />
-            <textarea
-              placeholder="Description (optional)"
-              className="form-textarea"
-              value={issueData.description}
-              onChange={(e) => setIssueData({ ...issueData, description: e.target.value })}
-              rows="3"
-            />
-            <select
-              className="form-select"
-              value={issueData.priority}
-              onChange={(e) => setIssueData({ ...issueData, priority: e.target.value })}
-            >
-              <option value="Low">Low Priority</option>
-              <option value="Medium">Medium Priority</option>
-              <option value="High">High Priority</option>
-            </select>
-            <button
-              className="form-submit-btn"
-              onClick={handleCreateIssue}
-              disabled={isCreatingIssue}
-            >
-              {isCreatingIssue ? 'Creating...' : 'Create Issue'}
-            </button>
-          </div>
-        )}
+          <div className="section-body">
+            <div className="form-card">
+              <div className="form-grid">
+                <div className="form-group">
+                  <label className="form-label">
+                    Project Key <span className="required">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g., JIRATEST"
+                    className="form-input"
+                    value={issueData.projectkey}
+                    onChange={(e) => setIssueData({ ...issueData, projectkey: e.target.value })}
+                  />
+                </div>
 
-        {/* Onboard New Service */}
-        <div className="service-action-card" onClick={handleOnboardService}>
-          <div className="action-icon-wrapper pink">
-            <span className="action-icon">📦</span>
+                <div className="form-group">
+                  <label className="form-label">Issue Type</label>
+                  <select
+                    className="form-select"
+                    value={issueData.issueType}
+                    onChange={(e) => setIssueData({ ...issueData, issueType: e.target.value })}
+                  >
+                    <option value="Task">📋 Task</option>
+                    <option value="Bug">🐛 Bug</option>
+                    <option value="Story">📖 Story</option>
+                    <option value="Epic">🎯 Epic</option>
+                  </select>
+                </div>
+
+                <div className="form-group full-width">
+                  <label className="form-label">
+                    Summary <span className="required">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Brief description of the issue"
+                    className="form-input"
+                    value={issueData.summary}
+                    onChange={(e) => setIssueData({ ...issueData, summary: e.target.value })}
+                  />
+                </div>
+
+                <div className="form-group full-width">
+                  <label className="form-label">Description</label>
+                  <textarea
+                    placeholder="Detailed description (optional)"
+                    className="form-textarea"
+                    value={issueData.description}
+                    onChange={(e) => setIssueData({ ...issueData, description: e.target.value })}
+                    rows="4"
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Priority</label>
+                  <select
+                    className="form-select"
+                    value={issueData.priority}
+                    onChange={(e) => setIssueData({ ...issueData, priority: e.target.value })}
+                  >
+                    <option value="Low">🟢 Low Priority</option>
+                    <option value="Medium">🟡 Medium Priority</option>
+                    <option value="High">🔴 High Priority</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="form-actions">
+                <button
+                  className="btn-primary-large"
+                  onClick={handleCreateIssue}
+                  disabled={isCreatingIssue}
+                >
+                  {isCreatingIssue ? (
+                    <>
+                      <span className="spinner"></span>
+                      Creating Issue...
+                    </>
+                  ) : (
+                    <>
+                      <span className="btn-icon">✓</span>
+                      Create Issue
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
           </div>
-          <div className="action-content">
-            <h4 className="action-title">Onboard New Service</h4>
-            <p className="action-description">Register a new microservice in the Port catalog</p>
+        </section>
+
+        {/* Onboard Service Section */}
+        <section className="service-section">
+          <div className="section-header">
+            <div className="section-title-group">
+              <span className="section-icon">📦</span>
+              <h2 className="section-title">Service Onboarding</h2>
+            </div>
+            <p className="section-description">
+              Register and manage microservices in your service catalog
+            </p>
           </div>
-          <button className="action-trigger-btn">→</button>
-        </div>
+
+          <div className="section-body">
+            <div className="action-card" onClick={handleOnboardService}>
+              <div className="action-card-content">
+                <div className="action-card-icon">
+                  <span>�</span>
+                </div>
+                <div className="action-card-text">
+                  <h3 className="action-card-title">Onboard New Service</h3>
+                  <p className="action-card-description">
+                    Add a new microservice to the catalog with repository details, ownership, and team assignment
+                  </p>
+                </div>
+              </div>
+              <div className="action-card-arrow">→</div>
+            </div>
+          </div>
+        </section>
       </div>
     </div>
   )

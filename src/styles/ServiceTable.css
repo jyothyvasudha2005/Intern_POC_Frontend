@@ -12,6 +12,33 @@
   font-size: 14px;
 }
 
+.service-table.modern-table tbody tr.service-row {
+  transition: background-color 0.2s;
+}
+
+.service-table.modern-table tbody tr.service-row:hover {
+  background-color: var(--bg-hover);
+}
+
+.service-table.modern-table .expanded-row {
+  background-color: var(--bg-secondary) !important;
+}
+
+.service-table.modern-table .expanded-row:hover {
+  background-color: var(--bg-secondary) !important;
+}
+
+.language-badge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+  background-color: #3b82f620;
+  color: #3b82f6;
+  text-transform: capitalize;
+}
+
 .service-table thead {
   background: var(--bg-tertiary);
   border-bottom: 2px solid var(--border-color);

@@ -1,4 +1,7 @@
-/* Service Detail Container */
+#!/usr/bin/env python3
+import os
+
+css_content = """/* Service Detail Container */
 .service-detail {
   min-height: 100vh;
   background: linear-gradient(135deg, #f5f7fa 0%, #e8eef3 100%);
@@ -146,161 +149,14 @@
   color: #6366f1;
   border-bottom-color: #6366f1;
 }
+"""
 
-.tab-icon {
-  font-size: 1.1rem;
-}
+# Write to file
+output_path = os.path.join('src', 'styles', 'ServiceDetail.css')
+os.makedirs(os.path.dirname(output_path), exist_ok=True)
 
-/* Tab Content */
-.tab-content-area {
-  padding: 2rem 3rem;
-  max-width: 1400px;
-  margin: 0 auto;
-}
+with open(output_path, 'w') as f:
+    f.write(css_content)
 
-/* Overview Tab */
-.overview-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
-  gap: 1.5rem;
-}
-
-.info-card {
-  background: white;
-  border-radius: 12px;
-  padding: 1.5rem;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-  transition: all 0.3s;
-}
-
-.info-card:hover {
-  box-shadow: 0 8px 24px rgba(0,0,0,0.12);
-  transform: translateY(-4px);
-}
-
-.card-title {
-  font-size: 1.1rem;
-  font-weight: 700;
-  color: #1f2937;
-  margin-bottom: 1rem;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.card-icon {
-  font-size: 1.3rem;
-}
-
-.card-body {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-
-.info-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0.5rem 0;
-  border-bottom: 1px solid #f3f4f6;
-}
-
-.info-row:last-child {
-  border-bottom: none;
-}
-
-.info-label {
-  font-size: 0.875rem;
-  color: #6b7280;
-  font-weight: 500;
-}
-
-.info-value {
-  font-size: 0.875rem;
-  color: #1f2937;
-  font-weight: 600;
-}
-
-.info-link {
-  color: #6366f1;
-  text-decoration: none;
-  font-size: 0.875rem;
-  font-weight: 600;
-}
-
-.info-link:hover {
-  text-decoration: underline;
-}
-
-/* Stats Card */
-.stat-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 1rem;
-}
-
-.stat-item {
-  text-align: center;
-  padding: 1rem;
-  background: #f9fafb;
-  border-radius: 8px;
-}
-
-.stat-value {
-  font-size: 2rem;
-  font-weight: 700;
-  color: #6366f1;
-  display: block;
-  margin-bottom: 0.25rem;
-}
-
-.stat-label {
-  font-size: 0.75rem;
-  color: #6b7280;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  font-weight: 600;
-}
-
-/* Empty State */
-.empty-tab-state {
-  text-align: center;
-  padding: 4rem 2rem;
-  background: white;
-  border-radius: 12px;
-}
-
-.empty-icon {
-  font-size: 4rem;
-  margin-bottom: 1rem;
-  opacity: 0.5;
-}
-
-.empty-tab-state p {
-  color: #6b7280;
-  font-size: 1.1rem;
-}
-
-/* Responsive */
-@media (max-width: 768px) {
-  .detail-header-section,
-  .service-tabs,
-  .tab-content-area {
-    padding-left: 1.5rem;
-    padding-right: 1.5rem;
-  }
-
-  .service-main-title {
-    font-size: 1.75rem;
-  }
-
-  .overview-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .stat-grid {
-    grid-template-columns: 1fr;
-  }
-}
+print(f"✅ Created {output_path} (Part 1/3)")
 

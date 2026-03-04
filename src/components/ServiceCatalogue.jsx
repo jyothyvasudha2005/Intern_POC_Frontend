@@ -1,80 +1,116 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import '../styles/ServiceCatalogue.css'
 import { demoRepositories, repositoryServices } from '../data/servicesData'
-import ServiceTable from './ServiceTable'
+import ServiceTableNew from './ServiceTableNew'
+import ServiceDetail from './ServiceDetail'
 import { getAllServices as fetchAllServices, onboardService } from '../services/onboardingService'
 
 function ServiceCatalogue({ onServiceClick, onScorecardClick, selectedRepo, setSelectedRepo }) {
   const [showAddModal, setShowAddModal] = useState(false)
-  const [services, setServices] = useState(repositoryServices['ecommerce-platform'] || [])
+  const [services, setServices] = useState([])
   const [isLoading, setIsLoading] = useState(false)
-  const [isMockData, setIsMockData] = useState(true)
+  const [isMockData, setIsMockData] = useState(false)
   const [hasAttemptedFetch, setHasAttemptedFetch] = useState(false)
   const [loadError, setLoadError] = useState(null)
+  const [selectedService, setSelectedService] = useState(null)
   const [newService, setNewService] = useState({
-    serviceName: '',
-    displayName: '',
-    owningTeam: '',
-    repositorySystem: '',
-    lifecycleStatus: '',
+    title: '',
+    repositoryUrl: '',
+    language: '',
+    disposition: 'active',
+    region: 'us',
+    cloudMigrationStatus: 'cloud-native',
+    productName: '',
+    moduleName: '',
+    managerName: '',
     description: ''
   })
 
-  // NO automatic loading - user must click button
+  // Use ref to prevent double-fetch in React Strict Mode
+  const hasFetchedRef = useRef(false)
+
+  // Automatically fetch data when component mounts
   useEffect(() => {
-    console.log('📦 ServiceCatalogue mounted - Using MOCK data by default')
-    console.log('💡 Click "Fetch from API" button to load real data')
+    console.log('📦 ServiceCatalogue mounted - Fetching data from API...')
+    console.log('📦 hasFetchedRef.current:', hasFetchedRef.current)
+
+    // Only load if we haven't attempted yet (prevents React Strict Mode double-mount)
+    if (!hasFetchedRef.current) {
+      hasFetchedRef.current = true
+      loadServices()
+    } else {
+      console.log('⏭️ Skipping fetch - already attempted')
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const loadServices = async () => {
-    // Prevent multiple calls - only allow ONE attempt
-    if (hasAttemptedFetch) {
-      console.log('🛑 Already attempted to fetch from API. Refresh page to try again.')
-      return
-    }
+    console.log('🔄 loadServices called, isLoading:', isLoading, 'hasAttemptedFetch:', hasAttemptedFetch)
 
+    // Prevent multiple simultaneous calls
     if (isLoading) {
       console.log('⏸️ Already loading services, please wait...')
       return
     }
 
-    console.log('🔄 Fetching services from API...')
+    console.log('🚀 Starting to fetch services from API...')
     setIsLoading(true)
     setLoadError(null)
-    setHasAttemptedFetch(true) // Mark as attempted - won't try again
+    setHasAttemptedFetch(true)
+
+    // Add a timeout to prevent infinite loading
+    const timeoutId = setTimeout(() => {
+      console.error('⏰ API call timeout after 10 seconds')
+      setLoadError('Request timeout - API took too long to respond')
+      setServices(repositoryServices['ecommerce-platform'] || [])
+      setIsMockData(true)
+      setIsLoading(false)
+    }, 10000)
 
     try {
+      console.log('⏱️ Starting API call...')
+      const startTime = Date.now()
       const result = await fetchAllServices()
+      const duration = Date.now() - startTime
+      console.log(`⏱️ API call completed in ${duration}ms`)
+      console.log('📦 Full result:', result)
+
+      // Clear timeout if request completes
+      clearTimeout(timeoutId)
 
       if (result.success) {
-        setServices(result.data)
+        console.log('📊 Result data:', result.data?.length || 0, 'services')
+        console.log('📊 First service:', result.data?.[0])
+        setServices(result.data || [])
         setIsMockData(result.isMock)
 
         if (result.isMock) {
           console.log('📦 API returned no data - Using MOCK data')
           setLoadError('API returned no data')
         } else {
-          console.log('✅ Successfully loaded REAL data from API')
+          console.log('✅ Successfully loaded REAL data from API:', result.data.length, 'services')
         }
       } else {
         // API call failed
         setLoadError(result.error || 'Failed to load services')
         console.error('❌ Failed to load services:', result.error)
 
-        // Keep using mock data
+        // Fallback to mock data
         setServices(repositoryServices['ecommerce-platform'] || [])
         setIsMockData(true)
       }
     } catch (error) {
+      clearTimeout(timeoutId)
       setLoadError(error.message)
       console.error('❌ Error loading services:', error.message)
+      console.error('❌ Error stack:', error.stack)
 
-      // Keep using mock data
+      // Fallback to mock data
       setServices(repositoryServices['ecommerce-platform'] || [])
       setIsMockData(true)
     } finally {
+      console.log('🏁 Setting isLoading to false')
       setIsLoading(false)
-      console.log('🛑 Fetch attempt complete. Will not retry automatically.')
     }
   }
 
@@ -92,6 +128,16 @@ function ServiceCatalogue({ onServiceClick, onScorecardClick, selectedRepo, setS
   const currentServices = getFilteredServices()
   const totalServices = services.length
 
+  const handleServiceClick = (service) => {
+    console.log('🔍 Service clicked:', service)
+    setSelectedService(service)
+  }
+
+  const handleBackToCatalogue = () => {
+    console.log('⬅️ Back to catalogue')
+    setSelectedService(null)
+  }
+
   const handleAddService = () => {
     setShowAddModal(true)
   }
@@ -99,11 +145,15 @@ function ServiceCatalogue({ onServiceClick, onScorecardClick, selectedRepo, setS
   const handleCloseModal = () => {
     setShowAddModal(false)
     setNewService({
-      serviceName: '',
-      displayName: '',
-      owningTeam: '',
-      repositorySystem: '',
-      lifecycleStatus: '',
+      title: '',
+      repositoryUrl: '',
+      language: '',
+      disposition: 'active',
+      region: 'us',
+      cloudMigrationStatus: 'cloud-native',
+      productName: '',
+      moduleName: '',
+      managerName: '',
       description: ''
     })
   }
@@ -119,26 +169,34 @@ function ServiceCatalogue({ onServiceClick, onScorecardClick, selectedRepo, setS
   const handleSubmit = async (e) => {
     e.preventDefault()
 
-    // Create new service object
+    // Create new service object matching backend API format
     const serviceData = {
-      name: newService.displayName || newService.serviceName,
-      team: newService.owningTeam,
-      github: `https://github.com/example/${newService.serviceName}`,
-      repositoryUrl: `https://github.com/example/${newService.serviceName}`,
-      description: newService.description,
-      environment: newService.lifecycleStatus || 'development',
-      language: 'Unknown',
-      tags: []
+      title: newService.title,
+      repositoryUrl: newService.repositoryUrl,
+      language: newService.language,
+      disposition: newService.disposition,
+      region: newService.region,
+      cloudMigrationStatus: newService.cloudMigrationStatus,
+      productName: newService.productName,
+      moduleName: newService.moduleName,
+      managerName: newService.managerName,
+      description: newService.description || ''
     }
+
+    console.log('📤 Submitting service data:', serviceData)
 
     // Call API to onboard service
     const result = await onboardService(serviceData)
 
     if (result.success) {
       console.log('✅ Service onboarded:', result.isMock ? '(MOCK)' : '(API)')
+      alert('Service onboarded successfully!')
 
       // Reload services
       await loadServices()
+
+      // Close modal
+      handleCloseModal()
     } else {
       console.error('❌ Failed to onboard service:', result.error)
       if (result.details) {
@@ -149,92 +207,11 @@ function ServiceCatalogue({ onServiceClick, onScorecardClick, selectedRepo, setS
         : result.error
       alert('Failed to onboard service: ' + errorMessage)
     }
+  }
 
-    // Create local service object for immediate display (fallback)
-    const service = {
-      id: Date.now(),
-      name: newService.displayName || newService.serviceName,
-      icon: '📦',
-      team: newService.owningTeam,
-      github: `https://github.com/example/${newService.serviceName}`,
-      jira: `https://jira.example.com/projects/${newService.serviceName.toUpperCase()}`,
-      status: newService.lifecycleStatus || 'Healthy',
-      description: newService.description,
-      version: 'v1.0.0',
-      environment: 'Development',
-      lastDeployed: 'Just now',
-      metrics: {
-        github: {
-          language: 'N/A',
-          openPRs: 0,
-          mergedPRs: 0,
-          contributors: 0,
-          lastCommit: 'N/A',
-          coverage: 0
-        },
-        jira: {
-          openIssues: 0,
-          inProgress: 0,
-          resolved: 0,
-          bugs: 0,
-          avgResolutionTime: 'N/A',
-          sprintProgress: 0
-        },
-        pagerduty: {
-          activeIncidents: 0,
-          totalIncidents: 0,
-          mttr: 'N/A',
-          mtta: 'N/A',
-          uptime: 100,
-          onCall: 'N/A'
-        }
-      },
-      prMetrics: {
-        avgCommitsPerPR: 0,
-        openPRCount: 0,
-        avgLOCPerPR: 0,
-        weeklyMergedPRs: 0
-      },
-      codeQuality: {
-        codeCoverage: 0,
-        vulnerabilities: 0,
-        codeSmells: 0,
-        codeDuplication: 0
-      },
-      securityMaturity: {
-        owaspCompliance: 'Basic',
-        branchProtection: false,
-        requiredApprovals: 0
-      },
-      doraMetrics: {
-        changeFailureRate: 0,
-        deploymentFrequency: 0,
-        mttr: 0
-      },
-      productionReadiness: {
-        pagerdutyIntegration: false,
-        observabilityDashboard: false
-      },
-      jiraMetrics: {
-        openHighPriorityBugs: 0,
-        totalIssues: 0,
-        inProgress: 0,
-        resolved: 0
-      }
-    }
-
-    // Add to the selected repository or default to first one
-    const targetRepo = selectedRepo || demoRepositories[0].value
-    if (!repositoryServices[targetRepo]) {
-      repositoryServices[targetRepo] = []
-    }
-    repositoryServices[targetRepo].push(service)
-
-    // Close modal and reset form
-    handleCloseModal()
-
-    // Show success message (optional)
-    console.log('✅ Service added successfully:', service.name)
+  // If a service is selected, show the detail view
+  if (selectedService) {
+    return <ServiceDetail service={selectedService} onBack={handleBackToCatalogue} />
   }
 
   return (
@@ -288,15 +265,6 @@ function ServiceCatalogue({ onServiceClick, onScorecardClick, selectedRepo, setS
           </select>
         </div>
         <div className="repo-actions">
-          <button
-            className="fetch-api-btn"
-            onClick={loadServices}
-            disabled={isLoading || hasAttemptedFetch}
-            title={hasAttemptedFetch ? 'Already attempted. Refresh page to retry.' : 'Fetch services from API'}
-          >
-            <span className="btn-icon">{isLoading ? '⏳' : '🔄'}</span>
-            {isLoading ? 'Fetching...' : hasAttemptedFetch ? 'Fetched' : 'Fetch from API'}
-          </button>
           <button className="add-service-btn" onClick={handleAddService}>
             <span className="btn-icon">+</span>
             Add New Service
@@ -314,15 +282,22 @@ function ServiceCatalogue({ onServiceClick, onScorecardClick, selectedRepo, setS
         </div>
       )}
 
-      {currentServices.length > 0 && (
-        <ServiceTable
+      {isLoading && (
+        <div className="empty-state">
+          <div className="empty-icon">⏳</div>
+          <h3>Loading Services...</h3>
+          <p>Fetching data from API, please wait...</p>
+        </div>
+      )}
+
+      {!isLoading && currentServices.length > 0 && (
+        <ServiceTableNew
           services={currentServices}
-          onServiceClick={onServiceClick}
-          onScorecardClick={onScorecardClick}
+          onServiceClick={handleServiceClick}
         />
       )}
 
-      {currentServices.length === 0 && (
+      {!isLoading && currentServices.length === 0 && (
         <div className="empty-state">
           <div className="empty-icon">📭</div>
           <h3>No Services Found</h3>
@@ -347,107 +322,161 @@ function ServiceCatalogue({ onServiceClick, onScorecardClick, selectedRepo, setS
 
             <form onSubmit={handleSubmit} className="modal-form">
               <div className="form-group">
-                <label htmlFor="serviceName" className="form-label">
-                  Service Name <span className="required">*</span>
-                  <span className="info-icon-small" title="Unique identifier for the service">ⓘ</span>
+                <label htmlFor="title" className="form-label">
+                  Service Title <span className="required">*</span>
+                  <span className="info-icon-small" title="Service name/title">ⓘ</span>
                 </label>
                 <input
                   type="text"
-                  id="serviceName"
-                  name="serviceName"
+                  id="title"
+                  name="title"
                   className="form-input"
-                  placeholder="Enter value here"
-                  value={newService.serviceName}
+                  placeholder="e.g., delivery-management-frontend"
+                  value={newService.title}
                   onChange={handleInputChange}
                   required
                 />
               </div>
 
               <div className="form-group">
-                <label htmlFor="displayName" className="form-label">
-                  Display Name <span className="required">*</span>
-                  <span className="info-icon-small" title="Human-readable name for the service">ⓘ</span>
+                <label htmlFor="repositoryUrl" className="form-label">
+                  Repository URL <span className="required">*</span>
+                  <span className="info-icon-small" title="GitHub repository URL">ⓘ</span>
                 </label>
                 <input
-                  type="text"
-                  id="displayName"
-                  name="displayName"
+                  type="url"
+                  id="repositoryUrl"
+                  name="repositoryUrl"
                   className="form-input"
-                  placeholder="Enter value here"
-                  value={newService.displayName}
+                  placeholder="https://github.com/org/repo"
+                  value={newService.repositoryUrl}
                   onChange={handleInputChange}
                   required
                 />
               </div>
 
               <div className="form-group">
-                <label htmlFor="owningTeam" className="form-label">
-                  Owning Team <span className="required">*</span>
-                  <span className="info-icon-small" title="Team responsible for this service">ⓘ</span>
-                </label>
-                <input
-                  type="text"
-                  id="owningTeam"
-                  name="owningTeam"
-                  className="form-input"
-                  placeholder="Enter value here"
-                  value={newService.owningTeam}
-                  onChange={handleInputChange}
-                  required
-                />
-              </div>
-
-              <div className="form-group">
-                <label htmlFor="repositorySystem" className="form-label">
-                  Repository System <span className="required">*</span>
-                  <span className="info-icon-small" title="Select the repository system">ⓘ</span>
+                <label htmlFor="language" className="form-label">
+                  Programming Language <span className="required">*</span>
+                  <span className="info-icon-small" title="Primary programming language">ⓘ</span>
                 </label>
                 <select
-                  id="repositorySystem"
-                  name="repositorySystem"
+                  id="language"
+                  name="language"
                   className="form-select"
-                  value={newService.repositorySystem}
+                  value={newService.language}
                   onChange={handleInputChange}
                   required
                 >
-                  <option value="">Select</option>
-                  {demoRepositories.map(repo => (
-                    <option key={repo.id} value={repo.value}>{repo.name}</option>
-                  ))}
+                  <option value="">Select Language</option>
+                  <option value="react">React</option>
+                  <option value="java">Java</option>
+                  <option value="python">Python</option>
+                  <option value="golang">Go</option>
+                  <option value="nodejs">Node.js</option>
+                  <option value="typescript">TypeScript</option>
                 </select>
               </div>
 
               <div className="form-group">
-                <label htmlFor="lifecycleStatus" className="form-label">
-                  Lifecycle Status <span className="required">*</span>
-                  <span className="info-icon-small" title="Current lifecycle status">ⓘ</span>
+                <label htmlFor="region" className="form-label">
+                  Region <span className="required">*</span>
+                  <span className="info-icon-small" title="Deployment region">ⓘ</span>
                 </label>
                 <select
-                  id="lifecycleStatus"
-                  name="lifecycleStatus"
+                  id="region"
+                  name="region"
                   className="form-select"
-                  value={newService.lifecycleStatus}
+                  value={newService.region}
                   onChange={handleInputChange}
                   required
                 >
-                  <option value="">Select</option>
-                  <option value="Development">Development</option>
-                  <option value="Staging">Staging</option>
-                  <option value="Production">Production</option>
-                  <option value="Deprecated">Deprecated</option>
+                  <option value="us">US</option>
+                  <option value="eu">EU</option>
+                  <option value="asia">Asia</option>
                 </select>
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="disposition" className="form-label">
+                  Status <span className="required">*</span>
+                  <span className="info-icon-small" title="Service status">ⓘ</span>
+                </label>
+                <select
+                  id="disposition"
+                  name="disposition"
+                  className="form-select"
+                  value={newService.disposition}
+                  onChange={handleInputChange}
+                  required
+                >
+                  <option value="active">Active</option>
+                  <option value="inactive">Inactive</option>
+                  <option value="deprecated">Deprecated</option>
+                </select>
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="productName" className="form-label">
+                  Product Name <span className="required">*</span>
+                  <span className="info-icon-small" title="Product this service belongs to">ⓘ</span>
+                </label>
+                <input
+                  type="text"
+                  id="productName"
+                  name="productName"
+                  className="form-input"
+                  placeholder="e.g., Tekion"
+                  value={newService.productName}
+                  onChange={handleInputChange}
+                  required
+                />
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="moduleName" className="form-label">
+                  Module Name <span className="required">*</span>
+                  <span className="info-icon-small" title="Module this service belongs to">ⓘ</span>
+                </label>
+                <input
+                  type="text"
+                  id="moduleName"
+                  name="moduleName"
+                  className="form-input"
+                  placeholder="e.g., Task & Program"
+                  value={newService.moduleName}
+                  onChange={handleInputChange}
+                  required
+                />
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="managerName" className="form-label">
+                  Manager Name <span className="required">*</span>
+                  <span className="info-icon-small" title="Service manager/owner">ⓘ</span>
+                </label>
+                <input
+                  type="text"
+                  id="managerName"
+                  name="managerName"
+                  className="form-input"
+                  placeholder="e.g., John Doe"
+                  value={newService.managerName}
+                  onChange={handleInputChange}
+                  required
+                />
               </div>
 
               <div className="form-group">
                 <label htmlFor="description" className="form-label">
-                  Description <span className="required">*</span>
+                  Description
                   <span className="info-icon-small" title="Brief description of the service">ⓘ</span>
                 </label>
                 <textarea
                   id="description"
                   name="description"
                   className="form-textarea"
-                  placeholder="Enter value here"
+                  placeholder="Enter service description"
                   value={newService.description}
                   onChange={handleInputChange}
                   rows="3"
