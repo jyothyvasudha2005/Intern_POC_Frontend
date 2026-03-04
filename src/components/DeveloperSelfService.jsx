@@ -5,7 +5,8 @@ function DeveloperSelfService({ onNavigate }) {
   const [isCreatingIssue, setIsCreatingIssue] = useState(false)
   const [issueData, setIssueData] = useState({
     summary: '',
-    projectkey: 'JIRATEST',
+    // projectkey: 'JIRATEST',
+    projectkey: '',
     issueType: 'Task',
     description: '',
     priority: 'Medium'
