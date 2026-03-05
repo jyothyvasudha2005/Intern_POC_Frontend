@@ -1,200 +1,83 @@
 import { useState, useEffect } from 'react'
+import { useDispatch, useSelector } from 'react-redux'
 import '../styles/DeveloperDashboard.css'
 import DeveloperChatbot from './DeveloperChatbot'
 import DeveloperSelfService from './DeveloperSelfService'
-import { getOpenPullRequests, getOpenIssues, getOpenBugs, getOpenTasks, getRepositoriesForCatalogue, getOrganizations } from '../services/sonarService'
+import { fetchServicesForOrg, fetchDashboardData } from '../store/servicesSlice'
+import store from '../store/store'
+import {
+  selectOrganizations,
+  selectIsLoading,
+  selectCurrentOrgId,
+  selectHasCachedServices,
+  selectIsDataStale,
+  selectDashboardOpenPRs,
+  selectDashboardOpenBugs,
+  selectDashboardOpenTasks,
+  selectIsLoadingDashboard
+} from '../store/selectors'
 
 function DeveloperDashboard({ onNavigate, user }) {
+  const dispatch = useDispatch()
   const [showChatbot, setShowChatbot] = useState(false)
 
-  // State for My Work data
-  const [myOpenPRs, setMyOpenPRs] = useState([])
-  const [myOpenIssues, setMyOpenIssues] = useState([])
-  const [myOpenBugs, setMyOpenBugs] = useState([])
-  const [myOpenTasks, setMyOpenTasks] = useState([])
-  const [isLoading, setIsLoading] = useState(true)
+  // Redux state
+  const organizations = useSelector(selectOrganizations)
+  const isLoading = useSelector(selectIsLoading)
+  const currentOrgId = useSelector(selectCurrentOrgId)
+
+  // Local state - MUST be declared before using in selectors
+  const [selectedOrgId, setSelectedOrgId] = useState(currentOrgId || 1)
   const [loadError, setLoadError] = useState(null)
 
-  // Organization selection
-  const [organizations, setOrganizations] = useState([])
-  const [selectedOrgId, setSelectedOrgId] = useState('')
+  // Dashboard data from Redux - using selectedOrgId
+  const openPRs = useSelector(state => selectDashboardOpenPRs(selectedOrgId)(state))
+  const openBugs = useSelector(state => selectDashboardOpenBugs(selectedOrgId)(state))
+  const openTasks = useSelector(state => selectDashboardOpenTasks(selectedOrgId)(state))
+  const isDashboardLoading = useSelector(selectIsLoadingDashboard)
 
-  // Load organizations on mount
+  // Initialize services and dashboard data on mount
   useEffect(() => {
-    const loadOrganizations = async () => {
-      try {
-        const orgResult = await getOrganizations()
-        if (orgResult.success && Array.isArray(orgResult.data) && orgResult.data.length > 0) {
-          setOrganizations(orgResult.data)
-          // Auto-select first org
-          const firstOrgId = orgResult.data[0].id
-          setSelectedOrgId(firstOrgId)
+    const initializeDashboard = async () => {
+      const orgId = selectedOrgId || 1
+      console.log('🔄 Developer Dashboard - Initializing for org:', orgId)
+
+      // Check if services are cached
+      const hasCachedServices = selectHasCachedServices(orgId)(store.getState())
+      const isServiceStale = selectIsDataStale(orgId)(store.getState())
+
+      console.log('📦 Services cache status:', { hasCachedServices, isServiceStale })
+
+      // Fetch services if not cached or stale
+      if (!hasCachedServices || isServiceStale) {
+        console.log('🔄 Developer Dashboard - Fetching services for org:', orgId)
+        try {
+          await dispatch(fetchServicesForOrg(orgId)).unwrap()
+          console.log('✅ Developer Dashboard - Services loaded from API')
+        } catch (error) {
+          console.error('❌ Developer Dashboard - Error fetching services:', error)
+          setLoadError(error.message || 'Failed to load services')
+          return
         }
+      } else {
+        console.log('✅ Developer Dashboard - Using cached services')
+      }
+
+      // Now fetch dashboard data (PRs, bugs, tasks) from the cached services
+      console.log('🔄 Developer Dashboard - Aggregating dashboard data from services')
+      try {
+        await dispatch(fetchDashboardData(orgId)).unwrap()
+        console.log('✅ Developer Dashboard - Dashboard data aggregated from Redux')
       } catch (error) {
-        console.error('❌ Error loading organizations:', error.message)
+        console.error('❌ Developer Dashboard - Error aggregating dashboard data:', error)
+        setLoadError(error.message || 'Failed to load dashboard data')
       }
     }
 
-    loadOrganizations()
-  }, [])
-
-  // Fetch My Work data when organization changes
-  useEffect(() => {
-    if (!selectedOrgId) return
-
-    const fetchMyWorkData = async () => {
-      setIsLoading(true)
-      setLoadError(null)
-
-      try {
-        // Get all repositories for the selected organization
-        const reposResponse = await getRepositoriesForCatalogue(selectedOrgId)
-
-        if (reposResponse.success && reposResponse.data && reposResponse.data.length > 0) {
-          // Fetch from ALL repos in the organization
-          const repos = reposResponse.data
-
-          // Fetch PRs from all repos
-          const prPromises = repos.map(repo => getOpenPullRequests(repo.name))
-          const prResults = await Promise.all(prPromises)
-
-          // Flatten and combine all PRs
-          const allPRs = prResults
-            .filter(result => result.success && result.data)
-            .flatMap(result => result.data)
-            .map(pr => ({
-              id: pr.number,
-              title: pr.title,
-              link: pr.html_url || `https://github.com/${pr.repo}/pull/${pr.number}`,
-              daysOld: calculateDaysOld(pr.created_at),
-              repo: pr.repo || 'Unknown',
-              state: pr.state
-            }))
-
-          setMyOpenPRs(allPRs)
-
-          // Fetch Issues from all repos
-          const issuePromises = repos.map(repo => getOpenIssues(repo.name))
-          const issueResults = await Promise.all(issuePromises)
-
-          const allIssues = issueResults
-            .filter(result => result.success && result.data)
-            .flatMap(result => result.data)
-            .map(issue => ({
-              id: issue.number,
-              title: issue.title,
-              link: issue.html_url || `https://github.com/${issue.repo}/issues/${issue.number}`,
-              daysOld: calculateDaysOld(issue.created_at),
-              repo: issue.repo || 'Unknown',
-              state: issue.state
-            }))
-
-          setMyOpenIssues(allIssues)
-
-          // Fetch Jira bugs and tasks from repos that have Jira project keys
-          const reposWithJira = repos.filter(repo => repo.jira_project_key)
-
-          if (reposWithJira.length > 0) {
-            const bugPromises = reposWithJira.map(repo => getOpenBugs(repo.jira_project_key))
-            const bugResults = await Promise.all(bugPromises)
-
-            const allBugs = bugResults
-              .filter(result => result.success && result.data)
-              .flatMap(result => result.data)
-              .map(bug => ({
-                id: bug.key,
-                title: bug.summary,
-                issueURL: bug.url || `https://jira.example.com/browse/${bug.key}`,
-                type: bug.issue_type || 'Bug',
-                priority: bug.priority || 'Medium',
-                issueReporter: bug.reporter || 'Unknown',
-                serviceType: bug.project_key || 'Unknown'
-              }))
-
-            setMyOpenBugs(allBugs)
-
-            const taskPromises = reposWithJira.map(repo => getOpenTasks(repo.jira_project_key))
-            const taskResults = await Promise.all(taskPromises)
-
-            const allTasks = taskResults
-              .filter(result => result.success && result.data)
-              .flatMap(result => result.data)
-              .map(task => ({
-                id: task.key,
-                title: task.summary,
-                issueURL: task.url || `https://jira.example.com/browse/${task.key}`,
-                type: task.issue_type || 'Task',
-                priority: task.priority || 'Medium',
-                issueReporter: task.reporter || 'Unknown',
-                serviceType: task.project_key || 'Unknown'
-              }))
-
-            setMyOpenTasks(allTasks)
-          }
-        }
-      } catch (error) {
-        console.error('Error fetching My Work data:', error)
-        setLoadError(error.message)
-      } finally {
-        setIsLoading(false)
-      }
-    }
-
-    fetchMyWorkData()
-  }, [selectedOrgId])
+    initializeDashboard()
+  }, [dispatch, selectedOrgId])
 
   // Helper function to calculate days old
-  const calculateDaysOld = (dateString) => {
-    if (!dateString) return 0
-    const created = new Date(dateString)
-    const now = new Date()
-    const diffTime = Math.abs(now - created)
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
-    return diffDays
-  }
-
-  const prsWaitingForReview = [
-    {
-      id: 1,
-      title: 'Refactor database queries',
-      link: 'https://github.com/example/catalog-service/pull/234',
-      creator: 'Jane Smith',
-      daysOld: 3
-    },
-    {
-      id: 2,
-      title: 'Add caching layer',
-      link: 'https://github.com/example/cache-service/pull/567',
-      creator: 'Bob Johnson',
-      daysOld: 1
-    }
-  ]
-
-  const getPriorityClass = (priority) => {
-    const priorityMap = {
-      'Critical': 'priority-critical',
-      'High': 'priority-high',
-      'Medium': 'priority-medium',
-      'Low': 'priority-low'
-    }
-    return priorityMap[priority] || 'priority-medium'
-  }
-
-  const getTypeClass = (type) => {
-    const typeMap = {
-      'Bug': 'type-bug',
-      'Story': 'type-story',
-      'Task': 'type-task'
-    }
-    return typeMap[type] || 'type-task'
-  }
-
-  const getDaysOldClass = (days) => {
-    if (days >= 7) return 'days-old-critical'
-    if (days >= 3) return 'days-old-warning'
-    return 'days-old-normal'
-  }
-
   return (
     <div className="developer-dashboard">
       {/* Developer Self Service Section */}
@@ -243,37 +126,35 @@ function DeveloperDashboard({ onNavigate, user }) {
         )}
 
         {/* My Open PRs */}
-        {!isLoading && !loadError && (
+        {!isDashboardLoading && !loadError && (
           <>
             <div className="dev-table-card">
               <h3 className="table-title">
                 <span className="table-icon">🔀</span>
-                My Open PRs
-                <span className="count-badge">{myOpenPRs.length}</span>
+                Open PRs (All Repos)
+                <span className="count-badge">{openPRs.length}</span>
               </h3>
               <div className="table-wrapper">
-                {myOpenPRs.length > 0 ? (
+                {openPRs.length > 0 ? (
                   <table className="dev-table">
                     <thead>
                       <tr>
                         <th>Title</th>
+                        <th>Service</th>
+                        <th>Author</th>
                         <th>Link</th>
-                        <th>Days Old</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {myOpenPRs.map((pr) => (
-                        <tr key={pr.id}>
+                      {openPRs.map((pr) => (
+                        <tr key={`${pr.serviceId}-${pr.id}`}>
                           <td>{pr.title}</td>
+                          <td><span className="service-badge">{pr.serviceName}</span></td>
+                          <td>{pr.author || 'Unknown'}</td>
                           <td>
-                            <a href={pr.link} target="_blank" rel="noopener noreferrer" className="pr-link">
+                            <a href={pr.url} target="_blank" rel="noopener noreferrer" className="pr-link">
                               View PR →
                             </a>
-                          </td>
-                          <td>
-                            <span className={`days-badge ${getDaysOldClass(pr.daysOld)}`}>
-                              {pr.daysOld} {pr.daysOld === 1 ? 'day' : 'days'}
-                            </span>
                           </td>
                         </tr>
                       ))}
@@ -287,131 +168,47 @@ function DeveloperDashboard({ onNavigate, user }) {
               </div>
             </div>
 
-            {/* My Open Issues */}
-            <div className="dev-table-card">
-              <h3 className="table-title">
-                <span className="table-icon">🐛</span>
-                My Open Issues
-                <span className="count-badge">{myOpenIssues.length}</span>
-              </h3>
-              <div className="table-wrapper">
-                {myOpenIssues.length > 0 ? (
-                  <table className="dev-table">
-                    <thead>
-                      <tr>
-                        <th>Title</th>
-                        <th>Link</th>
-                        <th>Days Old</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {myOpenIssues.map((issue) => (
-                        <tr key={issue.id}>
-                          <td>{issue.title}</td>
-                          <td>
-                            <a href={issue.link} target="_blank" rel="noopener noreferrer" className="pr-link">
-                              View Issue →
-                            </a>
-                          </td>
-                          <td>
-                            <span className={`days-badge ${getDaysOldClass(issue.daysOld)}`}>
-                              {issue.daysOld} {issue.daysOld === 1 ? 'day' : 'days'}
-                            </span>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                ) : (
-                  <div className="empty-state">
-                    <p>✅ No open issues!</p>
-                  </div>
-                )}
-              </div>
-            </div>
           </>
         )}
 
-        {/* PRs Waiting for My Review */}
-        <div className="dev-table-card">
-          <h3 className="table-title">
-            <span className="table-icon">👀</span>
-            PRs Waiting for My Review
-          </h3>
-          <div className="table-wrapper">
-            <table className="dev-table">
-              <thead>
-                <tr>
-                  <th>Title</th>
-                  <th>Link</th>
-                  <th>Creator</th>
-                  <th>Days Old</th>
-                </tr>
-              </thead>
-              <tbody>
-                {prsWaitingForReview.map((pr) => (
-                  <tr key={pr.id}>
-                    <td>{pr.title}</td>
-                    <td>
-                      <a href={pr.link} target="_blank" rel="noopener noreferrer" className="pr-link">
-                        Review PR →
-                      </a>
-                    </td>
-                    <td>{pr.creator}</td>
-                    <td>
-                      <span className={`days-badge ${getDaysOldClass(pr.daysOld)}`}>
-                        {pr.daysOld} {pr.daysOld === 1 ? 'day' : 'days'}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        {/* My Open Bugs */}
-        {!isLoading && !loadError && (
+        {/* Open Bugs */}
+        {!isDashboardLoading && !loadError && (
           <div className="dev-table-card">
             <h3 className="table-title">
               <span className="table-icon">🐞</span>
-              My Open Bugs
-              <span className="count-badge">{myOpenBugs.length}</span>
+              Open Bugs (All Repos)
+              <span className="count-badge">{openBugs.length}</span>
             </h3>
             <div className="table-wrapper">
-              {myOpenBugs.length > 0 ? (
+              {openBugs.length > 0 ? (
                 <table className="dev-table">
                   <thead>
                     <tr>
                       <th>Title</th>
-                      <th>Issue URL</th>
-                      <th>Type</th>
+                      <th>Service</th>
                       <th>Priority</th>
-                      <th>Reporter</th>
-                      <th>Project</th>
+                      <th>Status</th>
+                      <th>Assignee</th>
+                      <th>Link</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {myOpenBugs.map((bug) => (
-                      <tr key={bug.id}>
+                    {openBugs.map((bug) => (
+                      <tr key={`${bug.serviceId}-${bug.id}`}>
                         <td>{bug.title}</td>
+                        <td><span className="service-badge">{bug.serviceName}</span></td>
                         <td>
-                          <a href={bug.issueURL} target="_blank" rel="noopener noreferrer" className="pr-link">
-                            View Bug →
+                          <span className={`priority-badge priority-${bug.priority?.toLowerCase()}`}>
+                            {bug.priority || 'Medium'}
+                          </span>
+                        </td>
+                        <td><span className="status-badge">{bug.status}</span></td>
+                        <td>{bug.assignee || 'Unassigned'}</td>
+                        <td>
+                          <a href={`https://jira.example.com/browse/${bug.id}`} target="_blank" rel="noopener noreferrer" className="pr-link">
+                            {bug.id} →
                           </a>
                         </td>
-                        <td>
-                          <span className={`type-badge ${getTypeClass(bug.type)}`}>
-                            {bug.type}
-                          </span>
-                        </td>
-                        <td>
-                          <span className={`priority-badge ${getPriorityClass(bug.priority)}`}>
-                            {bug.priority}
-                          </span>
-                        </td>
-                        <td>{bug.issueReporter}</td>
-                        <td><code>{bug.serviceType}</code></td>
                       </tr>
                     ))}
                   </tbody>
@@ -425,48 +222,44 @@ function DeveloperDashboard({ onNavigate, user }) {
           </div>
         )}
 
-        {/* My Open Tasks */}
-        {!isLoading && !loadError && (
+        {/* Open Tasks */}
+        {!isDashboardLoading && !loadError && (
           <div className="dev-table-card">
             <h3 className="table-title">
               <span className="table-icon">📋</span>
-              My Open Tasks
-              <span className="count-badge">{myOpenTasks.length}</span>
+              Open Tasks (All Repos)
+              <span className="count-badge">{openTasks.length}</span>
             </h3>
             <div className="table-wrapper">
-              {myOpenTasks.length > 0 ? (
+              {openTasks.length > 0 ? (
                 <table className="dev-table">
                   <thead>
                     <tr>
                       <th>Title</th>
-                      <th>Issue URL</th>
-                      <th>Type</th>
+                      <th>Service</th>
                       <th>Priority</th>
-                      <th>Reporter</th>
-                      <th>Project</th>
+                      <th>Status</th>
+                      <th>Assignee</th>
+                      <th>Link</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {myOpenTasks.map((task) => (
-                      <tr key={task.id}>
+                    {openTasks.map((task) => (
+                      <tr key={`${task.serviceId}-${task.id}`}>
                         <td>{task.title}</td>
+                        <td><span className="service-badge">{task.serviceName}</span></td>
                         <td>
-                          <a href={task.issueURL} target="_blank" rel="noopener noreferrer" className="pr-link">
-                            View Task →
+                          <span className={`priority-badge priority-${task.priority?.toLowerCase()}`}>
+                            {task.priority || 'Medium'}
+                          </span>
+                        </td>
+                        <td><span className="status-badge">{task.status}</span></td>
+                        <td>{task.assignee || 'Unassigned'}</td>
+                        <td>
+                          <a href={`https://jira.example.com/browse/${task.id}`} target="_blank" rel="noopener noreferrer" className="pr-link">
+                            {task.id} →
                           </a>
                         </td>
-                        <td>
-                          <span className={`type-badge ${getTypeClass(task.type)}`}>
-                            {task.type}
-                          </span>
-                        </td>
-                        <td>
-                          <span className={`priority-badge ${getPriorityClass(task.priority)}`}>
-                            {task.priority}
-                          </span>
-                        </td>
-                        <td>{task.issueReporter}</td>
-                        <td><code>{task.serviceType}</code></td>
                       </tr>
                     ))}
                   </tbody>

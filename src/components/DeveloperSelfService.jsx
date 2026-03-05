@@ -1,7 +1,23 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useDispatch, useSelector } from 'react-redux'
 import '../styles/DeveloperSelfService.css'
+import { fetchServicesForOrg } from '../store/servicesSlice'
+import store from '../store/store'
+import {
+  selectDeveloperDashboardSummary,
+  selectCurrentOrgId,
+  selectIsLoading,
+  selectHasCachedServices,
+  selectIsDataStale
+} from '../store/selectors'
 
 function DeveloperSelfService({ onNavigate }) {
+  const dispatch = useDispatch()
+
+  // Redux state
+  const dashboardData = useSelector(selectDeveloperDashboardSummary)
+  const currentOrgId = useSelector(selectCurrentOrgId)
+  const isLoading = useSelector(selectIsLoading)
   const [isCreatingIssue, setIsCreatingIssue] = useState(false)
   const [issueData, setIssueData] = useState({
     summary: '',
@@ -12,6 +28,34 @@ function DeveloperSelfService({ onNavigate }) {
   })
   const [showIssueForm, setShowIssueForm] = useState(false)
   const [notification, setNotification] = useState(null)
+
+  // Fetch services data on mount if not cached
+  useEffect(() => {
+    const loadDashboardData = async () => {
+      const orgId = currentOrgId || 1 // Default to org 1
+
+      // Check if we have cached data
+      const hasCached = selectHasCachedServices(orgId)(store.getState())
+      const isStale = selectIsDataStale(orgId)(store.getState())
+
+      console.log('📊 Developer Dashboard - Cache status:', { hasCached, isStale })
+
+      // Only fetch if we don't have cached data OR if it's stale
+      if (!hasCached || isStale) {
+        console.log('🔄 Developer Dashboard - Fetching services for org:', orgId)
+        try {
+          await dispatch(fetchServicesForOrg(orgId)).unwrap()
+          console.log('✅ Developer Dashboard - Services loaded from API')
+        } catch (error) {
+          console.error('❌ Developer Dashboard - Error fetching services:', error)
+        }
+      } else {
+        console.log('✅ Developer Dashboard - Using cached services from Redux')
+      }
+    }
+
+    loadDashboardData()
+  }, [dispatch, currentOrgId])
 
   const handleCreateIssue = async () => {
     if (!issueData.projectkey.trim()) {
@@ -95,6 +139,33 @@ function DeveloperSelfService({ onNavigate }) {
           {notification.type === 'success' ? '✓' : '⚠️'} {notification.message}
         </div>
       )}
+
+      {/* Dashboard Summary Cards */}
+      <div className="dashboard-summary">
+        <div className="summary-card pr-card">
+          <div className="summary-icon">🔀</div>
+          <div className="summary-content">
+            <h4 className="summary-count">{isLoading ? '...' : dashboardData.totalOpenPRs}</h4>
+            <p className="summary-label">Open Pull Requests</p>
+          </div>
+        </div>
+
+        <div className="summary-card bug-card">
+          <div className="summary-icon">🐛</div>
+          <div className="summary-content">
+            <h4 className="summary-count">{isLoading ? '...' : dashboardData.totalOpenBugs}</h4>
+            <p className="summary-label">Open Bugs</p>
+          </div>
+        </div>
+
+        <div className="summary-card task-card">
+          <div className="summary-icon">✅</div>
+          <div className="summary-content">
+            <h4 className="summary-count">{isLoading ? '...' : dashboardData.totalOpenTasks}</h4>
+            <p className="summary-label">Open Tasks</p>
+          </div>
+        </div>
+      </div>
 
       <div className="self-service-actions">
         {/* Create an Issue */}
