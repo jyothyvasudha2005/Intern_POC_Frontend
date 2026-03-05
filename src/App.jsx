@@ -66,10 +66,14 @@ function App() {
   }
 
   const handleServiceClick = (service) => {
-    console.log('🔍 Service clicked:', service)
+    console.log('🔍 Service clicked in App.jsx:', service)
+    console.log('🔍 Service ID:', service?.id)
+    console.log('🔍 Service Name:', service?.name)
+    console.log('🔍 Current view before:', currentView)
     setSelectedService(service)
     setViewMode('details')
     console.log('✅ Selected service set to:', service.name)
+    console.log('✅ View mode set to: details')
   }
 
   const handleScorecardClick = (service) => {
@@ -309,6 +313,14 @@ function App() {
 
 
 
+  // Debug: Log current state
+  console.log('🎯 App render state:', {
+    currentView,
+    selectedService: selectedService?.name || null,
+    viewMode,
+    hasSelectedService: !!selectedService
+  })
+
   // If not logged in, show login page
   if (!user) {
     return <Login onLogin={handleLogin} />
@@ -346,6 +358,7 @@ function App() {
 
   // Service Catalogue view
   if (currentView === 'service-catalogue' && !selectedService) {
+    console.log('📋 Rendering ServiceCatalogue view')
     return (
       <div className={`app ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
         {renderSidebar()}

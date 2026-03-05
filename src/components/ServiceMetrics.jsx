@@ -1,16 +1,13 @@
 import { useState, useEffect } from 'react'
+import { useDispatch, useSelector } from 'react-redux'
 import {
   BarChart, Bar, LineChart, Line, RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from 'recharts'
 import '../styles/ServiceMetrics.css'
-import {
-  getGitHubMetricsForRepo,
-  getSonarMetricsForRepo,
-  getJiraMetricsForProject,
-  getCommitsForRepo,
-  getReadmeForRepo
-} from '../services/sonarService'
+import { fetchServiceById } from '../store/servicesSlice'
+import { selectServiceById, selectIsFetchingService, selectHasCachedService } from '../store/selectors'
+import store from '../store/store'
 
 const COLORS = {
   primary: '#6C5DD3',
@@ -24,168 +21,100 @@ const COLORS = {
 }
 
 function ServiceMetrics({ service, onClose }) {
-  console.log('🎯 ServiceMetrics rendering with service:', service.name)
+  const dispatch = useDispatch()
+
+  console.log('🎯 ServiceMetrics rendering with service:', service)
   const [activeTab, setActiveTab] = useState('overview')
-  const [enrichedService, setEnrichedService] = useState(service)
-  const [isLoadingMetrics, setIsLoadingMetrics] = useState(false)
-  const [commits, setCommits] = useState([])
   const [readme, setReadme] = useState(null)
   const [isLoadingReadme, setIsLoadingReadme] = useState(false)
-  const [rawApiData, setRawApiData] = useState({
-    github: null,
-    sonar: null,
-    jira: null,
-    commits: null
-  })
+
+  // Get detailed service data from Redux
+  const detailedService = useSelector(selectServiceById(service.id))
+  const isFetchingService = useSelector(selectIsFetchingService)
+
+  // Use detailed service if available, otherwise use the basic service data
+  const enrichedService = detailedService || service
+
+  // Extract commits from service data if available
+  const commits = enrichedService?.commits || enrichedService?.recentCommits || []
 
   if (!service) {
     return null
   }
 
-  console.log('🎯 ServiceMetrics rendering with service:', service.name)
-
-  // Fetch real metrics when service changes
+  // Fetch detailed service data when component mounts or service changes
   useEffect(() => {
-    const fetchMetrics = async () => {
-      if (!service || !service.name) return
+    const fetchDetailedService = async () => {
+      if (!service || !service.id) {
+        console.warn('⚠️ No service or service ID provided')
+        return
+      }
 
-      setIsLoadingMetrics(true)
-      console.log('📊 Fetching metrics for service:', service.name)
+      // Check if we have cached detailed data
+      const hasCached = selectHasCachedService(service.id)(store.getState())
+
+      if (hasCached) {
+        console.log('✅ Using cached service details from Redux for:', service.id)
+        console.log('✅ No API call needed - data already stored!')
+        return
+      }
+
+      // If not cached, fetch from API (this should rarely happen since we cache on list fetch)
+      console.log('⚠️ Service not in cache, fetching from API:', service.id)
+      console.log('📊 Service object:', service)
 
       try {
-        // Fetch all metrics in parallel
-        const [githubResult, sonarResult, jiraResult, commitsResult] = await Promise.all([
-          getGitHubMetricsForRepo(service.name),
-          getSonarMetricsForRepo(service.name),
-          service.jira_project_key ? getJiraMetricsForProject(service.jira_project_key, service.org) : Promise.resolve({ success: false, data: null }),
-          getCommitsForRepo(service.name)
-        ])
+        // Extract org ID from service
+        const orgId = service.organization?.id || service.orgId || 1
+        console.log('📊 Using org ID:', orgId)
 
-          console.log('📊 Fetched metrics:', {
-          github: githubResult.success,
-          sonar: sonarResult.success,
-          jira: jiraResult.success,
-          commits: commitsResult.success
-        })
-        // Map the fetched metrics to the service object
-        const updatedService = { ...service }
-
-        // GitHub Metrics
-        if (githubResult.success && githubResult.data) {
-          const ghMetrics = githubResult.data
-          updatedService.metrics = updatedService.metrics || {}
-          updatedService.metrics.github = {
-            language: ghMetrics.language || service.language || 'Unknown',
-            openPRs: ghMetrics.open_prs || 0,
-            mergedPRs: ghMetrics.merged_prs || 0,
-            contributors: ghMetrics.contributors || 0,
-            lastCommit: ghMetrics.last_commit_time || '',
-            lastCommitter: ghMetrics.last_committer || service.lastCommitter || 'Unknown',
-            coverage: ghMetrics.coverage || 0,
-          }
-
-          updatedService.prMetrics = {
-            avgCommitsPerPR: ghMetrics.avg_commits_per_pr || 0,
-            openPRCount: ghMetrics.open_prs || 0,
-            avgLOCPerPR: ghMetrics.avg_loc_per_pr || 0,
-            weeklyMergedPRs: ghMetrics.weekly_merged_prs || 0,
-          }
-
-          console.log('✅ GitHub metrics loaded:', ghMetrics)
-        }
-
-        // Sonar Metrics
-        if (sonarResult.success && sonarResult.data) {
-          const sonarMetrics = sonarResult.data
-            console.log('📊 Sonar metrics data:', sonarMetrics)
-          // Parse string values to numbers
-          const coverage = parseFloat(sonarMetrics.coverage) || 0
-          const vulnerabilities = parseInt(sonarMetrics.metrics.vulnerabilities) || 0
-          const codeSmells = parseInt(sonarMetrics.metrics.code_smells) || 0
-          const duplication = parseFloat(sonarMetrics.metrics.duplicated_lines_density) || 0
-
-          updatedService.codeQuality = {
-            codeCoverage: coverage,
-            vulnerabilities: vulnerabilities,
-            codeSmells: codeSmells,
-            codeDuplication: duplication,
-          }
-
-          updatedService.securityMaturity = {
-            owaspCompliance: sonarMetrics.security_rating || 'Baseline',
-            branchProtection: sonarMetrics.branch_protection || false,
-            requiredApprovals: sonarMetrics.required_approvals || 1,
-          }
-
-          console.log('✅ Sonar metrics loaded:', sonarMetrics)
-          console.log('📊 Parsed code quality:', updatedService.codeQuality)
-        }
-
-        // Jira Metrics
-        if (jiraResult.success && jiraResult.data) {
-          const jiraMetrics = jiraResult.data
-          updatedService.metrics = updatedService.metrics || {}
-          updatedService.metrics.jira = {
-            openIssues: jiraMetrics.open_issues || 0,
-            inProgress: jiraMetrics.in_progress || 0,
-            resolved: jiraMetrics.resolved || 0,
-            bugs: jiraMetrics.bugs || 0,
-            avgResolutionTime: jiraMetrics.avg_resolution_time || 'N/A',
-            sprintProgress: jiraMetrics.sprint_progress || 0,
-          }
-
-          updatedService.jiraMetrics = {
-            openHighPriorityBugs: jiraMetrics.high_priority_bugs || 0,
-            totalIssues: jiraMetrics.total_issues || 0,
-            inProgress: jiraMetrics.in_progress || 0,
-            resolved: jiraMetrics.resolved || 0,
-          }
-
-          console.log('✅ Jira metrics loaded:', jiraMetrics)
-        }
-
-        // Commits
-        if (commitsResult.success && commitsResult.data) {
-          setCommits(commitsResult.data)
-          console.log('✅ Commits loaded:', commitsResult.data.length)
-        }
-
-        // Store raw API responses for display
-        setRawApiData({
-          github: githubResult,
-          sonar: sonarResult,
-          jira: jiraResult,
-          commits: commitsResult
-        })
-
-        setEnrichedService(updatedService)
+        await dispatch(fetchServiceById({ orgId, serviceId: service.id })).unwrap()
+        console.log('✅ Detailed service data loaded from API and cached')
       } catch (error) {
-        console.error('❌ Error fetching metrics:', error)
-      } finally {
-        setIsLoadingMetrics(false)
+        console.error('❌ Error fetching detailed service:', error)
+        // Don't fail silently - show the error to user
+        alert(`Failed to load service details: ${error}`)
       }
     }
 
-    fetchMetrics()
-  }, [service])
+    fetchDetailedService()
+  }, [service.id, dispatch])
 
   // Fetch README when github-readme tab is active
   useEffect(() => {
     const fetchReadme = async () => {
-      if (activeTab === 'github-readme' && !readme && !isLoadingReadme && service.name) {
+      if (activeTab === 'github-readme' && !readme && !isLoadingReadme && enrichedService.name) {
         setIsLoadingReadme(true)
-        console.log('📄 Fetching README for:', service.name, 'org:', service.org)
+        console.log('📄 Fetching README for:', enrichedService.name, 'org:', enrichedService.org)
 
         try {
-          // Use the org from service (selected organization)
-          const owner = service.org || service.github_owner || 'tekion'
+          // Use the org from enrichedService (selected organization)
+          const owner = enrichedService.org || enrichedService.github_owner || enrichedService.organization?.name || 'jyothyvasudha2005'
           console.log('📖 Using owner:', owner)
-          const result = await getReadmeForRepo(service.name, owner)
-          if (result.success && result.data) {
-            setReadme(result.data.content || result.data)
-            console.log('✅ README loaded')
-          } else {
-            console.warn('⚠️ README not available:', result.error)
+
+          // Fetch README directly from GitHub
+          const readmeUrl = `https://raw.githubusercontent.com/${owner}/${enrichedService.name}/main/README.md`
+          console.log(`📖 Fetching README from: ${readmeUrl}`)
+
+          const response = await fetch(readmeUrl)
+
+          if (response.ok) {
+            const content = await response.text()
+            setReadme(content)
+            console.log('✅ README loaded from main branch')
+          } else if (response.status === 404) {
+            // Try master branch as fallback
+            const masterUrl = `https://raw.githubusercontent.com/${owner}/${enrichedService.name}/master/README.md`
+            console.log(`📖 Trying master branch: ${masterUrl}`)
+            const masterResponse = await fetch(masterUrl)
+
+            if (masterResponse.ok) {
+              const content = await masterResponse.text()
+              setReadme(content)
+              console.log('✅ README loaded from master branch')
+            } else {
+              console.warn('⚠️ README not available')
+            }
           }
         } catch (error) {
           console.error('❌ Error fetching README:', error)
@@ -196,23 +125,42 @@ function ServiceMetrics({ service, onClose }) {
     }
 
     fetchReadme()
-  }, [activeTab, service.name, readme, isLoadingReadme])
+  }, [activeTab, enrichedService.name, enrichedService.org, readme, isLoadingReadme])
 
   // Manual README fetch function
   const handleFetchReadme = async () => {
     setIsLoadingReadme(true)
-    console.log('📄 Manually fetching README for:', service.name, 'org:', service.org)
+    setReadme(null) // Clear existing README
+    console.log('📄 Manually fetching README for:', enrichedService.name, 'org:', enrichedService.org)
 
     try {
-      // Use the org from service (selected organization)
-      const owner = service.org || service.github_owner || 'jyothyvasudha2005'
+      // Use the org from enrichedService (selected organization)
+      const owner = enrichedService.org || enrichedService.github_owner || enrichedService.organization?.name || 'jyothyvasudha2005'
       console.log('📖 Using owner:', owner)
-      const result = await getReadmeForRepo(service.name, owner)
-      if (result.success && result.data) {
-        setReadme(result.data.content || result.data)
-        console.log('✅ README loaded')
-      } else {
-        console.warn('⚠️ README not available:', result.error)
+
+      // Fetch README directly from GitHub
+      const readmeUrl = `https://raw.githubusercontent.com/${owner}/${enrichedService.name}/main/README.md`
+      console.log(`📖 Fetching README from: ${readmeUrl}`)
+
+      const response = await fetch(readmeUrl)
+
+      if (response.ok) {
+        const content = await response.text()
+        setReadme(content)
+        console.log('✅ README loaded from main branch')
+      } else if (response.status === 404) {
+        // Try master branch as fallback
+        const masterUrl = `https://raw.githubusercontent.com/${owner}/${enrichedService.name}/master/README.md`
+        console.log(`📖 Trying master branch: ${masterUrl}`)
+        const masterResponse = await fetch(masterUrl)
+
+        if (masterResponse.ok) {
+          const content = await masterResponse.text()
+          setReadme(content)
+          console.log('✅ README loaded from master branch')
+        } else {
+          console.warn('⚠️ README not available')
+        }
       }
     } catch (error) {
       console.error('❌ Error fetching README:', error)
@@ -343,12 +291,6 @@ function ServiceMetrics({ service, onClose }) {
           >
             GitHub CODEOWNERS
           </button>
-          <button
-            className={`service-tab ${activeTab === 'apidata' ? 'active' : ''}`}
-            onClick={() => setActiveTab('apidata')}
-          >
-            📊 API Data
-          </button>
           <button className="service-tab-add" title="Add tab">+</button>
         </div>
         <div className="tab-view-controls">
@@ -363,12 +305,12 @@ function ServiceMetrics({ service, onClose }) {
 
       {/* Tab Content */}
       <div className="service-details-content">
-        {isLoadingMetrics && (
+        {isFetchingService && (
           <div className="loading-metrics">
             <p className="loading-text">⏱️ Loading metrics...</p>
           </div>
         )}
-        {!isLoadingMetrics && (
+        {!isFetchingService && (
           <>
             {activeTab === 'overview' && renderOverview(enrichedService)}
             {activeTab === 'scorecards' && renderScorecards(enrichedService, getPRBadge, getQualityBadge)}
@@ -378,7 +320,6 @@ function ServiceMetrics({ service, onClose }) {
             {activeTab === 'readme' && renderReadme(enrichedService)}
             {activeTab === 'github-readme' && renderGitHubReadme(enrichedService, readme, isLoadingReadme, handleFetchReadme)}
             {activeTab === 'codeowners' && renderCodeowners(enrichedService)}
-            {activeTab === 'apidata' && renderApiData(rawApiData, enrichedService)}
           </>
         )}
       </div>

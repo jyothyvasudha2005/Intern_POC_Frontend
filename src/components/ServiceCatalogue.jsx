@@ -1,16 +1,37 @@
 import { useState, useEffect } from 'react'
+import { useDispatch, useSelector } from 'react-redux'
 import '../styles/ServiceCatalogue.css'
 import ServiceTable from './ServiceTable'
-import { getRepositoriesForCatalogue, getOrganizations } from '../services/sonarService'
 import { onboardService } from '../services/onboardingService'
+import {
+  fetchServicesForOrg,
+  refreshServicesForOrg,
+  setCurrentOrg
+} from '../store/servicesSlice'
+import store from '../store/store'
+import {
+  selectOrganizations,
+  selectCurrentOrgServices,
+  selectIsLoading,
+  selectError,
+  selectHasCachedServices
+} from '../store/selectors'
 
 function ServiceCatalogue({ onServiceClick, onScorecardClick }) {
+  const dispatch = useDispatch()
+
+  // Redux state - Organizations (extracted from service responses)
+  const organizations = useSelector(selectOrganizations)
+
+  // Redux state - Services
+  const services = useSelector(selectCurrentOrgServices)
+  const isLoading = useSelector(selectIsLoading)
+  const error = useSelector(selectError)
+
+  // Local state
   const [showAddModal, setShowAddModal] = useState(false)
-		const [services, setServices] = useState([])
-		const [isLoading, setIsLoading] = useState(false)
-		const [loadError, setLoadError] = useState(null)
-    const [organizations, setOrganizations] = useState([])
-    const [selectedOrgId, setSelectedOrgId] = useState('')
+  const [selectedOrgId, setSelectedOrgId] = useState(1) // Default to org 1
+  const [loadError, setLoadError] = useState(null)
   const [newService, setNewService] = useState({
     serviceName: '',
     displayName: '',
@@ -20,72 +41,111 @@ function ServiceCatalogue({ onServiceClick, onScorecardClick }) {
     description: ''
   })
 
-		// Automatically load organizations and services from API on mount
-		useEffect(() => {
-			console.log('📦 ServiceCatalogue mounted - loading organizations and services from API')
-			initializeCatalogue()
-			// eslint-disable-next-line react-hooks/exhaustive-deps
-		}, [])
+  // Automatically load organizations and services from API on mount
+  useEffect(() => {
+    console.log('📦 ServiceCatalogue mounted - loading organizations and services from Redux')
+    initializeCatalogue()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
-			const initializeCatalogue = async () => {
-				try {
-					const orgResult = await getOrganizations()
-					if (orgResult.success && Array.isArray(orgResult.data) && orgResult.data.length > 0) {
-						setOrganizations(orgResult.data)
-						const defaultOrgId = selectedOrgId || orgResult.data[0].id
-						setSelectedOrgId(defaultOrgId)
-						await loadServicesForOrg(defaultOrgId)
-					} else {
-						setOrganizations([])
-						setServices([])
-						setLoadError(orgResult.error || 'Failed to load organizations from SonarShell')
-					}
-				} catch (error) {
-					console.error('❌ Error loading organizations from SonarShell:', error.message)
-					setOrganizations([])
-					setServices([])
-					setLoadError(error.message)
-				}
-			}
+  const initializeCatalogue = async () => {
+    try {
+      console.log('🔄 Initializing catalogue from Redux...')
+      console.log('🏢 Available organizations:', organizations)
 
-			const loadServicesForOrg = async (orgId) => {
-			if (isLoading) {
-				console.log('⏸️ Already loading services, please wait...')
-				return
-			}
+      // Organizations are already in Redux (default or extracted from previous service fetch)
+      // Select first organization if none selected
+      if (organizations.length > 0) {
+        const defaultOrgId = selectedOrgId || organizations[0].id
+        setSelectedOrgId(defaultOrgId)
+        console.log('✅ Selected organization ID:', defaultOrgId)
 
-			console.log('🔄 Fetching services from SonarShell API...')
-			setIsLoading(true)
-			setLoadError(null)
+        // Set current org in Redux
+        dispatch(setCurrentOrg(defaultOrgId))
 
-			try {
-					// Load repositories (services) from the SonarShell swagger_2 endpoints
-					const result = await getRepositoriesForCatalogue(orgId)
+        // Fetch services from Redux (will use cache if available)
+        // This will also extract and update organizations from service responses
+        console.log('🔄 Fetching services for org:', defaultOrgId)
+        try {
+          await dispatch(fetchServicesForOrg(defaultOrgId)).unwrap()
+          console.log('✅ Services loaded successfully')
+        } catch (fetchError) {
+          console.error('❌ Error fetching services:', fetchError)
+          setLoadError(typeof fetchError === 'string' ? fetchError : fetchError.message || 'Failed to load services')
+        }
+      } else {
+        console.error('❌ No organizations found')
+        setLoadError('No organizations available')
+      }
+    } catch (error) {
+      console.error('❌ Error initializing catalogue:', error)
+      setLoadError(error.message || 'Failed to initialize catalogue')
+    }
+  }
 
-				if (result.success) {
-					setServices(result.data || [])
-					console.log('✅ Successfully loaded repository data from SonarShell')
-				} else {
-					setServices([])
-					setLoadError(result.error || 'Failed to load services')
-					console.error('❌ Failed to load services from SonarShell:', result.error)
-				}
-			} catch (error) {
-				setServices([])
-				setLoadError(error.message)
-				console.error('❌ Error loading services from SonarShell:', error.message)
-			} finally {
-				setIsLoading(false)
-			}
-		}
+  const handleOrgChange = async (e) => {
+    const orgId = parseInt(e.target.value)
+    setSelectedOrgId(orgId)
 
-	  const currentServices = services
-	
-		const handleOrgChange = async (e) => {
-			const orgId = e.target.value
-			setSelectedOrgId(orgId)
-			await loadServicesForOrg(orgId)
-		}
+    // Set current org in Redux
+    dispatch(setCurrentOrg(orgId))
+
+    // Check if we have cached data
+    const hasCached = selectHasCachedServices(orgId)(store.getState())
+
+    if (hasCached) {
+      console.log('✅ Using cached services for org', orgId)
+    } else {
+      console.log('🔄 Fetching services for org', orgId)
+      await dispatch(fetchServicesForOrg(orgId)).unwrap()
+    }
+  }
+
+  const handleRefresh = async () => {
+    if (selectedOrgId) {
+      console.log('🔄 Refreshing services for org', selectedOrgId)
+      try {
+        await dispatch(refreshServicesForOrg(selectedOrgId)).unwrap()
+      } catch (err) {
+        console.error('❌ Error refreshing services:', err)
+        setLoadError(err)
+      }
+    }
+  }
+
+  const handleRetry = async () => {
+    if (selectedOrgId) {
+      console.log('🔄 Retrying to load services for org', selectedOrgId)
+      setLoadError(null)
+      try {
+        await dispatch(fetchServicesForOrg(selectedOrgId)).unwrap()
+      } catch (err) {
+        console.error('❌ Error loading services:', err)
+        setLoadError(err)
+      }
+    }
+  }
+
+  const currentServices = services
+
+  // Sync Redux error to local state
+  useEffect(() => {
+    if (error) {
+      setLoadError(error)
+    }
+  }, [error])
+
+  // Debug logging
+  useEffect(() => {
+    console.log('📊 ServiceCatalogue State:', {
+      selectedOrgId,
+      organizationsCount: organizations.length,
+      servicesCount: services.length,
+      isLoading,
+      error,
+      loadError
+    })
+  }, [selectedOrgId, organizations, services, isLoading, error, loadError])
 
   const handleAddService = () => {
     setShowAddModal(true)
@@ -131,8 +191,8 @@ function ServiceCatalogue({ onServiceClick, onScorecardClick }) {
 
 	    if (result.success) {
 	      console.log('✅ Service onboarded via API')
-	      // Reload services from API so the new service appears in the catalogue
-	      await loadServicesForOrg(selectedOrgId)
+	      // Reload services from Redux so the new service appears in the catalogue
+	      await dispatch(fetchServicesForOrg(selectedOrgId)).unwrap()
 	      // Close modal and reset form
 	      handleCloseModal()
 	    } else {
@@ -197,19 +257,19 @@ function ServiceCatalogue({ onServiceClick, onScorecardClick }) {
       )}
 
       {/* Error State */}
-      {!isLoading && loadError && (
+      {!isLoading && (loadError || error) && (
         <div className="error-state">
           <div className="error-icon">⚠️</div>
           <h3>Failed to Load Services</h3>
-          <p>{loadError}</p>
-          <button className="retry-btn" onClick={() => loadServicesForOrg(selectedOrgId)}>
+          <p>{loadError || error}</p>
+          <button className="retry-btn" onClick={handleRetry}>
             🔄 Retry
           </button>
         </div>
       )}
 
       {/* Services Table */}
-      {!isLoading && !loadError && currentServices.length > 0 && (
+      {!isLoading && !loadError && !error && currentServices.length > 0 && (
         <ServiceTable
           services={currentServices}
           onServiceClick={onServiceClick}
@@ -218,11 +278,14 @@ function ServiceCatalogue({ onServiceClick, onScorecardClick }) {
       )}
 
       {/* Empty State */}
-      {!isLoading && !loadError && currentServices.length === 0 && (
+      {!isLoading && !loadError && !error && currentServices.length === 0 && (
         <div className="empty-state">
           <div className="empty-icon">📭</div>
           <h3>No Services Found</h3>
           <p>No services found in the selected repository.</p>
+          <button className="retry-btn" onClick={handleRetry}>
+            🔄 Retry Loading
+          </button>
         </div>
       )}
 

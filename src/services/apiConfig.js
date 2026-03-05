@@ -10,6 +10,38 @@ export const API_BASE_URL = '/api'
 
 // API Endpoints
 export const API_ENDPOINTS = {
+  // ========================================
+  // UNIFIED SERVICE CATALOG API
+  // ========================================
+  // Service Catalog - Single consolidated endpoint that aggregates ALL data from:
+  // - GitHub (commits, PRs, contributors, language, README status)
+  // - Jira (bugs, tasks, sprints, MTTR, issues)
+  // - SonarCloud (coverage, code smells, vulnerabilities, duplication)
+  // - Evaluation metrics (scorecard data)
+  //
+  // This replaces ALL individual metric endpoints (GitHub, Jira, Sonar)
+
+  SERVICE_CATALOG_HEALTH: '/service/health',
+
+  // Get all services for an organization (with ALL aggregated metrics)
+  // GET /service/api/v1/org/{org_id}/service
+  // Returns: { status, message, data: { total, services: [...] } }
+  SERVICE_CATALOG_GET_ALL: (orgId) => `/service/api/v1/org/${orgId}/service`,
+
+  // Get single service details by ID (with FULL metrics and evaluation data)
+  // GET /service/api/v1/org/{org_id}/service/{service_id}
+  // Returns: { status, message, data: { id, title, metrics, evaluationMetrics, pullRequests, jiraIssues, ... } }
+  SERVICE_CATALOG_GET_BY_ID: (orgId, serviceId) => `/service/api/v1/org/${orgId}/service/${serviceId}`,
+
+  // Refresh/sync services from backend (triggers data fetch from all sources)
+  // POST /service/api/v1/org/{org_id}/service
+  // Returns: { status, message }
+  SERVICE_CATALOG_REFRESH: (orgId) => `/service/api/v1/org/${orgId}/service`,
+
+  // ========================================
+  // SUPPORTING SERVICES (Non-metric endpoints)
+  // ========================================
+
   // Gateway
   GATEWAY_HEALTH: '/health',
 
@@ -17,7 +49,7 @@ export const API_ENDPOINTS = {
   CHAT_HEALTH: '/chat/health',
   CHAT_MESSAGE: '/chat/api/v1/chat',
 
-  // Jira Service
+  // Jira Trigger Service (for creating issues, not fetching metrics)
   JIRA_HEALTH: '/jira/health',
   JIRA_CREATE_ISSUE: '/jira/api/create-issue',
 
@@ -26,14 +58,9 @@ export const API_ENDPOINTS = {
   APPROVAL_CREATE: '/approval/api/v1/approval/create',
   APPROVAL_GET_ALL: '/approval/api/v1/approval/all',
 
-  // Onboarding Service
+  // Onboarding Service (for creating new services)
   ONBOARDING_HEALTH: '/onboarding/health',
   ONBOARDING_CREATE: '/onboarding/api/onboard',
-  ONBOARDING_GET_ALL: '/onboarding/api/services',
-  ONBOARDING_GET_BY_ID: '/onboarding/api/services',
-  // New v1 Service Catalog endpoints (OpenAPI swagger_2)
-  ONBOARDING_GET_ALL_V1: '/onboarding/api/v1/service',
-  ONBOARDING_GET_BY_ID_V1: '/onboarding/api/v1/service',
 
   // ScoreCard Service
   SCORECARD_HEALTH: '/scorecard/health',
@@ -41,34 +68,15 @@ export const API_ENDPOINTS = {
   SCORECARD_GET_LATEST: '/scorecard/api/v1/scorecards/service',
   SCORECARD_EVALUATE_V2: '/scorecard/api/v2/scorecards/evaluate',
 
-  // SonarShell Service
+  // SonarShell - Only for organization/repo management (NOT for metrics)
   SONAR_HEALTH: '/sonar/health',
-  // Core Sonar metrics
-  SONAR_GET_METRICS: '/sonar/api/v1/sonar/metrics',
-  SONAR_FULL_SETUP: '/sonar/api/v1/setup/full',
-
-  // SonarShell - Organizations & Repositories
   SONAR_ORGS_LIST: '/sonar/api/v1/orgs',
   SONAR_REPOS_FETCH: '/sonar/api/v1/repos/fetch',
-
-  // SonarShell - GitHub metrics
-  SONAR_GITHUB_METRICS: '/sonar/api/v1/github/metrics',
-  SONAR_GITHUB_METRICS_ALL: '/sonar/api/v1/github/metrics/all',
-  SONAR_GITHUB_COMMITS: '/sonar/api/v1/github/commits',
-  SONAR_GITHUB_PULLS: '/sonar/api/v1/github/pulls',
-  SONAR_GITHUB_ISSUES: '/sonar/api/v1/github/issues',
-  SONAR_GITHUB_README: '/sonar/api/v1/github/readme',
-
-  // SonarShell - Jira metrics
-  SONAR_JIRA_METRICS: '/sonar/api/v1/jira/metrics',
-  SONAR_JIRA_BUGS_OPEN: '/sonar/api/v1/jira/bugs/open',
-  SONAR_JIRA_TASKS_OPEN: '/sonar/api/v1/jira/tasks/open',
-  SONAR_JIRA_ISSUES_SEARCH: '/sonar/api/v1/jira/issues/search',
 }
 
 // API Configuration
 export const API_CONFIG = {
-  timeout: 30000, // 30 seconds
+  timeout: 120000, // 120 seconds (2 minutes) - Service Catalog aggregates data from multiple sources
   headers: {
     'Content-Type': 'application/json',
     'Accept': 'application/json',

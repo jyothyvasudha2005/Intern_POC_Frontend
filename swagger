@@ -1,1293 +1,461 @@
-GTP Backend API Gateway
- 1.0.0 
-OAS 3.0
-🌟 Unified API Gateway for GTP Backend Microservices 🌟
+openapi: 3.0.3
+info:
+  title: Service Catalog API
+  description: |
+    Service Catalog API provides comprehensive service management and metadata aggregation.
+    It aggregates data from multiple sources including GitHub, Jira, SonarCloud, Jenkins, Wiz, and PagerDuty
+    to provide a unified view of all services in the organization.
+  version: 1.0.0
+  contact:
+    name: API Support
+    email: support@example.com
+
+servers:
+  - url: http://10.140.8.28:8089/service
+    description: Development server
+  - url: https://api.example.com
+    description: Production server
+
+tags:
+  - name: Service
+    description: Service management operations
+  - name: Health
+    description: Health check endpoints
+
+paths:
+  /health:
+    get:
+      tags:
+        - Health
+      summary: Health check
+      description: Check if the service is running and healthy
+      operationId: healthCheck
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: healthy
+                  service:
+                    type: string
+                    example: service-catalog
+
+  /api/v1/org/{org_id}/service:
+    post:
+      tags:
+        - Service
+      summary: Fetch/refresh services for organization
+      description: |
+        Fetch and refresh services from sonar-shell-test for a specific organization.
+        This endpoint triggers data synchronization from the backend.
+      operationId: fetchServicesForOrg
+      parameters:
+        - name: org_id
+          in: path
+          required: true
+          description: Organization ID
+          schema:
+            type: integer
+            format: int64
+            example: 1
+      responses:
+        '200':
+          description: Services fetched successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    get:
+      tags:
+        - Service
+      summary: Get all services for organization
+      description: |
+        Retrieve all services for a specific organization.
+        Returns aggregated data from GitHub, Jira, SonarCloud, and other sources.
+      operationId: getAllServicesForOrg
+      parameters:
+        - name: org_id
+          in: path
+          required: true
+          description: Organization ID
+          schema:
+            type: integer
+            format: int64
+            example: 1
+      responses:
+        '200':
+          description: Successfully retrieved services
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/APIResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/ServicesResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/org/{org_id}/service/{id}:
+    get:
+      tags:
+        - Service
+      summary: Get service by organization and ID
+      description: |
+        Retrieve a specific service by organization ID and service ID.
+        Returns comprehensive service information including evaluation metrics.
+      operationId: getServiceByOrgAndId
+      parameters:
+        - name: org_id
+          in: path
+          required: true
+          description: Organization ID
+          schema:
+            type: integer
+            format: int64
+            example: 1
+        - name: id
+          in: path
+          required: true
+          description: Service ID in format svc_12345
+          schema:
+            type: string
+            pattern: '^svc_\d+$'
+            example: svc_1
+      responses:
+        '200':
+          description: Successfully retrieved service
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/APIResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/ServiceResponse'
+        '404':
+          description: Service not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  
+components:
+  schemas:
+    APIResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [success, error]
+          example: success
+        message:
+          type: string
+          example: Operation completed successfully
+        data:
+          type: object
+          description: Response data (varies by endpoint)
+        error:
+          type: string
+          description: Error message (only present when status is error)
+
+    ErrorResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [error]
+          example: error
+        message:
+          type: string
+          example: An error occurred
+        error:
+          type: string
+          example: Detailed error message
+
+
+
+    ServicesResponse:
+      type: object
+      properties:
+        total:
+          type: integer
+          description: Total number of services
+          example: 4
+        services:
+          type: array
+          items:
+            $ref: '#/components/schemas/ServiceResponse'
+
+    ServiceResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Service ID in format svc_12345
+          example: svc_1
+        title:
+          type: string
+          description: Service name
+          example: delivery-management-frontend
+        repositoryUrl:
+          type: string
+          format: uri
+          description: Repository URL
+          example: https://github.com/teknex-poc/delivery-management-frontend
+        owner:
+          type: string
+          description: Repository owner
+          example: ANUGRAHA630
+        defaultBranch:
+          type: string
+          description: Default branch name
+          example: main
+        language:
+          type: string
+          description: Primary programming language
+          example: JavaScript
+        organization:
+          $ref: '#/components/schemas/OrganizationInfo'
+        jiraProjectKey:
+          type: string
+          description: Jira project key
+          example: SCRUM
+        onCall:
+          type: string
+          description: On-call person/team
+          example: ANUGRAHA630
+        metrics:
+          $ref: '#/components/schemas/MetricsInfo'
+        evaluationMetrics:
+          $ref: '#/components/schemas/EvaluationMetricsInfo'
+        pullRequests:
+          type: array
+          items:
+            $ref: '#/components/schemas/PullRequestInfo'
+        jiraIssues:
+          type: array
+          items:
+            $ref: '#/components/schemas/JiraIssueInfo'
+
+    OrganizationInfo:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: Organization ID
+          example: 1
+        name:
+          type: string
+          description: Organization name
+          example: teknex-poc
+
+    MetricsInfo:
+      type: object
+      description: Aggregated metrics from GitHub and Jira
+      properties:
+        openPullRequests:
+          type: integer
+          description: Number of open pull requests
+          example: 1
+        commitsLast90Days:
+          type: integer
+          description: Number of commits in the last 90 days
+          example: 4
+        contributors:
+          type: integer
+          description: Number of unique contributors
+          example: 2
+        jiraOpenBugs:
+          type: integer
+          description: Number of open Jira bugs
+          example: 6
+        jiraOpenTasks:
+          type: integer
+          description: Number of open Jira tasks
+          example: 13
+        jiraActiveSprints:
+          type: integer
+          description: Number of active Jira sprints
+          example: 4
+
+    EvaluationMetricsInfo:
+      type: object
+      description: |
+        Scorecard evaluation metrics aggregated from multiple sonar-shell-test endpoints.
+
+        Data Sources:
+        - coverage, codeSmells, vulnerabilities, duplicatedLinesDensity: GET /api/v1/repos/metrics/sonar
+        - hasReadme: GET /api/v1/repos/metrics/github
+        - mttr: GET /api/v1/repos/metrics/jira (avg_time_to_resolve)
+        - deploymentFrequency: NOT AVAILABLE (hardcoded to 0)
+      properties:
+        serviceName:
+          type: string
+          description: Service/repository name
+          example: delivery-management-frontend
+        coverage:
+          type: number
+          format: double
+          description: Code coverage percentage from SonarCloud
+          example: 85.5
+        codeSmells:
+          type: integer
+          description: Number of code smells from SonarCloud
+          example: 12
+        vulnerabilities:
+          type: integer
+          description: Number of vulnerabilities from SonarCloud
+          example: 2
+        duplicatedLinesDensity:
+          type: number
+          format: double
+          description: Percentage of duplicated lines from SonarCloud
+          example: 3.2
+        hasReadme:
+          type: integer
+          description: Whether repository has README (1=yes, 0=no)
+          enum: [0, 1]
+          example: 1
+        deploymentFrequency:
+          type: integer
+          description: Deployment frequency (NOT AVAILABLE - always 0)
+          example: 0
+        mttr:
+          type: integer
+          description: Mean Time To Resolve in days (from Jira avg_time_to_resolve)
+          example: 8
+
+    PullRequestInfo:
+      type: object
+      properties:
+        number:
+          type: integer
+          description: Pull request number
+          example: 1
+        title:
+          type: string
+          description: Pull request title
+          example: "fix: added meta description"
+        state:
+          type: string
+          description: Pull request state
+          enum: [open, closed]
+          example: open
+        author:
+          type: string
+          description: Pull request author
+          example: Jeromel-Pushparaj
+        createdAt:
+          type: string
+          format: date-time
+          description: Creation timestamp
+          example: "2026-02-23T09:23:01Z"
+        url:
+          type: string
+          format: uri
+          description: Pull request URL
+          example: https://github.com/teknex-poc/delivery-management-frontend/pull/1
+
+    JiraIssueInfo:
+      type: object
+      properties:
+        key:
+          type: string
+          description: Jira issue key
+          example: SCRUM-123
+        summary:
+          type: string
+          description: Issue summary/title
+          example: Fix login bug
+        issueType:
+          type: string
+          description: Type of issue
+          example: Bug
+        status:
+          type: string
+          description: Current status
+          example: In Progress
+        priority:
+          type: string
+          description: Issue priority
+          example: High
+        assignee:
+          type: string
+          description: Assigned person
+          example: john.doe
+
+  examples:
+    ServiceResponseExample:
+      value:
+        status: success
+        message: Service retrieved successfully
+        data:
+          id: svc_1
+          title: delivery-management-frontend
+          repositoryUrl: https://github.com/teknex-poc/delivery-management-frontend
+          owner: ANUGRAHA630
+          defaultBranch: main
+          language: JavaScript
+          organization:
+            id: 1
+            name: teknex-poc
+          jiraProjectKey: SCRUM
+          onCall: ANUGRAHA630
+          metrics:
+            openPullRequests: 1
+            commitsLast90Days: 4
+            contributors: 2
+            jiraOpenBugs: 6
+            jiraOpenTasks: 13
+            jiraActiveSprints: 4
+          evaluationMetrics:
+            serviceName: delivery-management-frontend
+            coverage: 85.5
+            codeSmells: 12
+            vulnerabilities: 2
+            duplicatedLinesDensity: 3.2
+            hasReadme: 1
+            deploymentFrequency: 0
+            mttr: 8
+          pullRequests:
+            - number: 1
+              title: "fix: added meta description"
+              state: open
+              author: Jeromel-Pushparaj
+              createdAt: "2026-02-23T09:23:01Z"
+              url: https://github.com/teknex-poc/delivery-management-frontend/pull/1
+          jiraIssues:
+            - key: SCRUM-123
+              summary: Fix login bug
+              issueType: Bug
+              status: In Progress
+              priority: High
+              assignee: john.doe
 
-This gateway provid=s a single entry point to all backend microservices in the GTP ecosystem. It handles routing, rate limiting, CORS, and provides a unified interface for frontend applications.
-
-🎯 Available Services
-🎫 Jira Trigger Service - Create and manage Jira issues
-🤖 Chat Agent Service - AI-powered chat interactions
-✅ Approval Service - Slack approval workflows
-📦 Onboarding Service - Service catalog and onboarding
-📊 ScoreCard Service - Service quality scorecards
-🔍 SonarShell Service - SonarCloud automation
-🔐 Security
-Rate limiting: 100 requests per minute (configurable)
-CORS enabled for configured origins
-JWT authentication support (optional)
-📝 Notes
-All routes are prefixed with the service name (e.g., /jira/*, /chat/*)
-
-Contact GTP Backend Team
-MIT
-Servers
-
-http://10.140.8.28:8089 - Local development server
-
-Authorize
-Gateway
-Gateway health and status endpoints
-
-
-
-GET
-/health
-Gateway health check
-
-Jump to path
-
-Returns the health status of the API Gateway
-
-Parameters
-Cancel
-No parameters
-
-Execute
-Clear
-Responses
-Curl
-
-curl -X 'GET' \
-  'http://10.140.8.28:8089/health' \
-  -H 'accept: application/json'
-Request URL
-http://10.140.8.28:8089/health
-Server response
-Code	Details
-200	
-Response body
-Download
-{
-  "message": "Gateway is running smoothly",
-  "service": "api-gateway",
-  "status": "healthy",
-  "version": "1.0.0"
-}
-Response headers
- content-length: 102 
- content-type: application/json; charset=utf-8 
-Responses
-Code	Description	Links
-200	
-Gateway is healthy
-
-Media type
-
-application/json
-Controls Accept header.
-Example Value
-Schema
-{
-  "status": "healthy",
-  "service": "api-gateway",
-  "version": "1.0.0",
-  "message": "🚀 Gateway is running smoothly!"
-}
-No links
-Jira
-🎫 Jira issue creation and management
-
-
-
-GET
-/jira/health
-Jira service health check
-
-Jump to path
-
-Check if the Jira Trigger Service is running
-
-Parameters
-Cancel
-No parameters
-
-Execute
-Clear
-Responses
-Curl
-
-curl -X 'GET' \
-  'http://10.140.8.28:8089/jira/health' \
-  -H 'accept: application/json'
-Request URL
-http://10.140.8.28:8089/jira/health
-Server response
-Code	Details
-429
-Undocumented
-Error: Too Many Requests
-
-Response body
-Download
-{
-  "error": "Rate limit exceeded",
-  "message": "Maximum 100 requests per 1m0s allowed"
-}
-Response headers
- content-length: 81 
- content-type: application/json; charset=utf-8 
-Responses
-Code	Description	Links
-200	
-Service is healthy
-
-Media type
-
-application/json
-Controls Accept header.
-Example Value
-Schema
-{
-  "status": "healthy",
-  "service": "service-name"
-}
-No links
-502	
-Service unavailable
-
-Media type
-
-application/json
-Example Value
-Schema
-{
-  "error": "Error message",
-  "message": "Detailed error description"
-}
-No links
-
-POST
-/jira/api/create-issue
-Create a Jira issue
-
-Jump to path
-
-Creates a new issue in Jira with the specified details
-
-Parameters
-Cancel
-No parameters
-
-Request body
-
-application/json
-Examples: 
-Simple task creation
-Edit Value
-Schema
-{
-  "summary": "Fix login bug",
-  "issueType": "Task"
-}
-Execute
-Clear
-Responses
-Curl
-
-curl -X 'POST' \
-  'http://10.140.8.28:8089/jira/api/create-issue' \
-  -H 'accept: application/json' \
-  -H 'Content-Type: application/json' \
-  -d '{
-  "summary": "Fix login bug",
-  "issueType": "Task"
-}'
-Request URL
-http://10.140.8.28:8089/jira/api/create-issue
-Server response
-Code	Details
-429
-Undocumented
-Error: Too Many Requests
-
-Response body
-Download
-{
-  "error": "Rate limit exceeded",
-  "message": "Maximum 100 requests per 1m0s allowed"
-}
-Response headers
- content-length: 81 
- content-type: application/json; charset=utf-8 
-Responses
-Code	Description	Links
-201	
-Issue created successfully
-
-Media type
-
-application/json
-Controls Accept header.
-Example Value
-Schema
-{
-  "success": true,
-  "issueKey": "PROJ-123",
-  "issueUrl": "https://company.atlassian.net/browse/PROJ-123",
-  "message": "Issue created successfully"
-}
-No links
-400	
-Invalid request
-
-Media type
-
-application/json
-Example Value
-Schema
-{
-  "error": "Error message",
-  "message": "Detailed error description"
-}
-No links
-502	
-Service unavailable
-
-Media type
-
-application/json
-Example Value
-Schema
-{
-  "error": "Error message",
-  "message": "Detailed error description"
-}
-No links
-Chat
-🤖 AI-powered chat agent
-
-
-
-GET
-/chat/health
-Chat service health check
-
-Jump to path
-
-Parameters
-Cancel
-No parameters
-
-Execute
-Clear
-Responses
-Curl
-
-curl -X 'GET' \
-  'http://10.140.8.28:8089/chat/health' \
-  -H 'accept: application/json'
-Request URL
-http://10.140.8.28:8089/chat/health
-Server response
-Code	Details
-429
-Undocumented
-Error: Too Many Requests
-
-Response body
-Download
-{
-  "error": "Rate limit exceeded",
-  "message": "Maximum 100 requests per 1m0s allowed"
-}
-Response headers
- content-length: 81 
- content-type: application/json; charset=utf-8 
-Responses
-Code	Description	Links
-200	
-Service is healthy
-
-Media type
-
-application/json
-Controls Accept header.
-Example Value
-Schema
-{
-  "status": "healthy",
-  "service": "service-name"
-}
-No links
-
-POST
-/chat/api/v1/chat
-Send a chat message
-
-Jump to path
-
-Send a message to the AI chat agent and get a response
-
-Parameters
-Cancel
-No parameters
-
-Request body
-
-application/json
-Edit Value
-Schema
-{
-  "message": "What services are available in the platform?",
-  "conversationId": "conv-123-456"
-}
-Execute
-Clear
-Responses
-Curl
-
-curl -X 'POST' \
-  'http://10.140.8.28:8089/chat/api/v1/chat' \
-  -H 'accept: application/json' \
-  -H 'Content-Type: application/json' \
-  -d '{
-  "message": "What services are available in the platform?",
-  "conversationId": "conv-123-456"
-}'
-Request URL
-http://10.140.8.28:8089/chat/api/v1/chat
-Server response
-Code	Details
-429
-Undocumented
-Error: Too Many Requests
-
-Response body
-Download
-{
-  "error": "Rate limit exceeded",
-  "message": "Maximum 100 requests per 1m0s allowed"
-}
-Response headers
- content-length: 81 
- content-type: application/json; charset=utf-8 
-Responses
-Code	Description	Links
-200	
-Chat response received
-
-Media type
-
-application/json
-Controls Accept header.
-Example Value
-Schema
-{
-  "response": "The platform has 6 microservices including Jira, Chat, Approval, Onboarding, ScoreCard, and SonarShell services.",
-  "conversationId": "conv-123-456"
-}
-No links
-Approval
-✅ Slack approval workflows
-
-
-
-GET
-/approval/health
-Approval service health check
-
-Jump to path
-
-Parameters
-Cancel
-No parameters
-
-Execute
-Clear
-Responses
-Curl
-
-curl -X 'GET' \
-  'http://10.140.8.28:8089/approval/health' \
-  -H 'accept: application/json'
-Request URL
-http://10.140.8.28:8089/approval/health
-Server response
-Code	Details
-429
-Undocumented
-Error: Too Many Requests
-
-Response body
-Download
-{
-  "error": "Rate limit exceeded",
-  "message": "Maximum 100 requests per 1m0s allowed"
-}
-Response headers
- content-length: 81 
- content-type: application/json; charset=utf-8 
-Responses
-Code	Description	Links
-200	
-Service is healthy
-
-Media type
-
-application/json
-Controls Accept header.
-Example Value
-Schema
-{
-  "status": "healthy",
-  "service": "service-name"
-}
-No links
-
-POST
-/approval/api/v1/approval/create
-Create approval request
-
-Jump to path
-
-Create a new approval request that will be sent to Slack
-
-Parameters
-Cancel
-No parameters
-
-Request body
-
-application/json
-Edit Value
-Schema
-{
-  "title": "Deploy to Production",
-  "description": "Approve deployment of version 2.0.0 to production",
-  "requestedBy": "john.doe@company.com",
-  "channelId": "C01234567"
-}
-Execute
-Clear
-Responses
-Curl
-
-curl -X 'POST' \
-  'http://10.140.8.28:8089/approval/api/v1/approval/create' \
-  -H 'accept: application/json' \
-  -H 'Content-Type: application/json' \
-  -d '{
-  "title": "Deploy to Production",
-  "description": "Approve deployment of version 2.0.0 to production",
-  "requestedBy": "john.doe@company.com",
-  "channelId": "C01234567"
-}'
-Request URL
-http://10.140.8.28:8089/approval/api/v1/approval/create
-Server response
-Code	Details
-429
-Undocumented
-Error: Too Many Requests
-
-Response body
-Download
-{
-  "error": "Rate limit exceeded",
-  "message": "Maximum 100 requests per 1m0s allowed"
-}
-Response headers
- content-length: 81 
- content-type: application/json; charset=utf-8 
-Responses
-Code	Description	Links
-201	
-Approval request created
-
-Media type
-
-application/json
-Controls Accept header.
-Example Value
-Schema
-{
-  "success": true,
-  "approvalId": "apr-123-456",
-  "message": "Approval request sent to Slack"
-}
-No links
-
-GET
-/approval/api/v1/approval/all
-Get all approvals
-
-Jump to path
-
-Retrieve all approval requests
-
-Parameters
-Cancel
-No parameters
-
-Execute
-Clear
-Responses
-Curl
-
-curl -X 'GET' \
-  'http://10.140.8.28:8089/approval/api/v1/approval/all' \
-  -H 'accept: application/json'
-Request URL
-http://10.140.8.28:8089/approval/api/v1/approval/all
-Server response
-Code	Details
-429
-Undocumented
-Error: Too Many Requests
-
-Response body
-Download
-{
-  "error": "Rate limit exceeded",
-  "message": "Maximum 100 requests per 1m0s allowed"
-}
-Response headers
- content-length: 81 
- content-type: application/json; charset=utf-8 
-Responses
-Code	Description	Links
-200	
-List of approvals
-
-Media type
-
-application/json
-Controls Accept header.
-Example Value
-Schema
-{
-  "success": true,
-  "data": [
-    {
-      "id": "apr-123-456",
-      "title": "Deploy to Production",
-      "description": "Approve deployment of version 2.0.0",
-      "status": "pending",
-      "requestedBy": "john.doe@company.com",
-      "createdAt": "2024-01-15T10:30:00Z"
-    }
-  ]
-}
-No links
-Onboarding
-📦 Service catalog and onboarding
-
-
-
-GET
-/onboarding/health
-Onboarding service health check
-
-Jump to path
-
-Parameters
-Cancel
-No parameters
-
-Execute
-Clear
-Responses
-Curl
-
-curl -X 'GET' \
-  'http://10.140.8.28:8089/onboarding/health' \
-  -H 'accept: application/json'
-Request URL
-http://10.140.8.28:8089/onboarding/health
-Server response
-Code	Details
-429
-Undocumented
-Error: Too Many Requests
-
-Response body
-Download
-{
-  "error": "Rate limit exceeded",
-  "message": "Maximum 100 requests per 1m0s allowed"
-}
-Response headers
- content-length: 81 
- content-type: application/json; charset=utf-8 
-Responses
-Code	Description	Links
-200	
-Service is healthy
-
-Media type
-
-application/json
-Controls Accept header.
-Example Value
-Schema
-{
-  "status": "healthy",
-  "service": "service-name"
-}
-No links
-
-POST
-/onboarding/api/onboard
-Onboard a new service
-
-Jump to path
-
-Register a new service in the service catalog
-
-Parameters
-Cancel
-No parameters
-
-Request body
-
-application/json
-Edit Value
-Schema
-{
-  "serviceName": "payment-service",
-  "description": "Handles payment processing",
-  "team": "Platform Team",
-  "repositoryUrl": "https://github.com/company/payment-service",
-  "lifecycle": "production",
-  "language": "Go",
-  "tags": [
-    "payment",
-    "critical",
-    "microservice"
-  ]
-}
-Execute
-Clear
-Responses
-Curl
-
-curl -X 'POST' \
-  'http://10.140.8.28:8089/onboarding/api/onboard' \
-  -H 'accept: application/json' \
-  -H 'Content-Type: application/json' \
-  -d '{
-  "serviceName": "payment-service",
-  "description": "Handles payment processing",
-  "team": "Platform Team",
-  "repositoryUrl": "https://github.com/company/payment-service",
-  "lifecycle": "production",
-  "language": "Go",
-  "tags": [
-    "payment",
-    "critical",
-    "microservice"
-  ]
-}'
-Request URL
-http://10.140.8.28:8089/onboarding/api/onboard
-Server response
-Code	Details
-429
-Undocumented
-Error: Too Many Requests
-
-Response body
-Download
-{
-  "error": "Rate limit exceeded",
-  "message": "Maximum 100 requests per 1m0s allowed"
-}
-Response headers
- content-length: 81 
- content-type: application/json; charset=utf-8 
-Responses
-Code	Description	Links
-201	
-Service onboarded successfully
-
-Media type
-
-application/json
-Controls Accept header.
-Example Value
-Schema
-{
-  "success": true,
-  "serviceId": "svc-123-456",
-  "message": "Service onboarded successfully"
-}
-No links
-
-GET
-/onboarding/api/services
-Get all services
-
-Jump to path
-
-Retrieve all registered services from the catalog
-
-Parameters
-Cancel
-No parameters
-
-Execute
-Clear
-Responses
-Curl
-
-curl -X 'GET' \
-  'http://10.140.8.28:8089/onboarding/api/services' \
-  -H 'accept: application/json'
-Request URL
-http://10.140.8.28:8089/onboarding/api/services
-Server response
-Code	Details
-429
-Undocumented
-Error: Too Many Requests
-
-Response body
-Download
-{
-  "error": "Rate limit exceeded",
-  "message": "Maximum 100 requests per 1m0s allowed"
-}
-Response headers
- content-length: 81 
- content-type: application/json; charset=utf-8 
-Responses
-Code	Description	Links
-200	
-List of services
-
-Media type
-
-application/json
-Controls Accept header.
-Example Value
-Schema
-{
-  "success": true,
-  "data": [
-    {
-      "id": "svc-123-456",
-      "serviceName": "payment-service",
-      "description": "Handles payment processing",
-      "team": "Platform Team",
-      "repositoryUrl": "https://github.com/company/payment-service",
-      "lifecycle": "production",
-      "language": "Go",
-      "createdAt": "2024-01-15T10:30:00Z"
-    }
-  ]
-}
-No links
-
-GET
-/onboarding/api/services/{id}
-Get service by ID
-
-Jump to path
-
-Retrieve a specific service by its ID
-
-Parameters
-Cancel
-Name	Description
-id *
-string
-(path)
-Service ID
-
-svc-123-456
-Execute
-Clear
-Responses
-Curl
-
-curl -X 'GET' \
-  'http://10.140.8.28:8089/onboarding/api/services/svc-123-456' \
-  -H 'accept: application/json'
-Request URL
-http://10.140.8.28:8089/onboarding/api/services/svc-123-456
-Server response
-Code	Details
-429
-Undocumented
-Error: Too Many Requests
-
-Response body
-Download
-{
-  "error": "Rate limit exceeded",
-  "message": "Maximum 100 requests per 1m0s allowed"
-}
-Response headers
- content-length: 81 
- content-type: application/json; charset=utf-8 
-Responses
-Code	Description	Links
-200	
-Service details
-
-Media type
-
-application/json
-Controls Accept header.
-Example Value
-Schema
-{
-  "success": true,
-  "data": {
-    "id": "svc-123-456",
-    "serviceName": "payment-service",
-    "description": "Handles payment processing",
-    "team": "Platform Team",
-    "repositoryUrl": "https://github.com/company/payment-service",
-    "lifecycle": "production",
-    "language": "Go",
-    "createdAt": "2024-01-15T10:30:00Z"
-  }
-}
-No links
-ScoreCard
-📊 Service quality scorecards
-
-
-
-GET
-/scorecard/health
-ScoreCard service health check
-
-Jump to path
-
-Parameters
-Cancel
-No parameters
-
-Execute
-Clear
-Responses
-Curl
-
-curl -X 'GET' \
-  'http://10.140.8.28:8089/scorecard/health' \
-  -H 'accept: application/json'
-Request URL
-http://10.140.8.28:8089/scorecard/health
-Server response
-Code	Details
-429
-Undocumented
-Error: Too Many Requests
-
-Response body
-Download
-{
-  "error": "Rate limit exceeded",
-  "message": "Maximum 100 requests per 1m0s allowed"
-}
-Response headers
- content-length: 81 
- content-type: application/json; charset=utf-8 
-Responses
-Code	Description	Links
-200	
-Service is healthy
-
-Media type
-
-application/json
-Controls Accept header.
-Example Value
-Schema
-{
-  "status": "healthy",
-  "service": "service-name"
-}
-No links
-
-POST
-/scorecard/api/v1/scorecards
-Create a scorecard
-
-Jump to path
-
-Create a new scorecard evaluation for a service
-
-Parameters
-Cancel
-No parameters
-
-Request body
-
-application/json
-Edit Value
-Schema
-{
-  "serviceName": "payment-service",
-  "codeQuality": 85.5,
-  "testCoverage": 90,
-  "securityScore": 95,
-  "performanceScore": 88,
-  "documentationScore": 75
-}
-Execute
-Clear
-Responses
-Curl
-
-curl -X 'POST' \
-  'http://10.140.8.28:8089/scorecard/api/v1/scorecards' \
-  -H 'accept: application/json' \
-  -H 'Content-Type: application/json' \
-  -d '{
-  "serviceName": "payment-service",
-  "codeQuality": 85.5,
-  "testCoverage": 90,
-  "securityScore": 95,
-  "performanceScore": 88,
-  "documentationScore": 75
-}'
-Request URL
-http://10.140.8.28:8089/scorecard/api/v1/scorecards
-Server response
-Code	Details
-429
-Undocumented
-Error: Too Many Requests
-
-Response body
-Download
-{
-  "error": "Rate limit exceeded",
-  "message": "Maximum 100 requests per 1m0s allowed"
-}
-Response headers
- content-length: 81 
- content-type: application/json; charset=utf-8 
-Responses
-Code	Description	Links
-201	
-Scorecard created successfully
-
-Media type
-
-application/json
-Controls Accept header.
-Example Value
-Schema
-{
-  "success": true,
-  "scorecardId": "sc-123-456"
-}
-No links
-
-GET
-/scorecard/api/v1/scorecards/service/{name}/latest
-Get latest scorecard for service
-
-Jump to path
-
-Retrieve the most recent scorecard for a specific service
-
-Parameters
-Cancel
-Name	Description
-name *
-string
-(path)
-Service name
-
-payment-service
-Execute
-Clear
-Responses
-Curl
-
-curl -X 'GET' \
-  'http://10.140.8.28:8089/scorecard/api/v1/scorecards/service/payment-service/latest' \
-  -H 'accept: application/json'
-Request URL
-http://10.140.8.28:8089/scorecard/api/v1/scorecards/service/payment-service/latest
-Server response
-Code	Details
-429
-Undocumented
-Error: Too Many Requests
-
-Response body
-Download
-{
-  "error": "Rate limit exceeded",
-  "message": "Maximum 100 requests per 1m0s allowed"
-}
-Response headers
- content-length: 81 
- content-type: application/json; charset=utf-8 
-Responses
-Code	Description	Links
-200	
-Latest scorecard
-
-Media type
-
-application/json
-Controls Accept header.
-Example Value
-Schema
-{
-  "id": "sc-123-456",
-  "serviceName": "payment-service",
-  "score": 86.7,
-  "codeQuality": 85.5,
-  "testCoverage": 90,
-  "securityScore": 95,
-  "performanceScore": 88,
-  "documentationScore": 75,
-  "createdAt": "2024-01-15T10:30:00Z"
-}
-No links
-
-POST
-/scorecard/api/v2/scorecards/evaluate
-Evaluate service (V2)
-
-Jump to path
-
-Evaluate a service using advanced scorecard definitions (Gold/Silver/Bronze)
-
-Parameters
-Cancel
-No parameters
-
-Request body
-
-application/json
-Edit Value
-Schema
-{
-  "serviceName": "payment-service",
-  "metrics": {
-    "testCoverage": 85.5,
-    "codeQuality": 90,
-    "documentation": true
-  }
-}
-Execute
-Clear
-Responses
-Curl
-
-curl -X 'POST' \
-  'http://10.140.8.28:8089/scorecard/api/v2/scorecards/evaluate' \
-  -H 'accept: application/json' \
-  -H 'Content-Type: application/json' \
-  -d '{
-  "serviceName": "payment-service",
-  "metrics": {
-    "testCoverage": 85.5,
-    "codeQuality": 90,
-    "documentation": true
-  }
-}'
-Request URL
-http://10.140.8.28:8089/scorecard/api/v2/scorecards/evaluate
-Server response
-Code	Details
-400
-Undocumented
-Error: Bad Request
-
-Response body
-Download
-{
-  "details": "Key: 'EvaluateServiceRequest.ServiceName' Error:Field validation for 'ServiceName' failed on the 'required' tag\nKey: 'EvaluateServiceRequest.ServiceData' Error:Field validation for 'ServiceData' failed on the 'required' tag",
-  "error": "Invalid request body"
-}
-Response headers
- content-length: 269 
- content-type: application/json; charset=utf-8 
-Responses
-Code	Description	Links
-200	
-Evaluation result
-
-Media type
-
-application/json
-Controls Accept header.
-Example Value
-Schema
-{
-  "level": "Gold",
-  "score": 88.5
-}
-No links
-SonarShell
-🔍 SonarCloud automation
-
-
-
-GET
-/sonar/health
-SonarShell service health check
-
-Jump to path
-
-Parameters
-Cancel
-No parameters
-
-Execute
-Clear
-Responses
-Curl
-
-curl -X 'GET' \
-  'http://10.140.8.28:8089/sonar/health' \
-  -H 'accept: application/json'
-Request URL
-http://10.140.8.28:8089/sonar/health
-Server response
-Code	Details
-Undocumented
-Failed to fetch.
-Possible Reasons:
-
-CORS
-Network Failure
-URL scheme must be "http" or "https" for CORS request.
-Responses
-Code	Description	Links
-200	
-Service is healthy
-
-Media type
-
-application/json
-Controls Accept header.
-Example Value
-Schema
-{
-  "status": "healthy",
-  "service": "service-name"
-}
-No links
-
-GET
-/sonar/api/v1/sonar/metrics
-Get SonarCloud metrics
-
-Jump to path
-
-Retrieve SonarCloud metrics for a specific repository
-
-Parameters
-Cancel
-Name	Description
-repo *
-string
-(query)
-Repository name
-
-payment-service
-include_issues
-boolean
-(query)
-Include issue details
-
-
-true
-Execute
-Clear
-Responses
-Curl
-
-curl -X 'GET' \
-  'http://10.140.8.28:8089/sonar/api/v1/sonar/metrics?repo=payment-service&include_issues=true' \
-  -H 'accept: application/json'
-Request URL
-http://10.140.8.28:8089/sonar/api/v1/sonar/metrics?repo=payment-service&include_issues=true
-Server response
-Code	Details
-Undocumented
-Failed to fetch.
-Possible Reasons:
-
-CORS
-Network Failure
-URL scheme must be "http" or "https" for CORS request.
-Responses
-Code	Description	Links
-200	
-SonarCloud metrics
-
-Media type
-
-application/json
-Controls Accept header.
-Example Value
-Schema
-{
-  "success": true,
-  "data": {
-    "repository": "payment-service",
-    "projectKey": "org_payment-service",
-    "qualityGateStatus": "OK",
-    "metrics": {
-      "bugs": "0",
-      "vulnerabilities": "0",
-      "codeSmells": "5",
-      "coverage": "85.5",
-      "duplicatedLinesDensity": "2.5"
-    },
-    "issuesCount": 10
-  }
-}
-No links
-
-POST
-/sonar/api/v1/setup/full
-Full SonarCloud setup
-
-Jump to path
-
-Perform full SonarCloud setup for all repositories
-
-Parameters
-Cancel
-No parameters
-
-Execute
-Clear
-Responses
-Curl
-
-curl -X 'POST' \
-  'http://10.140.8.28:8089/sonar/api/v1/setup/full' \
-  -H 'accept: application/json' \
-  -d ''
-Request URL
-http://10.140.8.28:8089/sonar/api/v1/setup/full
-Server response
-Code	Details
-Undocumented
-Failed to fetch.
-Possible Reasons:
-
-CORS
-Network Failure
-URL scheme must be "http" or "https" for CORS request.
-Responses
-Code	Description	Links
-200	
-Setup completed
-
-Media type
-
-application/json
-Controls Accept header.
-Example Value
-Schema
-{
-  "success": true,
-  "message": "Processed 10 repositories"
-}
-No links
