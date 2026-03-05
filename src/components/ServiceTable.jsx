@@ -58,14 +58,6 @@ function ServiceTable({ services, onServiceClick, onScorecardClick }) {
                 )}
               </div>
             </th>
-            <th onClick={() => handleSort('lifecycle')}>
-              <div className="th-content">
-                Lifecycle
-                {sortColumn === 'lifecycle' && (
-                  <span className="sort-icon">{sortDirection === 'asc' ? '↑' : '↓'}</span>
-                )}
-              </div>
-            </th>
             <th>URL</th>
             <th onClick={() => handleSort('language')}>
               <div className="th-content">
@@ -87,8 +79,6 @@ function ServiceTable({ services, onServiceClick, onScorecardClick }) {
             </th>
             <th>Slack</th>
             <th>Sonar Project</th>
-            <th>Domain</th>
-            <th>Locked</th>
             <th onClick={() => handleSort('owningTeam')}>
               <div className="th-content">
                 Owning Team
@@ -97,6 +87,7 @@ function ServiceTable({ services, onServiceClick, onScorecardClick }) {
                 )}
               </div>
             </th>
+            <th>Is Active</th>
             <th>Actions</th>
           </tr>
         </thead>
@@ -112,11 +103,6 @@ function ServiceTable({ services, onServiceClick, onScorecardClick }) {
                   <span className="service-icon">{service.icon || '📦'}</span>
                   <span className="service-name">{service.title || service.name}</span>
                 </div>
-              </td>
-              <td>
-                <span className="lifecycle-badge">
-                  {service.lifecycle || service.environment || 'Unknown'}
-                </span>
               </td>
               <td>
                 <a
@@ -156,13 +142,12 @@ function ServiceTable({ services, onServiceClick, onScorecardClick }) {
                 ) : '-'}
               </td>
               <td>{service.sonarProject || '-'}</td>
-              <td>{service.domain || '-'}</td>
+              <td>{service.owningTeam || service.team || '-'}</td>
               <td>
-                <span className={`lock-status ${service.locked ? 'locked' : 'unlocked'}`}>
-                  {service.locked ? '🔒' : '🔓'}
+                <span className={`active-status ${service.is_active ? 'active' : 'inactive'}`}>
+                  {service.is_active ? "🟢" : "🔴"}
                 </span>
               </td>
-              <td>{service.owningTeam || service.team || '-'}</td>
               <td>
                 <div className="action-buttons">
                   <button

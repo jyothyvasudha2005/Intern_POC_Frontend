@@ -4,7 +4,7 @@
  */
 
 import apiClient from './apiClient'
-import { API_ENDPOINTS, USE_REAL_API } from './apiConfig'
+import { API_ENDPOINTS } from './apiConfig'
 
 /**
  * Get latest scorecard for a service
@@ -12,39 +12,26 @@ import { API_ENDPOINTS, USE_REAL_API } from './apiConfig'
  * @returns {Promise<Object>} Scorecard data
  */
 export const getLatestScorecard = async (serviceName) => {
-  if (!USE_REAL_API) {
-    console.log(`🔧 Using MOCK scorecard data for ${serviceName}`)
-    return {
-      success: true,
-      data: generateMockScorecard(serviceName),
-      isMock: true
-    }
-  }
-
   try {
     const response = await apiClient.get(`${API_ENDPOINTS.SCORECARD_GET_LATEST}/${serviceName}/latest`)
-    
+
     if (response.data && response.data.data) {
       console.log(`✅ Loaded scorecard from API for ${serviceName}`)
       return {
         success: true,
-        data: response.data.data,
-        isMock: false
+        data: response.data.data
       }
     } else {
-      console.log(`⚠️ No scorecard from API for ${serviceName}, using MOCK data`)
+      console.log(`⚠️ No scorecard from API for ${serviceName}`)
       return {
-        success: true,
-        data: generateMockScorecard(serviceName),
-        isMock: true
+        success: false,
+        error: 'No scorecard data available'
       }
     }
   } catch (error) {
-    console.error(`❌ Error fetching scorecard for ${serviceName}, using MOCK data:`, error.message)
+    console.error(`❌ Error fetching scorecard for ${serviceName}:`, error.message)
     return {
-      success: true,
-      data: generateMockScorecard(serviceName),
-      isMock: true,
+      success: false,
       error: error.message
     }
   }
@@ -56,15 +43,6 @@ export const getLatestScorecard = async (serviceName) => {
  * @returns {Promise<Object>} Created scorecard
  */
 export const createScorecard = async (scorecardData) => {
-  if (!USE_REAL_API) {
-    console.log('🔧 MOCK: Scorecard creation')
-    return {
-      success: true,
-      data: { id: `mock-${Date.now()}`, ...scorecardData },
-      isMock: true
-    }
-  }
-
   try {
     const payload = {
       serviceName: scorecardData.serviceName,
@@ -76,19 +54,17 @@ export const createScorecard = async (scorecardData) => {
     }
 
     const response = await apiClient.post(API_ENDPOINTS.SCORECARD_CREATE, payload)
-    
+
     console.log('✅ Scorecard created via API')
     return {
       success: true,
-      data: response.data,
-      isMock: false
+      data: response.data
     }
   } catch (error) {
     console.error('❌ Error creating scorecard:', error.message)
     return {
       success: false,
-      error: error.response?.data?.message || error.message,
-      isMock: false
+      error: error.response?.data?.message || error.message
     }
   }
 }
@@ -99,19 +75,6 @@ export const createScorecard = async (scorecardData) => {
  * @returns {Promise<Object>} Evaluation result
  */
 export const evaluateServiceV2 = async (evaluationData) => {
-  if (!USE_REAL_API) {
-    console.log('🔧 MOCK: Service evaluation V2')
-    return {
-      success: true,
-      data: {
-        level: 'Silver',
-        score: 75,
-        serviceName: evaluationData.serviceName
-      },
-      isMock: true
-    }
-  }
-
   try {
     const payload = {
       serviceName: evaluationData.serviceName,
@@ -123,37 +86,18 @@ export const evaluateServiceV2 = async (evaluationData) => {
     }
 
     const response = await apiClient.post(API_ENDPOINTS.SCORECARD_EVALUATE_V2, payload)
-    
+
     console.log('✅ Service evaluated via API V2')
     return {
       success: true,
-      data: response.data,
-      isMock: false
+      data: response.data
     }
   } catch (error) {
     console.error('❌ Error evaluating service:', error.message)
     return {
       success: false,
-      error: error.response?.data?.message || error.message,
-      isMock: false
+      error: error.response?.data?.message || error.message
     }
-  }
-}
-
-/**
- * Generate mock scorecard data
- */
-function generateMockScorecard(serviceName) {
-  return {
-    id: `mock-${serviceName}`,
-    serviceName: serviceName,
-    score: Math.floor(Math.random() * 40) + 60, // 60-100
-    codeQuality: Math.floor(Math.random() * 30) + 70,
-    testCoverage: Math.floor(Math.random() * 30) + 70,
-    securityScore: Math.floor(Math.random() * 30) + 70,
-    performanceScore: Math.floor(Math.random() * 30) + 70,
-    documentationScore: Math.floor(Math.random() * 30) + 70,
-    createdAt: new Date().toISOString()
   }
 }
 

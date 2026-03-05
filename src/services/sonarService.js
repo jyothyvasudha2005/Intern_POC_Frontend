@@ -4,7 +4,7 @@
  */
 
 import apiClient from './apiClient'
-import { API_ENDPOINTS, USE_REAL_API } from './apiConfig'
+import { API_ENDPOINTS } from './apiConfig'
 
 /**
  * Get SonarCloud metrics for a repository
@@ -13,15 +13,6 @@ import { API_ENDPOINTS, USE_REAL_API } from './apiConfig'
  * @returns {Promise<Object>} Sonar metrics
  */
 export const getSonarMetrics = async (repo, includeIssues = false) => {
-  if (!USE_REAL_API) {
-    console.log(`🔧 Using MOCK SonarCloud data for ${repo}`)
-    return {
-      success: true,
-      data: generateMockSonarMetrics(repo),
-      isMock: true
-    }
-  }
-
   try {
     const params = {
       repo: repo,
@@ -29,28 +20,24 @@ export const getSonarMetrics = async (repo, includeIssues = false) => {
     }
 
     const response = await apiClient.get(API_ENDPOINTS.SONAR_GET_METRICS, { params })
-    
+
     if (response.data && response.data.data) {
       console.log(`✅ Loaded SonarCloud metrics from API for ${repo}`)
       return {
         success: true,
-        data: response.data.data,
-        isMock: false
+        data: response.data.data
       }
     } else {
-      console.log(`⚠️ No SonarCloud data from API for ${repo}, using MOCK data`)
+      console.log(`⚠️ No SonarCloud data from API for ${repo}`)
       return {
-        success: true,
-        data: generateMockSonarMetrics(repo),
-        isMock: true
+        success: false,
+        error: 'No SonarCloud data available'
       }
     }
   } catch (error) {
-    console.error(`❌ Error fetching SonarCloud metrics for ${repo}, using MOCK data:`, error.message)
+    console.error(`❌ Error fetching SonarCloud metrics for ${repo}:`, error.message)
     return {
-      success: true,
-      data: generateMockSonarMetrics(repo),
-      isMock: true,
+      success: false,
       error: error.message
     }
   }
@@ -61,33 +48,19 @@ export const getSonarMetrics = async (repo, includeIssues = false) => {
  * @returns {Promise<Object>} Setup result
  */
 export const setupSonarFull = async () => {
-  if (!USE_REAL_API) {
-    console.log('🔧 MOCK: SonarCloud full setup')
-    return {
-      success: true,
-      data: {
-        message: 'SonarCloud setup completed for all repositories (MOCK)',
-        repositoriesProcessed: 5
-      },
-      isMock: true
-    }
-  }
-
   try {
     const response = await apiClient.post(API_ENDPOINTS.SONAR_FULL_SETUP)
-    
+
     console.log('✅ SonarCloud full setup completed via API')
     return {
       success: true,
-      data: response.data,
-      isMock: false
+      data: response.data
     }
   } catch (error) {
     console.error('❌ Error setting up SonarCloud:', error.message)
     return {
       success: false,
-      error: error.response?.data?.message || error.message,
-      isMock: false
+      error: error.response?.data?.message || error.message
     }
   }
 }
@@ -97,26 +70,16 @@ export const setupSonarFull = async () => {
  * @returns {Promise<Object>} Health status
  */
 export const checkSonarHealth = async () => {
-  if (!USE_REAL_API) {
-    return {
-      success: true,
-      data: { status: 'healthy', service: 'sonarshell' },
-      isMock: true
-    }
-  }
-
   try {
     const response = await apiClient.get(API_ENDPOINTS.SONAR_HEALTH)
     return {
       success: true,
-      data: response.data,
-      isMock: false
+      data: response.data
     }
   } catch (error) {
     return {
       success: false,
-      error: error.response?.data?.message || error.message,
-      isMock: false
+      error: error.response?.data?.message || error.message
     }
   }
 }
@@ -126,32 +89,20 @@ export const checkSonarHealth = async () => {
  * @returns {Promise<Object>} List of organizations
  */
 export const getOrganizations = async () => {
-  if (!USE_REAL_API) {
-    console.warn('USE_REAL_API is false - no organizations will be loaded from SonarShell')
-    return {
-      success: false,
-      data: [],
-      isMock: false,
-      error: 'Real API is disabled (USE_REAL_API = false)',
-    }
-  }
-
   try {
     const response = await apiClient.get(API_ENDPOINTS.SONAR_ORGS_LIST)
     const orgs = response.data?.data || []
 
     return {
       success: true,
-      data: orgs,
-      isMock: false,
+      data: orgs
     }
   } catch (error) {
     console.error('❌ Error fetching organizations from SonarShell:', error.message)
     return {
       success: false,
       data: [],
-      isMock: false,
-      error: error.message,
+      error: error.message
     }
   }
 }
@@ -295,16 +246,6 @@ const mapRepositoryToUIService = (repo) => {
  * service catalog endpoint.
  */
 export const getRepositoriesForCatalogue = async (orgId) => {
-  if (!USE_REAL_API) {
-    console.warn('USE_REAL_API is false - no repositories will be loaded from SonarShell')
-    return {
-      success: false,
-      data: [],
-      isMock: false,
-      error: 'Real API is disabled (USE_REAL_API = false)',
-    }
-  }
-
   try {
     let finalOrgId = orgId
 
@@ -318,8 +259,7 @@ export const getRepositoriesForCatalogue = async (orgId) => {
         return {
           success: false,
           data: [],
-          isMock: false,
-          error: 'No organizations found in SonarShell',
+          error: 'No organizations found in SonarShell'
         }
       }
 
@@ -328,7 +268,7 @@ export const getRepositoriesForCatalogue = async (orgId) => {
     }
 
     const response = await apiClient.get(API_ENDPOINTS.SONAR_REPOS_FETCH, {
-      params: { org_id: finalOrgId },
+      params: { org_id: finalOrgId }
     })
 
     const repos = response.data?.data || []
@@ -338,16 +278,14 @@ export const getRepositoriesForCatalogue = async (orgId) => {
 
     return {
       success: true,
-      data: mapped,
-      isMock: false,
+      data: mapped
     }
   } catch (error) {
     console.error('❌ Error fetching repositories from SonarShell:', error.message)
     return {
       success: false,
       data: [],
-      isMock: false,
-      error: error.message,
+      error: error.message
     }
   }
 }
@@ -358,42 +296,29 @@ export const getRepositoriesForCatalogue = async (orgId) => {
  * @returns {Promise<Object>} GitHub metrics (RepositoryMetrics)
  */
 export const getGitHubMetricsForRepo = async (repo) => {
-  if (!USE_REAL_API) {
-    console.warn('USE_REAL_API is false - no GitHub metrics will be loaded from SonarShell')
-    return {
-      success: false,
-      data: null,
-      isMock: false,
-      error: 'Real API is disabled (USE_REAL_API = false)',
-    }
-  }
-
   if (!repo) {
     return {
       success: false,
       data: null,
-      isMock: false,
-      error: 'Repository name is required to load GitHub metrics',
+      error: 'Repository name is required to load GitHub metrics'
     }
   }
 
   try {
     const response = await apiClient.get(API_ENDPOINTS.SONAR_GITHUB_METRICS, {
-      params: { repo },
+      params: { repo }
     })
 
     return {
       success: true,
-      data: response.data?.data || null,
-      isMock: false,
+      data: response.data?.data || null
     }
   } catch (error) {
     console.error('❌ Error fetching GitHub metrics from SonarShell:', error.message)
     return {
       success: false,
       data: null,
-      isMock: false,
-      error: error.message,
+      error: error.message
     }
   }
 }
@@ -404,88 +329,65 @@ export const getGitHubMetricsForRepo = async (repo) => {
  * @returns {Promise<Object>} Sonar metrics
  */
 export const getSonarMetricsForRepo = async (repo) => {
-  if (!USE_REAL_API) {
-    console.warn('USE_REAL_API is false - no Sonar metrics will be loaded from SonarShell')
-    return {
-      success: false,
-      data: null,
-      isMock: false,
-      error: 'Real API is disabled (USE_REAL_API = false)',
-    }
-  }
-
   if (!repo) {
     return {
       success: false,
       data: null,
-      isMock: false,
-      error: 'Repository name is required to load Sonar metrics',
+      error: 'Repository name is required to load Sonar metrics'
     }
   }
 
   try {
     const response = await apiClient.get(API_ENDPOINTS.SONAR_GET_METRICS, {
-      params: { repo },
+      params: { repo }
     })
 
     return {
       success: true,
-      data: response.data?.data || null,
-      isMock: false,
+      data: response.data?.data || null
     }
   } catch (error) {
     console.error('❌ Error fetching Sonar metrics from SonarShell:', error.message)
     return {
       success: false,
       data: null,
-      isMock: false,
-      error: error.message,
+      error: error.message
     }
   }
 }
 
 /**
  * Fetch Jira metrics for a Jira project key
- * @param {string} projectKey - Jira project key
+ * @param {string} jiraProjectKey - Jira project key (from jira_project_key field)
  * @returns {Promise<Object>} Jira metrics
  */
-export const getJiraMetricsForProject = async (projectKey) => {
-  if (!USE_REAL_API) {
-    console.warn('USE_REAL_API is false - no Jira metrics will be loaded from SonarShell')
-    return {
-      success: false,
-      data: null,
-      isMock: false,
-      error: 'Real API is disabled (USE_REAL_API = false)',
-    }
-  }
+export const getJiraMetricsForProject = async (jiraProjectKey) => {
 
-  if (!projectKey) {
+  if (!jiraProjectKey) {
     return {
       success: false,
       data: null,
-      isMock: false,
-      error: 'Jira project key is required to load Jira metrics',
+      error: 'Jira project key is required to load Jira metrics'
     }
   }
 
   try {
     const response = await apiClient.get(API_ENDPOINTS.SONAR_JIRA_METRICS, {
-      params: { project_key: projectKey },
+      params: { project: jiraProjectKey }
     })
+
+    console.log(`✅ Fetching Jira metrics for project: ${jiraProjectKey}`)
 
     return {
       success: true,
-      data: response.data?.data || null,
-      isMock: false,
+      data: response.data?.data || null
     }
   } catch (error) {
     console.error('❌ Error fetching Jira metrics from SonarShell:', error.message)
     return {
       success: false,
       data: null,
-      isMock: false,
-      error: error.message,
+      error: error.message
     }
   }
 }
@@ -497,22 +399,11 @@ export const getJiraMetricsForProject = async (projectKey) => {
  * @returns {Promise<Object>} List of commits
  */
 export const getCommitsForRepo = async (repo, since) => {
-  if (!USE_REAL_API) {
-    console.warn('USE_REAL_API is false - no commits will be loaded from SonarShell')
-    return {
-      success: false,
-      data: [],
-      isMock: false,
-      error: 'Real API is disabled (USE_REAL_API = false)',
-    }
-  }
-
   if (!repo) {
     return {
       success: false,
       data: [],
-      isMock: false,
-      error: 'Repository name is required to load commits',
+      error: 'Repository name is required to load commits'
     }
   }
 
@@ -523,37 +414,230 @@ export const getCommitsForRepo = async (repo, since) => {
 
     return {
       success: true,
-      data: commits,
-      isMock: false,
+      data: commits
     }
   } catch (error) {
     console.error('❌ Error fetching commits from SonarShell:', error.message)
     return {
       success: false,
       data: [],
-      isMock: false,
-      error: error.message,
+      error: error.message
     }
   }
 }
 
 /**
- * Generate mock SonarCloud metrics
+ * Get open pull requests for a repository
+ * @param {string} repo - Repository name
+ * @returns {Promise<Object>} Open PRs
  */
-function generateMockSonarMetrics(repo) {
-  return {
-    repository: repo,
-    projectKey: `mock-${repo}`,
-    qualityGateStatus: Math.random() > 0.3 ? 'PASSED' : 'FAILED',
-    metrics: {
-      coverage: Math.floor(Math.random() * 30) + 70,
-      bugs: Math.floor(Math.random() * 10),
-      vulnerabilities: Math.floor(Math.random() * 5),
-      codeSmells: Math.floor(Math.random() * 50),
-      duplicatedLinesDensity: Math.floor(Math.random() * 10),
-      securityHotspots: Math.floor(Math.random() * 3)
-    },
-    issuesCount: Math.floor(Math.random() * 20)
+export const getOpenPullRequests = async (repo) => {
+  try {
+    const params = {
+      repo: repo,
+      state: 'open'
+    }
+
+    const response = await apiClient.get(API_ENDPOINTS.SONAR_GITHUB_PULLS, { params })
+
+    if (response.data && response.data.data) {
+      console.log(`✅ Loaded open PRs from API for ${repo}`)
+      return {
+        success: true,
+        data: response.data.data,
+        isMock: false
+      }
+    } else {
+      return {
+        success: false,
+        data: [],
+        error: 'No data returned from API'
+      }
+    }
+  } catch (error) {
+    console.error(`❌ Error fetching open PRs for ${repo}:`, error.message)
+    return {
+      success: false,
+      data: [],
+      error: error.message
+    }
+  }
+}
+
+/**
+ * Get open issues for a repository
+ * @param {string} repo - Repository name
+ * @returns {Promise<Object>} Open issues
+ */
+export const getOpenIssues = async (repo) => {
+  try {
+    const params = {
+      repo: repo,
+      state: 'open'
+    }
+
+    const response = await apiClient.get(API_ENDPOINTS.SONAR_GITHUB_ISSUES, { params })
+
+    if (response.data && response.data.data) {
+      console.log(`✅ Loaded open issues from API for ${repo}`)
+      return {
+        success: true,
+        data: response.data.data,
+        isMock: false
+      }
+    } else {
+      return {
+        success: false,
+        data: [],
+        error: 'No data returned from API'
+      }
+    }
+  } catch (error) {
+    console.error(`❌ Error fetching open issues for ${repo}:`, error.message)
+    return {
+      success: false,
+      data: [],
+      error: error.message
+    }
+  }
+}
+
+/**
+ * Get README content for a repository
+ * @param {string} repo - Repository name
+ * @returns {Promise<Object>} README content
+ */
+export const getReadmeForRepo = async (repo, owner) => {
+  if (!repo) {
+    return {
+      success: false,
+      data: null,
+      error: 'Repository name is required to load README'
+    }
+  }
+
+  try {
+    // Direct GitHub raw URL for README
+    const readmeUrl = `https://raw.githubusercontent.com/${owner}/${repo}/main/README.md`
+    console.log(`📖 Fetching README from: ${readmeUrl}`)
+
+    const response = await fetch(readmeUrl)
+
+    if (response.ok) {
+      const readmeContent = await response.text()
+      console.log(`✅ Loaded README from GitHub for ${repo}`)
+      return {
+        success: true,
+        data: readmeContent
+      }
+    } else if (response.status === 404) {
+      // Try master branch if main doesn't exist
+      const masterUrl = `https://raw.githubusercontent.com/${owner}/${repo}/master/README.md`
+      console.log(`📖 Trying master branch: ${masterUrl}`)
+
+      const masterResponse = await fetch(masterUrl)
+      if (masterResponse.ok) {
+        const readmeContent = await masterResponse.text()
+        console.log(`✅ Loaded README from GitHub (master branch) for ${repo}`)
+        return {
+          success: true,
+          data: readmeContent
+        }
+      }
+
+      return {
+        success: false,
+        data: null,
+        error: 'README.md not found in main or master branch'
+      }
+    } else {
+      return {
+        success: false,
+        data: null,
+        error: `Failed to fetch README: ${response.status} ${response.statusText}`
+      }
+    }
+  } catch (error) {
+    console.error(`❌ Error fetching README for ${repo}:`, error.message)
+    return {
+      success: false,
+      data: null,
+      error: error.message
+    }
+  }
+}
+
+/**
+ * Get open bugs for a Jira project
+ * @param {string} projectKey - Jira project key
+ * @returns {Promise<Object>} Open bugs
+ */
+export const getOpenBugs = async (projectKey) => {
+  try {
+    const params = {
+      project: projectKey
+    }
+
+    const response = await apiClient.get(API_ENDPOINTS.SONAR_JIRA_BUGS_OPEN, { params })
+
+    if (response.data && response.data.data) {
+      console.log(`✅ Loaded open bugs from API for ${projectKey}`)
+      return {
+        success: true,
+        data: response.data.data,
+        isMock: false
+      }
+    } else {
+      return {
+        success: false,
+        data: [],
+        error: 'No data returned from API'
+      }
+    }
+  } catch (error) {
+    console.error(`❌ Error fetching open bugs for ${projectKey}:`, error.message)
+    return {
+      success: false,
+      data: [],
+      error: error.message
+    }
+  }
+}
+
+/**
+ * Get open tasks for a Jira project
+ * @param {string} projectKey - Jira project key
+ * @returns {Promise<Object>} Open tasks
+ */
+export const getOpenTasks = async (projectKey) => {
+  try {
+    const params = {
+      project: projectKey
+    }
+
+    const response = await apiClient.get(API_ENDPOINTS.SONAR_JIRA_TASKS_OPEN, { params })
+
+    if (response.data && response.data.data) {
+      console.log(`✅ Loaded open tasks from API for ${projectKey}`)
+      return {
+        success: true,
+        data: response.data.data,
+        isMock: false
+      }
+    } else {
+      return {
+        success: false,
+        data: [],
+        error: 'No data returned from API'
+      }
+    }
+  } catch (error) {
+    console.error(`❌ Error fetching open tasks for ${projectKey}:`, error.message)
+    return {
+      success: false,
+      data: [],
+      error: error.message
+    }
   }
 }
 
@@ -567,5 +651,9 @@ export default {
   getSonarMetricsForRepo,
   getJiraMetricsForProject,
   getCommitsForRepo,
+  getOpenPullRequests,
+  getOpenIssues,
+  getOpenBugs,
+  getOpenTasks,
 }
 

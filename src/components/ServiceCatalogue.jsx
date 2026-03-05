@@ -1,11 +1,10 @@
 import { useState, useEffect } from 'react'
 import '../styles/ServiceCatalogue.css'
-import { demoRepositories } from '../data/servicesData'
 import ServiceTable from './ServiceTable'
 import { getRepositoriesForCatalogue, getOrganizations } from '../services/sonarService'
 import { onboardService } from '../services/onboardingService'
 
-function ServiceCatalogue({ onServiceClick, onScorecardClick, selectedRepo, setSelectedRepo }) {
+function ServiceCatalogue({ onServiceClick, onScorecardClick }) {
   const [showAddModal, setShowAddModal] = useState(false)
 		const [services, setServices] = useState([])
 		const [isLoading, setIsLoading] = useState(false)
@@ -54,15 +53,15 @@ function ServiceCatalogue({ onServiceClick, onScorecardClick, selectedRepo, setS
 				console.log('⏸️ Already loading services, please wait...')
 				return
 			}
-		
+
 			console.log('🔄 Fetching services from SonarShell API...')
 			setIsLoading(true)
 			setLoadError(null)
-		
+
 			try {
 					// Load repositories (services) from the SonarShell swagger_2 endpoints
 					const result = await getRepositoriesForCatalogue(orgId)
-		
+
 				if (result.success) {
 					setServices(result.data || [])
 					console.log('✅ Successfully loaded repository data from SonarShell')
@@ -80,33 +79,11 @@ function ServiceCatalogue({ onServiceClick, onScorecardClick, selectedRepo, setS
 			}
 		}
 
-  // Filter services based on selected repository
-  const getFilteredServices = () => {
-    if (!selectedRepo || selectedRepo === 'all') {
-      return services
-    }
-    return services.filter(service =>
-      service.repositoryKey === selectedRepo ||
-      service.repository === selectedRepo
-    )
-  }
-
-	  const currentServices = getFilteredServices()
-		const totalServices = services.length
-		const repoCounts = services.reduce((acc, service) => {
-			const key = service.repositoryKey || service.repository || service.name
-			if (!key) return acc
-			acc[key] = (acc[key] || 0) + 1
-			return acc
-		}, {})
-		const repoKeys = Object.keys(repoCounts)
+	  const currentServices = services
 	
 		const handleOrgChange = async (e) => {
 			const orgId = e.target.value
 			setSelectedOrgId(orgId)
-			if (setSelectedRepo) {
-				setSelectedRepo('')
-			}
 			await loadServicesForOrg(orgId)
 		}
 
@@ -204,22 +181,6 @@ function ServiceCatalogue({ onServiceClick, onScorecardClick, selectedRepo, setS
 			            ))}
 		          </select>
 		        </div>
-		        <div className="repo-select-wrapper">
-		          <label htmlFor="repo-select" className="repo-label">Filter by Repository:</label>
-		          <select
-		            id="repo-select"
-		            className="repo-select"
-		            value={selectedRepo || 'all'}
-		            onChange={(e) => setSelectedRepo(e.target.value === 'all' ? '' : e.target.value)}
-		          >
-			            <option value="all">All Repositories ({totalServices} services)</option>
-			            {repoKeys.map(key => (
-			              <option key={key} value={key}>
-			                {key} ({repoCounts[key]} services)
-			              </option>
-			            ))}
-		          </select>
-		        </div>
         <div className="repo-actions">
           <button className="add-service-btn" onClick={handleAddService}>
             <span className="btn-icon">+</span>
@@ -228,24 +189,10 @@ function ServiceCatalogue({ onServiceClick, onScorecardClick, selectedRepo, setS
         </div>
       </div>
 
-	      {selectedRepo && selectedRepo !== 'all' && (
-        <div className="mounted-repo-info">
-          <span className="info-icon">📁</span>
-          <span className="info-text">
-	            Showing: <strong>{selectedRepo}</strong>
-          </span>
-          <span className="service-count">{currentServices.length} services</span>
-        </div>
-      )}
-
       {/* Loading State */}
       {isLoading && (
         <div className="loading-state">
-          <div className="loading-spinner-container">
-            <div className="loading-spinner"></div>
-            <h3>Loading Repositories...</h3>
-            <p>Fetching data from backend API</p>
-          </div>
+          <p className="loading-text">⏱️ Loading repositories...</p>
         </div>
       )}
 
@@ -360,9 +307,10 @@ function ServiceCatalogue({ onServiceClick, onScorecardClick, selectedRepo, setS
                   required
                 >
                   <option value="">Select</option>
-                  {demoRepositories.map(repo => (
-                    <option key={repo.id} value={repo.value}>{repo.name}</option>
-                  ))}
+                  <option value="github">GitHub</option>
+                  <option value="gitlab">GitLab</option>
+                  <option value="bitbucket">Bitbucket</option>
+                  <option value="azure-devops">Azure DevOps</option>
                 </select>
               </div>
 

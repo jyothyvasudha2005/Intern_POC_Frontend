@@ -1,32 +1,157 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import '../styles/DeveloperDashboard.css'
 import DeveloperChatbot from './DeveloperChatbot'
 import DeveloperSelfService from './DeveloperSelfService'
+import { getOpenPullRequests, getOpenIssues, getOpenBugs, getOpenTasks, getRepositoriesForCatalogue, getOrganizations } from '../services/sonarService'
 
 function DeveloperDashboard({ onNavigate, user }) {
   const [showChatbot, setShowChatbot] = useState(false)
 
-  // Mock data for developer tables
-  const myOpenPRs = [
-    {
-      id: 1,
-      title: 'Add user authentication feature',
-      link: 'https://github.com/example/user-service/pull/123',
-      daysOld: 2
-    },
-    {
-      id: 2,
-      title: 'Fix payment gateway timeout',
-      link: 'https://github.com/example/payment-service/pull/456',
-      daysOld: 5
-    },
-    {
-      id: 3,
-      title: 'Update API documentation',
-      link: 'https://github.com/example/api-docs/pull/789',
-      daysOld: 1
+  // State for My Work data
+  const [myOpenPRs, setMyOpenPRs] = useState([])
+  const [myOpenIssues, setMyOpenIssues] = useState([])
+  const [myOpenBugs, setMyOpenBugs] = useState([])
+  const [myOpenTasks, setMyOpenTasks] = useState([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [loadError, setLoadError] = useState(null)
+
+  // Organization selection
+  const [organizations, setOrganizations] = useState([])
+  const [selectedOrgId, setSelectedOrgId] = useState('')
+
+  // Load organizations on mount
+  useEffect(() => {
+    const loadOrganizations = async () => {
+      try {
+        const orgResult = await getOrganizations()
+        if (orgResult.success && Array.isArray(orgResult.data) && orgResult.data.length > 0) {
+          setOrganizations(orgResult.data)
+          // Auto-select first org
+          const firstOrgId = orgResult.data[0].id
+          setSelectedOrgId(firstOrgId)
+        }
+      } catch (error) {
+        console.error('❌ Error loading organizations:', error.message)
+      }
     }
-  ]
+
+    loadOrganizations()
+  }, [])
+
+  // Fetch My Work data when organization changes
+  useEffect(() => {
+    if (!selectedOrgId) return
+
+    const fetchMyWorkData = async () => {
+      setIsLoading(true)
+      setLoadError(null)
+
+      try {
+        // Get all repositories for the selected organization
+        const reposResponse = await getRepositoriesForCatalogue(selectedOrgId)
+
+        if (reposResponse.success && reposResponse.data && reposResponse.data.length > 0) {
+          // Fetch from ALL repos in the organization
+          const repos = reposResponse.data
+
+          // Fetch PRs from all repos
+          const prPromises = repos.map(repo => getOpenPullRequests(repo.name))
+          const prResults = await Promise.all(prPromises)
+
+          // Flatten and combine all PRs
+          const allPRs = prResults
+            .filter(result => result.success && result.data)
+            .flatMap(result => result.data)
+            .map(pr => ({
+              id: pr.number,
+              title: pr.title,
+              link: pr.html_url || `https://github.com/${pr.repo}/pull/${pr.number}`,
+              daysOld: calculateDaysOld(pr.created_at),
+              repo: pr.repo || 'Unknown',
+              state: pr.state
+            }))
+
+          setMyOpenPRs(allPRs)
+
+          // Fetch Issues from all repos
+          const issuePromises = repos.map(repo => getOpenIssues(repo.name))
+          const issueResults = await Promise.all(issuePromises)
+
+          const allIssues = issueResults
+            .filter(result => result.success && result.data)
+            .flatMap(result => result.data)
+            .map(issue => ({
+              id: issue.number,
+              title: issue.title,
+              link: issue.html_url || `https://github.com/${issue.repo}/issues/${issue.number}`,
+              daysOld: calculateDaysOld(issue.created_at),
+              repo: issue.repo || 'Unknown',
+              state: issue.state
+            }))
+
+          setMyOpenIssues(allIssues)
+
+          // Fetch Jira bugs and tasks from repos that have Jira project keys
+          const reposWithJira = repos.filter(repo => repo.jira_project_key)
+
+          if (reposWithJira.length > 0) {
+            const bugPromises = reposWithJira.map(repo => getOpenBugs(repo.jira_project_key))
+            const bugResults = await Promise.all(bugPromises)
+
+            const allBugs = bugResults
+              .filter(result => result.success && result.data)
+              .flatMap(result => result.data)
+              .map(bug => ({
+                id: bug.key,
+                title: bug.summary,
+                issueURL: bug.url || `https://jira.example.com/browse/${bug.key}`,
+                type: bug.issue_type || 'Bug',
+                priority: bug.priority || 'Medium',
+                issueReporter: bug.reporter || 'Unknown',
+                serviceType: bug.project_key || 'Unknown'
+              }))
+
+            setMyOpenBugs(allBugs)
+
+            const taskPromises = reposWithJira.map(repo => getOpenTasks(repo.jira_project_key))
+            const taskResults = await Promise.all(taskPromises)
+
+            const allTasks = taskResults
+              .filter(result => result.success && result.data)
+              .flatMap(result => result.data)
+              .map(task => ({
+                id: task.key,
+                title: task.summary,
+                issueURL: task.url || `https://jira.example.com/browse/${task.key}`,
+                type: task.issue_type || 'Task',
+                priority: task.priority || 'Medium',
+                issueReporter: task.reporter || 'Unknown',
+                serviceType: task.project_key || 'Unknown'
+              }))
+
+            setMyOpenTasks(allTasks)
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching My Work data:', error)
+        setLoadError(error.message)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchMyWorkData()
+  }, [selectedOrgId])
+
+  // Helper function to calculate days old
+  const calculateDaysOld = (dateString) => {
+    if (!dateString) return 0
+    const created = new Date(dateString)
+    const now = new Date()
+    const diffTime = Math.abs(now - created)
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+    return diffDays
+  }
 
   const prsWaitingForReview = [
     {
@@ -42,36 +167,6 @@ function DeveloperDashboard({ onNavigate, user }) {
       link: 'https://github.com/example/cache-service/pull/567',
       creator: 'Bob Johnson',
       daysOld: 1
-    }
-  ]
-
-  const myOpenTasks = [
-    {
-      id: 1,
-      title: 'Implement OAuth2 login',
-      issueURL: 'https://jira.example.com/browse/AUTH-123',
-      type: 'Story',
-      priority: 'High',
-      issueReporter: 'Product Manager',
-      serviceType: 'User Service'
-    },
-    {
-      id: 2,
-      title: 'Fix memory leak in payment processor',
-      issueURL: 'https://jira.example.com/browse/PAY-456',
-      type: 'Bug',
-      priority: 'Critical',
-      issueReporter: 'QA Team',
-      serviceType: 'Payment Service'
-    },
-    {
-      id: 3,
-      title: 'Update API rate limiting',
-      issueURL: 'https://jira.example.com/browse/API-789',
-      type: 'Task',
-      priority: 'Medium',
-      issueReporter: 'Tech Lead',
-      serviceType: 'API Gateway'
     }
   ]
 
@@ -109,43 +204,133 @@ function DeveloperDashboard({ onNavigate, user }) {
 
       {/* Developer Tables Section */}
       <div className="dashboard-section my-work-section">
-        <h2 className="section-title">My Work</h2>
-        
-        {/* My Open PRs */}
-        <div className="dev-table-card">
-          <h3 className="table-title">
-            <span className="table-icon">🔀</span>
-            My Open PRs
-          </h3>
-          <div className="table-wrapper">
-            <table className="dev-table">
-              <thead>
-                <tr>
-                  <th>Title</th>
-                  <th>Link</th>
-                  <th>Days Old</th>
-                </tr>
-              </thead>
-              <tbody>
-                {myOpenPRs.map((pr) => (
-                  <tr key={pr.id}>
-                    <td>{pr.title}</td>
-                    <td>
-                      <a href={pr.link} target="_blank" rel="noopener noreferrer" className="pr-link">
-                        View PR →
-                      </a>
-                    </td>
-                    <td>
-                      <span className={`days-badge ${getDaysOldClass(pr.daysOld)}`}>
-                        {pr.daysOld} {pr.daysOld === 1 ? 'day' : 'days'}
-                      </span>
-                    </td>
-                  </tr>
+        <div className="section-header">
+          <h2 className="section-title">My Work</h2>
+          {organizations.length > 0 && (
+            <div className="org-selector">
+              <label htmlFor="org-select">Organization:</label>
+              <select
+                id="org-select"
+                value={selectedOrgId}
+                onChange={(e) => setSelectedOrgId(e.target.value)}
+                className="org-dropdown"
+              >
+                {organizations.map(org => (
+                  <option key={org.id} value={org.id}>
+                    {org.name}
+                  </option>
                 ))}
-              </tbody>
-            </table>
-          </div>
+              </select>
+            </div>
+          )}
         </div>
+
+        {/* Loading State */}
+        {isLoading && (
+          <div className="loading-container">
+            <p className="loading-text">⏱️ Loading your work items...</p>
+          </div>
+        )}
+
+        {/* Error State */}
+        {loadError && !isLoading && (
+          <div className="error-container">
+            <p className="error-text">❌ Error loading data: {loadError}</p>
+            <button className="retry-button" onClick={() => window.location.reload()}>
+              Retry
+            </button>
+          </div>
+        )}
+
+        {/* My Open PRs */}
+        {!isLoading && !loadError && (
+          <>
+            <div className="dev-table-card">
+              <h3 className="table-title">
+                <span className="table-icon">🔀</span>
+                My Open PRs
+                <span className="count-badge">{myOpenPRs.length}</span>
+              </h3>
+              <div className="table-wrapper">
+                {myOpenPRs.length > 0 ? (
+                  <table className="dev-table">
+                    <thead>
+                      <tr>
+                        <th>Title</th>
+                        <th>Link</th>
+                        <th>Days Old</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {myOpenPRs.map((pr) => (
+                        <tr key={pr.id}>
+                          <td>{pr.title}</td>
+                          <td>
+                            <a href={pr.link} target="_blank" rel="noopener noreferrer" className="pr-link">
+                              View PR →
+                            </a>
+                          </td>
+                          <td>
+                            <span className={`days-badge ${getDaysOldClass(pr.daysOld)}`}>
+                              {pr.daysOld} {pr.daysOld === 1 ? 'day' : 'days'}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                ) : (
+                  <div className="empty-state">
+                    <p>🎉 No open PRs! Great job!</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* My Open Issues */}
+            <div className="dev-table-card">
+              <h3 className="table-title">
+                <span className="table-icon">🐛</span>
+                My Open Issues
+                <span className="count-badge">{myOpenIssues.length}</span>
+              </h3>
+              <div className="table-wrapper">
+                {myOpenIssues.length > 0 ? (
+                  <table className="dev-table">
+                    <thead>
+                      <tr>
+                        <th>Title</th>
+                        <th>Link</th>
+                        <th>Days Old</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {myOpenIssues.map((issue) => (
+                        <tr key={issue.id}>
+                          <td>{issue.title}</td>
+                          <td>
+                            <a href={issue.link} target="_blank" rel="noopener noreferrer" className="pr-link">
+                              View Issue →
+                            </a>
+                          </td>
+                          <td>
+                            <span className={`days-badge ${getDaysOldClass(issue.daysOld)}`}>
+                              {issue.daysOld} {issue.daysOld === 1 ? 'day' : 'days'}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                ) : (
+                  <div className="empty-state">
+                    <p>✅ No open issues!</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </>
+        )}
 
         {/* PRs Waiting for My Review */}
         <div className="dev-table-card">
@@ -185,51 +370,115 @@ function DeveloperDashboard({ onNavigate, user }) {
           </div>
         </div>
 
-        {/* My Open Tasks */}
-        <div className="dev-table-card">
-          <h3 className="table-title">
-            <span className="table-icon">📋</span>
-            My Open Tasks
-          </h3>
-          <div className="table-wrapper">
-            <table className="dev-table">
-              <thead>
-                <tr>
-                  <th>Title</th>
-                  <th>Issue URL</th>
-                  <th>Type</th>
-                  <th>Priority</th>
-                  <th>Reporter</th>
-                  <th>Service</th>
-                </tr>
-              </thead>
-              <tbody>
-                {myOpenTasks.map((task) => (
-                  <tr key={task.id}>
-                    <td>{task.title}</td>
-                    <td>
-                      <a href={task.issueURL} target="_blank" rel="noopener noreferrer" className="pr-link">
-                        View Issue →
-                      </a>
-                    </td>
-                    <td>
-                      <span className={`type-badge ${getTypeClass(task.type)}`}>
-                        {task.type}
-                      </span>
-                    </td>
-                    <td>
-                      <span className={`priority-badge ${getPriorityClass(task.priority)}`}>
-                        {task.priority}
-                      </span>
-                    </td>
-                    <td>{task.issueReporter}</td>
-                    <td>{task.serviceType}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+        {/* My Open Bugs */}
+        {!isLoading && !loadError && (
+          <div className="dev-table-card">
+            <h3 className="table-title">
+              <span className="table-icon">🐞</span>
+              My Open Bugs
+              <span className="count-badge">{myOpenBugs.length}</span>
+            </h3>
+            <div className="table-wrapper">
+              {myOpenBugs.length > 0 ? (
+                <table className="dev-table">
+                  <thead>
+                    <tr>
+                      <th>Title</th>
+                      <th>Issue URL</th>
+                      <th>Type</th>
+                      <th>Priority</th>
+                      <th>Reporter</th>
+                      <th>Project</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {myOpenBugs.map((bug) => (
+                      <tr key={bug.id}>
+                        <td>{bug.title}</td>
+                        <td>
+                          <a href={bug.issueURL} target="_blank" rel="noopener noreferrer" className="pr-link">
+                            View Bug →
+                          </a>
+                        </td>
+                        <td>
+                          <span className={`type-badge ${getTypeClass(bug.type)}`}>
+                            {bug.type}
+                          </span>
+                        </td>
+                        <td>
+                          <span className={`priority-badge ${getPriorityClass(bug.priority)}`}>
+                            {bug.priority}
+                          </span>
+                        </td>
+                        <td>{bug.issueReporter}</td>
+                        <td><code>{bug.serviceType}</code></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              ) : (
+                <div className="empty-state">
+                  <p>✅ No open bugs!</p>
+                </div>
+              )}
+            </div>
           </div>
-        </div>
+        )}
+
+        {/* My Open Tasks */}
+        {!isLoading && !loadError && (
+          <div className="dev-table-card">
+            <h3 className="table-title">
+              <span className="table-icon">📋</span>
+              My Open Tasks
+              <span className="count-badge">{myOpenTasks.length}</span>
+            </h3>
+            <div className="table-wrapper">
+              {myOpenTasks.length > 0 ? (
+                <table className="dev-table">
+                  <thead>
+                    <tr>
+                      <th>Title</th>
+                      <th>Issue URL</th>
+                      <th>Type</th>
+                      <th>Priority</th>
+                      <th>Reporter</th>
+                      <th>Project</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {myOpenTasks.map((task) => (
+                      <tr key={task.id}>
+                        <td>{task.title}</td>
+                        <td>
+                          <a href={task.issueURL} target="_blank" rel="noopener noreferrer" className="pr-link">
+                            View Task →
+                          </a>
+                        </td>
+                        <td>
+                          <span className={`type-badge ${getTypeClass(task.type)}`}>
+                            {task.type}
+                          </span>
+                        </td>
+                        <td>
+                          <span className={`priority-badge ${getPriorityClass(task.priority)}`}>
+                            {task.priority}
+                          </span>
+                        </td>
+                        <td>{task.issueReporter}</td>
+                        <td><code>{task.serviceType}</code></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              ) : (
+                <div className="empty-state">
+                  <p>✅ No open tasks!</p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Chatbot Toggle Button */}

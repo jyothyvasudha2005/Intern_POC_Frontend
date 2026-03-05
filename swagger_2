@@ -757,7 +757,7 @@ paths:
       tags:
         - Jira Metrics
       parameters:
-        - name: project_key
+        - name: project
           in: query
           required: true
           schema:
@@ -783,7 +783,7 @@ paths:
       tags:
         - Jira Metrics
       parameters:
-        - name: project_key
+        - name: project
           in: query
           required: true
           schema:
@@ -811,7 +811,7 @@ paths:
       tags:
         - Jira Metrics
       parameters:
-        - name: project_key
+        - name: project
           in: query
           required: true
           schema:
@@ -873,7 +873,7 @@ paths:
       tags:
         - Jira Metrics
       parameters:
-        - name: project_key
+        - name: project
           in: query
           required: true
           schema:
