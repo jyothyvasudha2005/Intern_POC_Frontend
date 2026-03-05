@@ -31,6 +31,75 @@
   color: var(--text-primary);
 }
 
+/* Dashboard Summary Cards */
+.dashboard-summary {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  padding: 20px 24px;
+  background: var(--bg-primary);
+}
+
+.summary-card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 20px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.summary-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  border-color: var(--primary-color);
+}
+
+.summary-icon {
+  font-size: 32px;
+  width: 56px;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  background: rgba(108, 93, 211, 0.1);
+}
+
+.pr-card .summary-icon {
+  background: rgba(0, 217, 165, 0.1);
+}
+
+.bug-card .summary-icon {
+  background: rgba(255, 107, 107, 0.1);
+}
+
+.task-card .summary-icon {
+  background: rgba(139, 127, 232, 0.1);
+}
+
+.summary-content {
+  flex: 1;
+}
+
+.summary-count {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1;
+}
+
+.summary-label {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
 /* Notification */
 .notification {
   margin: 16px 24px 0;

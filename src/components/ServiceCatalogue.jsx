@@ -64,15 +64,25 @@ function ServiceCatalogue({ onServiceClick, onScorecardClick }) {
         // Set current org in Redux
         dispatch(setCurrentOrg(defaultOrgId))
 
-        // Fetch services from Redux (will use cache if available)
-        // This will also extract and update organizations from service responses
-        console.log('🔄 Fetching services for org:', defaultOrgId)
-        try {
-          await dispatch(fetchServicesForOrg(defaultOrgId)).unwrap()
-          console.log('✅ Services loaded successfully')
-        } catch (fetchError) {
-          console.error('❌ Error fetching services:', fetchError)
-          setLoadError(typeof fetchError === 'string' ? fetchError : fetchError.message || 'Failed to load services')
+        // ✅ CHECK CACHE BEFORE FETCHING
+        const hasCached = selectHasCachedServices(defaultOrgId)(store.getState())
+        const isStale = selectIsDataStale(defaultOrgId)(store.getState())
+
+        console.log('📦 Cache status:', { hasCached, isStale })
+
+        // Only fetch if we don't have cached data OR if it's stale (> 5 minutes old)
+        if (!hasCached || isStale) {
+          console.log('🔄 Fetching services for org:', defaultOrgId, '(Cache:', hasCached ? 'stale' : 'missing', ')')
+          try {
+            await dispatch(fetchServicesForOrg(defaultOrgId)).unwrap()
+            console.log('✅ Services loaded successfully from API')
+          } catch (fetchError) {
+            console.error('❌ Error fetching services:', fetchError)
+            setLoadError(typeof fetchError === 'string' ? fetchError : fetchError.message || 'Failed to load services')
+          }
+        } else {
+          console.log('✅ Using cached services from Redux - no API call needed!')
+          console.log('📊 Cached services count:', services.length)
         }
       } else {
         console.error('❌ No organizations found')
@@ -91,14 +101,25 @@ function ServiceCatalogue({ onServiceClick, onScorecardClick }) {
     // Set current org in Redux
     dispatch(setCurrentOrg(orgId))
 
-    // Check if we have cached data
+    // ✅ CHECK CACHE BEFORE FETCHING
     const hasCached = selectHasCachedServices(orgId)(store.getState())
+    const isStale = selectIsDataStale(orgId)(store.getState())
 
-    if (hasCached) {
-      console.log('✅ Using cached services for org', orgId)
+    console.log('🔄 Organization changed to:', orgId)
+    console.log('📦 Cache status:', { hasCached, isStale })
+
+    // Only fetch if we don't have cached data OR if it's stale
+    if (!hasCached || isStale) {
+      console.log('🔄 Fetching services for org:', orgId, '(Cache:', hasCached ? 'stale' : 'missing', ')')
+      try {
+        await dispatch(fetchServicesForOrg(orgId)).unwrap()
+        console.log('✅ Services loaded successfully from API')
+      } catch (error) {
+        console.error('❌ Error fetching services:', error)
+        setLoadError(error.message || 'Failed to load services')
+      }
     } else {
-      console.log('🔄 Fetching services for org', orgId)
-      await dispatch(fetchServicesForOrg(orgId)).unwrap()
+      console.log('✅ Using cached services for org:', orgId)
     }
   }
 

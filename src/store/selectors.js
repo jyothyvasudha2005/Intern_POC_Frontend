@@ -89,3 +89,116 @@ export const selectIsDataStale = (orgId, maxAge = 5 * 60 * 1000) => (state) => {
   return Date.now() - lastFetched > maxAge
 }
 
+// Dashboard data selectors
+export const selectDashboardData = (orgId) => (state) => {
+  return state.services.dashboardData[orgId] || null
+}
+
+export const selectDashboardOpenPRs = (orgId) => (state) => {
+  return state.services.dashboardData[orgId]?.openPRs || []
+}
+
+export const selectDashboardOpenBugs = (orgId) => (state) => {
+  return state.services.dashboardData[orgId]?.openBugs || []
+}
+
+export const selectDashboardOpenTasks = (orgId) => (state) => {
+  return state.services.dashboardData[orgId]?.openTasks || []
+}
+
+export const selectIsLoadingDashboard = (state) => {
+  return state.services.isLoadingDashboard
+}
+
+export const selectDashboardError = (state) => {
+  return state.services.dashboardError
+}
+
+export const selectHasCachedDashboardData = (orgId) => (state) => {
+  return !!state.services.dashboardData[orgId]
+}
+
+export const selectIsDashboardDataStale = (orgId, maxAge = 5 * 60 * 1000) => (state) => {
+  const lastFetched = state.services.dashboardData[orgId]?.lastFetched
+  if (!lastFetched) return true
+  return Date.now() - lastFetched > maxAge
+}
+
+// Developer Dashboard Selectors - Aggregate data from all services
+export const selectAllOpenPRs = createSelector(
+  [selectCurrentOrgServices],
+  (services) => {
+    const allPRs = []
+    services.forEach(service => {
+      if (service.pullRequests && Array.isArray(service.pullRequests)) {
+        service.pullRequests.forEach(pr => {
+          allPRs.push({
+            ...pr,
+            serviceName: service.name,
+            serviceId: service.id,
+            repositoryUrl: service.repositoryUrl
+          })
+        })
+      }
+    })
+    return allPRs
+  }
+)
+
+export const selectAllOpenBugs = createSelector(
+  [selectCurrentOrgServices],
+  (services) => {
+    const allBugs = []
+    services.forEach(service => {
+      if (service.jiraIssues && Array.isArray(service.jiraIssues)) {
+        service.jiraIssues
+          .filter(issue => issue.issueType === 'Bug' && issue.status !== 'Done' && issue.status !== 'Closed')
+          .forEach(bug => {
+            allBugs.push({
+              ...bug,
+              serviceName: service.name,
+              serviceId: service.id,
+              jiraProjectKey: service.jiraProjectKey
+            })
+          })
+      }
+    })
+    return allBugs
+  }
+)
+
+export const selectAllOpenTasks = createSelector(
+  [selectCurrentOrgServices],
+  (services) => {
+    const allTasks = []
+    services.forEach(service => {
+      if (service.jiraIssues && Array.isArray(service.jiraIssues)) {
+        service.jiraIssues
+          .filter(issue => issue.issueType === 'Task' && issue.status !== 'Done' && issue.status !== 'Closed')
+          .forEach(task => {
+            allTasks.push({
+              ...task,
+              serviceName: service.name,
+              serviceId: service.id,
+              jiraProjectKey: service.jiraProjectKey
+            })
+          })
+      }
+    })
+    return allTasks
+  }
+)
+
+// Summary counts for Developer Dashboard
+export const selectDeveloperDashboardSummary = createSelector(
+  [selectAllOpenPRs, selectAllOpenBugs, selectAllOpenTasks],
+  (openPRs, openBugs, openTasks) => ({
+    totalOpenPRs: openPRs.length,
+    totalOpenBugs: openBugs.length,
+    totalOpenTasks: openTasks.length,
+    openPRs,
+    openBugs,
+    openTasks
+  })
+)
+

@@ -101,6 +101,87 @@ export const refreshServicesForOrg = createAsyncThunk(
   }
 )
 
+// Async thunk to fetch and aggregate dashboard data (PRs, bugs, tasks) from cached services
+export const fetchDashboardData = createAsyncThunk(
+  'services/fetchDashboardData',
+  async (orgId, { getState, rejectWithValue }) => {
+    try {
+      const state = getState()
+      const orgServices = state.services.servicesByOrg[orgId]
+
+      if (!orgServices || !orgServices.services) {
+        return rejectWithValue('No services found for organization')
+      }
+
+      console.log(`🔄 Redux: Aggregating dashboard data for org ${orgId}`)
+
+      // Aggregate PRs, bugs, and tasks from all services
+      const openPRs = []
+      const openBugs = []
+      const openTasks = []
+
+      orgServices.services.forEach(service => {
+        // Get detailed service data from cache
+        const detailedService = state.services.serviceDetails[service.id]
+        if (!detailedService) return
+
+        // Extract open PRs
+        if (detailedService.pullRequests && Array.isArray(detailedService.pullRequests)) {
+          detailedService.pullRequests
+            .filter(pr => pr.state === 'open')
+            .forEach(pr => {
+              openPRs.push({
+                id: pr.number,
+                title: pr.title,
+                url: pr.url,
+                author: pr.author,
+                createdAt: pr.createdAt,
+                serviceName: service.name || service.title,
+                serviceId: service.id
+              })
+            })
+        }
+
+        // Extract open bugs and tasks from Jira issues
+        if (detailedService.jiraIssues && Array.isArray(detailedService.jiraIssues)) {
+          detailedService.jiraIssues
+            .filter(issue => issue.status !== 'Done' && issue.status !== 'Closed')
+            .forEach(issue => {
+              const issueData = {
+                id: issue.key,
+                title: issue.summary,
+                issueType: issue.issueType,
+                status: issue.status,
+                priority: issue.priority,
+                assignee: issue.assignee,
+                serviceName: service.name || service.title,
+                serviceId: service.id
+              }
+
+              if (issue.issueType?.toLowerCase() === 'bug') {
+                openBugs.push(issueData)
+              } else if (issue.issueType?.toLowerCase() === 'task') {
+                openTasks.push(issueData)
+              }
+            })
+        }
+      })
+
+      console.log(`✅ Redux: Aggregated dashboard data - PRs: ${openPRs.length}, Bugs: ${openBugs.length}, Tasks: ${openTasks.length}`)
+
+      return {
+        orgId,
+        openPRs,
+        openBugs,
+        openTasks
+      }
+    } catch (error) {
+      console.error('❌ Redux: Error aggregating dashboard data:', error.message)
+      return rejectWithValue(error.message)
+    }
+  }
+)
+
 const servicesSlice = createSlice({
   name: 'services',
   initialState: {
@@ -115,6 +196,9 @@ const servicesSlice = createSlice({
     // Individual service details cache
     serviceDetails: {}, // { serviceId: { ...serviceData, lastFetched: timestamp } }
 
+    // Dashboard data (aggregated PRs, bugs, tasks from all services in org)
+    dashboardData: {}, // { orgId: { openPRs: [], openBugs: [], openTasks: [], lastFetched: timestamp } }
+
     // Current organization
     currentOrgId: null,
 
@@ -123,11 +207,13 @@ const servicesSlice = createSlice({
     isLoading: false,
     isRefreshing: false,
     isFetchingService: false,
+    isLoadingDashboard: false,
 
     // Error states
     error: null,
     serviceError: null,
     orgsError: null,
+    dashboardError: null,
   },
   reducers: {
     setCurrentOrg: (state, action) => {
@@ -213,6 +299,29 @@ const servicesSlice = createSlice({
       .addCase(refreshServicesForOrg.rejected, (state, action) => {
         state.isRefreshing = false
         state.error = action.payload
+      })
+
+      // Fetch dashboard data
+      .addCase(fetchDashboardData.pending, (state) => {
+        state.isLoadingDashboard = true
+        state.dashboardError = null
+      })
+      .addCase(fetchDashboardData.fulfilled, (state, action) => {
+        state.isLoadingDashboard = false
+        const { orgId, openPRs, openBugs, openTasks } = action.payload
+
+        state.dashboardData[orgId] = {
+          openPRs,
+          openBugs,
+          openTasks,
+          lastFetched: Date.now()
+        }
+
+        console.log(`✅ Redux: Dashboard data stored for org ${orgId}`)
+      })
+      .addCase(fetchDashboardData.rejected, (state, action) => {
+        state.isLoadingDashboard = false
+        state.dashboardError = action.payload
       })
   },
 })
