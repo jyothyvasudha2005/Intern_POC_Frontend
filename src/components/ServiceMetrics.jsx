@@ -174,11 +174,12 @@ function ServiceMetrics({ service, onClose }) {
     const fetchReadme = async () => {
       if (activeTab === 'github-readme' && !readme && !isLoadingReadme && service.name) {
         setIsLoadingReadme(true)
-        console.log('📄 Fetching README for:', service.name)
+        console.log('📄 Fetching README for:', service.name, 'org:', service.org)
 
         try {
-          // Use the owner from service or default to 'jyothyvasudha2005'
-          const owner = service.github_owner || 'jyothyvasudha2005'
+          // Use the org from service (selected organization)
+          const owner = service.org || service.github_owner || 'tekion'
+          console.log('📖 Using owner:', owner)
           const result = await getReadmeForRepo(service.name, owner)
           if (result.success && result.data) {
             setReadme(result.data.content || result.data)
@@ -200,11 +201,12 @@ function ServiceMetrics({ service, onClose }) {
   // Manual README fetch function
   const handleFetchReadme = async () => {
     setIsLoadingReadme(true)
-    console.log('📄 Manually fetching README for:', service.name)
+    console.log('📄 Manually fetching README for:', service.name, 'org:', service.org)
 
     try {
-      // Use the owner from service or default to 'jyothyvasudha2005'
-      const owner = service.github_owner || 'jyothyvasudha2005'
+      // Use the org from service (selected organization)
+      const owner = service.org || service.github_owner || 'jyothyvasudha2005'
+      console.log('📖 Using owner:', owner)
       const result = await getReadmeForRepo(service.name, owner)
       if (result.success && result.data) {
         setReadme(result.data.content || result.data)
