@@ -33,6 +33,7 @@ function ServiceMetrics({ service, onClose }) {
     jira: null,
     commits: null
   })
+  const [activeScorecardTab, setActiveScorecardTab] = useState('PR_Metrics')
 
   if (!service) {
     return null
@@ -49,6 +50,93 @@ function ServiceMetrics({ service, onClose }) {
       console.log('📊 Fetching metrics for service:', service.name)
 
       try {
+        // Check if service already has Service Catalog API data
+        const hasServiceCatalogData = service.evaluationMetrics || service.metrics
+
+        if (hasServiceCatalogData) {
+          console.log('✅ Using Service Catalog API data for:', service.name || service.title)
+          console.log('📊 Evaluation metrics:', service.evaluationMetrics)
+          console.log('📊 General metrics:', service.metrics)
+
+          // Map Service Catalog data to component format
+          const updatedService = { ...service }
+          const evalMetrics = service.evaluationMetrics || {}
+          const metrics = service.metrics || {}
+
+          // Map GitHub metrics from Service Catalog
+          updatedService.metrics = updatedService.metrics || {}
+          updatedService.metrics.github = {
+            language: service.language || metrics.github?.language || 'Unknown',
+            openPRs: metrics.openPullRequests || 0,
+            mergedPRs: metrics.commitsLast90Days || 0,
+            contributors: metrics.contributors || 0,
+            lastCommit: service.lastCommit || '',
+            lastCommitter: service.lastCommitter || 'Unknown',
+            coverage: evalMetrics.coverage || 0,
+          }
+
+          updatedService.prMetrics = {
+            avgCommitsPerPR: metrics.avgCommitsPerPR || 3,
+            openPRCount: metrics.openPullRequests || 0,
+            avgLOCPerPR: metrics.avgLOCPerPR || 500,
+            weeklyMergedPRs: Math.round((metrics.commitsLast90Days || 0) / 12) || 0,
+          }
+
+          updatedService.doraMetrics = {
+            changeFailureRate: evalMetrics.changeFailureRate || 0,
+            deploymentFrequency: evalMetrics.deploymentFrequency || 0,
+            mttr: evalMetrics.mttr || 0,
+          }
+
+          // Map SonarCloud metrics from Service Catalog
+          updatedService.codeQuality = {
+            codeCoverage: evalMetrics.coverage || 0,
+            vulnerabilities: evalMetrics.vulnerabilities || 0,
+            codeSmells: evalMetrics.codeSmells || 0,
+            codeDuplication: evalMetrics.duplicatedLinesDensity || 0,
+          }
+
+          // Map Security metrics from Service Catalog
+          updatedService.securityMaturity = {
+            owaspCompliance: evalMetrics.owaspCompliance || 'Baseline',
+            branchProtection: evalMetrics.branchProtection || evalMetrics.hasReadme === 1,
+            requiredApprovals: evalMetrics.requiredApprovals || 1,
+          }
+
+          // Map Jira metrics from Service Catalog
+          updatedService.metrics.jira = {
+            openIssues: metrics.jiraOpenTasks || 0,
+            inProgress: metrics.jiraInProgress || 0,
+            resolved: metrics.jiraClosedTasks || 0,
+            bugs: metrics.jiraOpenBugs || 0,
+            avgResolutionTime: evalMetrics.mttr ? `${evalMetrics.mttr} days` : 'N/A',
+            sprintProgress: 0,
+          }
+
+          updatedService.jiraMetrics = {
+            openHighPriorityBugs: metrics.jiraOpenBugs || 0,
+            totalIssues: (metrics.jiraOpenTasks || 0) + (metrics.jiraClosedTasks || 0),
+            inProgress: metrics.jiraInProgress || 0,
+            resolved: metrics.jiraClosedTasks || 0,
+          }
+
+          // Store Service Catalog data as raw API data for display
+          setRawApiData({
+            github: { success: true, data: metrics },
+            sonar: { success: true, data: evalMetrics },
+            jira: { success: true, data: metrics },
+            commits: { success: false, data: null }
+          })
+
+          setEnrichedService(updatedService)
+          setIsLoadingMetrics(false)
+          console.log('✅ Service Catalog data mapped successfully')
+          return
+        }
+
+        // FALLBACK: Fetch from individual APIs if Service Catalog data not available
+        console.log('⚠️ Service Catalog data not available, fetching from individual APIs')
+
         // Fetch all metrics in parallel
         const [githubResult, sonarResult, jiraResult, commitsResult] = await Promise.all([
           getGitHubMetricsForRepo(service.name),
@@ -308,7 +396,7 @@ function ServiceMetrics({ service, onClose }) {
         {!isLoadingMetrics && (
           <>
             {activeTab === 'overview' && renderOverview(enrichedService)}
-            {activeTab === 'scorecards' && renderScorecards(enrichedService, getPRBadge, getQualityBadge)}
+            {activeTab === 'scorecards' && renderScorecards(enrichedService, getPRBadge, getQualityBadge, activeScorecardTab, setActiveScorecardTab)}
             {activeTab === 'related' && renderRelatedEntities(enrichedService)}
             {activeTab === 'runs' && renderRuns(enrichedService)}
             {activeTab === 'audit' && renderAuditLogTable(enrichedService, commits)}
@@ -941,34 +1029,204 @@ function _renderHistory(service) {
   )
 }
 
-// Scorecards Tab - Combines all metrics
-function renderScorecards(service, getPRBadge, getQualityBadge) {
+// Scorecards Tab - Tier-based view matching the reference image
+function renderScorecards(service, getPRBadge, getQualityBadge, activeScorecardTab, setActiveScorecardTab) {
+  // Calculate badge levels for scorecards
+  const prMetrics = service.prMetrics || {}
+  const codeQuality = service.codeQuality || {}
+
+  // Get overall badge for PR Metrics (use the lowest tier among all metrics)
+  const prBadges = [
+    getPRBadge('avgCommitsPerPR', prMetrics.avgCommitsPerPR || 0),
+    getPRBadge('openPRCount', prMetrics.openPRCount || 0),
+    getPRBadge('avgLOCPerPR', prMetrics.avgLOCPerPR || 0),
+    getPRBadge('weeklyMergedPRs', prMetrics.weeklyMergedPRs || 0)
+  ]
+  const prBadgeLevel = prBadges.some(b => b.level === 'Bronze') ? 'Bronze' :
+                       prBadges.some(b => b.level === 'Silver') ? 'Silver' : 'Gold'
+
+  // Get overall badge for Code Quality
+  const qualityBadges = [
+    getQualityBadge('codeCoverage', codeQuality.codeCoverage || 0),
+    getQualityBadge('vulnerabilities', codeQuality.vulnerabilities || 0),
+    getQualityBadge('codeSmells', codeQuality.codeSmells || 0)
+  ]
+  const qualityBadgeLevel = qualityBadges.some(b => b.level === 'Bronze') ? 'Bronze' :
+                            qualityBadges.some(b => b.level === 'Silver') ? 'Silver' : 'Gold'
+
+  // Define scorecard tabs based on the image
+  const scorecardTabs = [
+    { id: 'PR_Metrics', label: 'PR Metrics', badge: prBadgeLevel },
+    { id: 'Code_Quality', label: 'Code Quality', badge: qualityBadgeLevel },
+    { id: 'Security_Maturity', label: 'Security Maturity', badge: 'Basic' },
+    { id: 'DORA_Metrics', label: 'DORA Metrics', badge: 'Elite' },
+    { id: 'Service_Health', label: 'Service Health', badge: 'Bronze' },
+    { id: 'Production_Readiness', label: 'Production Readiness', badge: 'Orange' },
+  ]
+
+  // Define rules for each scorecard tier
+  const getScorecardRules = (scorecardId) => {
+    const evalMetrics = service.evaluationMetrics || {}
+    const metrics = service.metrics || {}
+
+    const rules = {
+      PR_Metrics: {
+        Bronze: [
+          { name: 'Open PRs', value: metrics.openPullRequests || 0, threshold: '< 6', passed: (metrics.openPullRequests || 0) < 6 },
+          { name: 'Average Commits per PR', value: metrics.avgCommitsPerPR || 3, threshold: '< 30', passed: (metrics.avgCommitsPerPR || 3) < 30 },
+          { name: 'Weekly Merged PRs', value: Math.round((metrics.commitsLast90Days || 0) / 12), threshold: '< 2', passed: Math.round((metrics.commitsLast90Days || 0) / 12) < 2 },
+          { name: 'Average LOC per PR', value: metrics.avgLOCPerPR || 500, threshold: '< 2000', passed: (metrics.avgLOCPerPR || 500) < 2000 },
+        ],
+        Silver: [
+          { name: 'Open PRs', value: metrics.openPullRequests || 0, threshold: '< 4', passed: (metrics.openPullRequests || 0) < 4 },
+          { name: 'Average LOC per PR', value: metrics.avgLOCPerPR || 500, threshold: '< 1000', passed: (metrics.avgLOCPerPR || 500) < 1000 },
+          { name: 'Average Commits per PR', value: metrics.avgCommitsPerPR || 3, threshold: '< 4', passed: (metrics.avgCommitsPerPR || 3) < 4 },
+          { name: 'Weekly Merged PRs', value: Math.round((metrics.commitsLast90Days || 0) / 12), threshold: '< 4', passed: Math.round((metrics.commitsLast90Days || 0) / 12) < 4 },
+        ],
+        Gold: [
+          { name: 'Open PRs', value: metrics.openPullRequests || 0, threshold: '< 2', passed: (metrics.openPullRequests || 0) < 2 },
+          { name: 'Weekly Merged PRs', value: Math.round((metrics.commitsLast90Days || 0) / 12), threshold: '< 5', passed: Math.round((metrics.commitsLast90Days || 0) / 12) < 5 },
+          { name: 'Average Commits per PR', value: metrics.avgCommitsPerPR || 3, threshold: '< 7', passed: (metrics.avgCommitsPerPR || 3) < 7 },
+          { name: 'Average LOC per PR', value: metrics.avgLOCPerPR || 500, threshold: '< 1000', passed: (metrics.avgLOCPerPR || 500) < 1000 },
+        ],
+      },
+      Code_Quality: {
+        Bronze: [
+          { name: 'Code Coverage', value: `${evalMetrics.coverage || 0}%`, threshold: '>= 60%', passed: (evalMetrics.coverage || 0) >= 60 },
+          { name: 'Vulnerabilities', value: evalMetrics.vulnerabilities || 0, threshold: '< 10', passed: (evalMetrics.vulnerabilities || 0) < 10 },
+          { name: 'Code Smells', value: evalMetrics.codeSmells || 0, threshold: '< 50', passed: (evalMetrics.codeSmells || 0) < 50 },
+        ],
+        Silver: [
+          { name: 'Code Coverage', value: `${evalMetrics.coverage || 0}%`, threshold: '>= 75%', passed: (evalMetrics.coverage || 0) >= 75 },
+          { name: 'Vulnerabilities', value: evalMetrics.vulnerabilities || 0, threshold: '< 5', passed: (evalMetrics.vulnerabilities || 0) < 5 },
+          { name: 'Code Smells', value: evalMetrics.codeSmells || 0, threshold: '< 25', passed: (evalMetrics.codeSmells || 0) < 25 },
+          { name: 'Code Duplication', value: `${evalMetrics.duplicatedLinesDensity || 0}%`, threshold: '< 5%', passed: (evalMetrics.duplicatedLinesDensity || 0) < 5 },
+        ],
+        Gold: [
+          { name: 'Code Coverage', value: `${evalMetrics.coverage || 0}%`, threshold: '>= 85%', passed: (evalMetrics.coverage || 0) >= 85 },
+          { name: 'Vulnerabilities', value: evalMetrics.vulnerabilities || 0, threshold: '= 0', passed: (evalMetrics.vulnerabilities || 0) === 0 },
+          { name: 'Code Smells', value: evalMetrics.codeSmells || 0, threshold: '< 10', passed: (evalMetrics.codeSmells || 0) < 10 },
+          { name: 'Code Duplication', value: `${evalMetrics.duplicatedLinesDensity || 0}%`, threshold: '< 3%', passed: (evalMetrics.duplicatedLinesDensity || 0) < 3 },
+        ],
+      },
+      Security_Maturity: {
+        Bronze: [
+          { name: 'Security Hotspots', value: evalMetrics.vulnerabilities || 0, threshold: '< 10', passed: (evalMetrics.vulnerabilities || 0) < 10 },
+          { name: 'Branch Protection', value: evalMetrics.hasReadme === 1 ? 'Enabled' : 'Disabled', threshold: 'Enabled', passed: evalMetrics.hasReadme === 1 },
+        ],
+        Silver: [
+          { name: 'Security Hotspots', value: evalMetrics.vulnerabilities || 0, threshold: '< 5', passed: (evalMetrics.vulnerabilities || 0) < 5 },
+          { name: 'Required Approvals', value: evalMetrics.requiredApprovals || 1, threshold: '>= 1', passed: (evalMetrics.requiredApprovals || 1) >= 1 },
+        ],
+        Gold: [
+          { name: 'Security Hotspots', value: evalMetrics.vulnerabilities || 0, threshold: '= 0', passed: (evalMetrics.vulnerabilities || 0) === 0 },
+          { name: 'Required Approvals', value: evalMetrics.requiredApprovals || 1, threshold: '>= 2', passed: (evalMetrics.requiredApprovals || 1) >= 2 },
+        ],
+      },
+      DORA_Metrics: {
+        Bronze: [
+          { name: 'MTTR', value: `${evalMetrics.mttr || 0} days`, threshold: '< 30 days', passed: (evalMetrics.mttr || 0) < 30 },
+          { name: 'Deployment Frequency', value: evalMetrics.deploymentFrequency || 0, threshold: '>= 1/week', passed: (evalMetrics.deploymentFrequency || 0) >= 1 },
+        ],
+        Silver: [
+          { name: 'MTTR', value: `${evalMetrics.mttr || 0} days`, threshold: '< 15 days', passed: (evalMetrics.mttr || 0) < 15 },
+          { name: 'Deployment Frequency', value: evalMetrics.deploymentFrequency || 0, threshold: '>= 2/week', passed: (evalMetrics.deploymentFrequency || 0) >= 2 },
+          { name: 'Change Failure Rate', value: `${evalMetrics.changeFailureRate || 0}%`, threshold: '< 15%', passed: (evalMetrics.changeFailureRate || 0) < 15 },
+        ],
+        Gold: [
+          { name: 'MTTR', value: `${evalMetrics.mttr || 0} days`, threshold: '< 8 days', passed: (evalMetrics.mttr || 0) < 8 },
+          { name: 'Deployment Frequency', value: evalMetrics.deploymentFrequency || 0, threshold: '>= 5/week', passed: (evalMetrics.deploymentFrequency || 0) >= 5 },
+          { name: 'Change Failure Rate', value: `${evalMetrics.changeFailureRate || 0}%`, threshold: '< 5%', passed: (evalMetrics.changeFailureRate || 0) < 5 },
+        ],
+      },
+      Service_Health: {
+        Bronze: [
+          { name: 'Open Bugs', value: metrics.jiraOpenBugs || 0, threshold: '< 20', passed: (metrics.jiraOpenBugs || 0) < 20 },
+          { name: 'Contributors', value: metrics.contributors || 0, threshold: '>= 2', passed: (metrics.contributors || 0) >= 2 },
+        ],
+        Silver: [
+          { name: 'Open Bugs', value: metrics.jiraOpenBugs || 0, threshold: '< 10', passed: (metrics.jiraOpenBugs || 0) < 10 },
+          { name: 'Contributors', value: metrics.contributors || 0, threshold: '>= 3', passed: (metrics.contributors || 0) >= 3 },
+        ],
+        Gold: [
+          { name: 'Open Bugs', value: metrics.jiraOpenBugs || 0, threshold: '< 5', passed: (metrics.jiraOpenBugs || 0) < 5 },
+          { name: 'Contributors', value: metrics.contributors || 0, threshold: '>= 5', passed: (metrics.contributors || 0) >= 5 },
+        ],
+      },
+      Production_Readiness: {
+        Bronze: [
+          { name: 'Has README', value: evalMetrics.hasReadme === 1 ? 'Yes' : 'No', threshold: 'Yes', passed: evalMetrics.hasReadme === 1 },
+          { name: 'Quality Gate', value: (evalMetrics.coverage || 0) >= 80 ? 'Passed' : 'Failed', threshold: 'Passed', passed: (evalMetrics.coverage || 0) >= 80 },
+        ],
+        Silver: [
+          { name: 'Has README', value: evalMetrics.hasReadme === 1 ? 'Yes' : 'No', threshold: 'Yes', passed: evalMetrics.hasReadme === 1 },
+          { name: 'Quality Gate', value: (evalMetrics.coverage || 0) >= 80 ? 'Passed' : 'Failed', threshold: 'Passed', passed: (evalMetrics.coverage || 0) >= 80 },
+          { name: 'Contributors', value: metrics.contributors || 0, threshold: '>= 3', passed: (metrics.contributors || 0) >= 3 },
+        ],
+        Gold: [
+          { name: 'Has README', value: evalMetrics.hasReadme === 1 ? 'Yes' : 'No', threshold: 'Yes', passed: evalMetrics.hasReadme === 1 },
+          { name: 'Quality Gate', value: (evalMetrics.coverage || 0) >= 80 ? 'Passed' : 'Failed', threshold: 'Passed', passed: (evalMetrics.coverage || 0) >= 80 },
+          { name: 'Contributors', value: metrics.contributors || 0, threshold: '>= 5', passed: (metrics.contributors || 0) >= 5 },
+          { name: 'Days Since Last Commit', value: 0, threshold: '< 7', passed: true },
+        ],
+      },
+    }
+
+    return rules[scorecardId] || { Bronze: [], Silver: [], Gold: [] }
+  }
+
+  const currentRules = getScorecardRules(activeScorecardTab)
+
   return (
-    <div className="tab-content">
-      <div className="scorecards-grid">
-        {/* PR Metrics Card */}
-        <div className="scorecard-section">
-          <h3 className="section-title">📊 PR Metrics</h3>
-          {renderPRMetrics(service, getPRBadge)}
-        </div>
+    <div className="tab-content scorecards-tier-view">
+      {/* Scorecard Type Tabs */}
+      <div className="scorecard-type-tabs-horizontal">
+        {scorecardTabs.map((tab) => (
+          <button
+            key={tab.id}
+            className={`scorecard-type-tab-btn ${activeScorecardTab === tab.id ? 'active' : ''}`}
+            onClick={() => setActiveScorecardTab(tab.id)}
+          >
+            <span className="tab-label">{tab.label}</span>
+            <span className={`tab-badge badge-${String(tab.badge).toLowerCase()}`}>{tab.badge}</span>
+          </button>
+        ))}
+      </div>
 
-        {/* Code Quality Card */}
-        <div className="scorecard-section">
-          <h3 className="section-title">✨ Code Quality</h3>
-          {renderCodeQuality(service, getQualityBadge)}
-        </div>
+      {/* Tier Sections */}
+      <div className="tier-sections-container">
+        {['Bronze', 'Silver', 'Gold'].map((tier) => {
+          const tierRules = currentRules[tier] || []
+          const passedCount = tierRules.filter(r => r.passed).length
+          const totalCount = tierRules.length
 
-        {/* Security Card */}
-        <div className="scorecard-section">
-          <h3 className="section-title">🔒 Security Maturity</h3>
-          {renderSecurity(service)}
-        </div>
-
-        {/* DORA Metrics Card */}
-        <div className="scorecard-section">
-          <h3 className="section-title">🚀 DORA Metrics</h3>
-          {renderDORA(service)}
-        </div>
+          return (
+            <div key={tier} className="tier-section-card">
+              <div className="tier-header">
+                <h3 className="tier-title">{tier} Tier</h3>
+                <span className="tier-stats">{passedCount}/{totalCount}</span>
+              </div>
+              <div className="tier-rules-list">
+                {tierRules.length > 0 ? (
+                  tierRules.map((rule, idx) => (
+                    <div key={idx} className="tier-rule-item">
+                      <span className={`rule-status-icon ${rule.passed ? 'passed' : 'failed'}`}>
+                        {rule.passed ? '✅' : '❌'}
+                      </span>
+                      <div className="rule-details">
+                        <span className="rule-name">{rule.name}</span>
+                        <span className="rule-threshold">{rule.threshold}</span>
+                      </div>
+                      <span className="rule-actual-value">{rule.value}</span>
+                    </div>
+                  ))
+                ) : (
+                  <div className="no-rules-message">No rules defined for this tier</div>
+                )}
+              </div>
+            </div>
+          )
+        })}
       </div>
     </div>
   )

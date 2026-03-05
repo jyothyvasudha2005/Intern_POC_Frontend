@@ -1931,3 +1931,239 @@
     margin-left: 0;
   }
 }
+
+/* Tier-based Scorecards View */
+.scorecards-tier-view {
+  padding: 24px;
+}
+
+/* Scorecard Type Tabs (Horizontal) */
+.scorecard-type-tabs-horizontal {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 32px;
+  flex-wrap: wrap;
+  padding-bottom: 16px;
+  border-bottom: 2px solid var(--border-color);
+}
+
+.scorecard-type-tab-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 14px;
+}
+
+.scorecard-type-tab-btn:hover {
+  background: var(--bg-hover);
+  border-color: var(--primary-color);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.scorecard-type-tab-btn.active {
+  background: var(--primary-color);
+  border-color: var(--primary-color);
+  color: white;
+}
+
+.scorecard-type-tab-btn.active .tab-label {
+  color: white;
+  font-weight: 600;
+}
+
+.scorecard-type-tab-btn.active .tab-badge {
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+}
+
+.tab-label {
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.tab-badge {
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.tab-badge.badge-gold {
+  background: #FFD70020;
+  color: #FFD700;
+}
+
+.tab-badge.badge-silver {
+  background: #C0C0C020;
+  color: #C0C0C0;
+}
+
+.tab-badge.badge-bronze {
+  background: #CD7F3220;
+  color: #CD7F32;
+}
+
+.tab-badge.badge-elite {
+  background: #6C5DD320;
+  color: #6C5DD3;
+}
+
+.tab-badge.badge-basic {
+  background: #8B889620;
+  color: #8B8896;
+}
+
+.tab-badge.badge-orange {
+  background: #FFB80020;
+  color: #FFB800;
+}
+
+/* Tier Sections Container */
+.tier-sections-container {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.tier-section-card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 20px;
+  transition: all 0.2s;
+}
+
+.tier-section-card:hover {
+  border-color: var(--primary-color);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.tier-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 2px solid var(--border-color);
+}
+
+.tier-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.tier-stats {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: var(--bg-tertiary);
+  padding: 4px 12px;
+  border-radius: 12px;
+}
+
+/* Tier Rules List */
+.tier-rules-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.tier-rule-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  transition: all 0.2s;
+}
+
+.tier-rule-item:hover {
+  border-color: var(--primary-color);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+  transform: translateX(4px);
+}
+
+.rule-status-icon {
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.rule-status-icon.passed {
+  color: #10b981;
+}
+
+.rule-status-icon.failed {
+  color: #ef4444;
+}
+
+.rule-details {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.rule-name {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.rule-threshold {
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-family: 'Courier New', monospace;
+}
+
+.rule-actual-value {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  background: var(--bg-tertiary);
+  padding: 4px 10px;
+  border-radius: 4px;
+  min-width: 60px;
+  text-align: center;
+}
+
+.no-rules-message {
+  text-align: center;
+  padding: 24px;
+  color: var(--text-secondary);
+  font-style: italic;
+  font-size: 14px;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .scorecard-type-tabs-horizontal {
+    flex-direction: column;
+  }
+
+  .scorecard-type-tab-btn {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .tier-rule-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .rule-actual-value {
+    align-self: flex-end;
+  }
+}

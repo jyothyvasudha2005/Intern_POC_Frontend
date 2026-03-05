@@ -7,6 +7,7 @@ import ServiceCatalogue from './components/ServiceCatalogue'
 import ServiceMetrics from './components/ServiceMetrics'
 import ServiceScorecard from './components/ServiceScorecard'
 import Scorecard from './components/Scorecard'
+import ScorecardNew from './components/ScorecardNew'
 import logoImage from './assets/Red Blue Chinese Dragon Noodle Restaurant Logo.png'
 
 function App() {
@@ -414,7 +415,7 @@ function App() {
             </div>
           </div>
           <div className="content">
-            <Scorecard />
+            <ScorecardNew />
           </div>
         </div>
       </div>

@@ -26,14 +26,20 @@ export const API_ENDPOINTS = {
   APPROVAL_CREATE: '/approval/api/v1/approval/create',
   APPROVAL_GET_ALL: '/approval/api/v1/approval/all',
 
-  // Onboarding Service
+  // Onboarding Service (Legacy)
   ONBOARDING_HEALTH: '/onboarding/health',
   ONBOARDING_CREATE: '/onboarding/api/onboard',
   ONBOARDING_GET_ALL: '/onboarding/api/services',
   ONBOARDING_GET_BY_ID: '/onboarding/api/services',
-  // New v1 Service Catalog endpoints (OpenAPI swagger_2)
-  ONBOARDING_GET_ALL_V1: '/onboarding/api/v1/service',
-  ONBOARDING_GET_BY_ID_V1: '/onboarding/api/v1/service',
+
+  // Service Catalog API (OpenAPI 5 - NEW)
+  // Base URL: http://10.140.8.28:8089/service
+  // Example: http://10.140.8.28:8089/service/api/v1/org/1/service/svc_1
+  // Note: apiClient adds /api prefix, vite proxy removes it, so final URL is correct
+  SERVICE_CATALOG_HEALTH: '/service/health',
+  SERVICE_CATALOG_GET_ALL: '/service/api/v1/org/{org_id}/service',
+  SERVICE_CATALOG_GET_BY_ID: '/service/api/v1/org/{org_id}/service/{id}',
+  SERVICE_CATALOG_FETCH_SERVICES: '/service/api/v1/org/{org_id}/service',
 
   // ScoreCard Service
   SCORECARD_HEALTH: '/scorecard/health',
@@ -58,11 +64,21 @@ export const API_ENDPOINTS = {
 
   // SonarShell - Jira metrics
   SONAR_JIRA_METRICS: '/sonar/api/v1/jira/metrics',
+  SONAR_JIRA_ISSUES_STATS: '/sonar/api/v1/jira/issues/stats',
+  SONAR_JIRA_BUGS_OPEN: '/sonar/api/v1/jira/bugs/open',
+
+  // SonarShell - SonarCloud metrics
+  SONAR_METRICS_STORED: '/sonar/api/v1/metrics/sonar/stored',
+
+  // SonarShell - Repository metrics
+  SONAR_REPO_GITHUB_METRICS: '/sonar/api/v1/repos/metrics/github',
+  SONAR_REPO_JIRA_METRICS: '/sonar/api/v1/repos/metrics/jira',
+  SONAR_REPO_SONAR_METRICS: '/sonar/api/v1/repos/metrics/sonar',
 }
 
 // API Configuration
 export const API_CONFIG = {
-  timeout: 30000, // 30 seconds
+  timeout: 120000, // 120 seconds (2 minutes) - Service Catalog may take time to aggregate data
   headers: {
     'Content-Type': 'application/json',
     'Accept': 'application/json',
