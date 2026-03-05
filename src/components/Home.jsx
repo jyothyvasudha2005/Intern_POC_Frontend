@@ -1,32 +1,56 @@
 import '../styles/Home.css'
+import { useState, useEffect } from 'react'
+import { getAllServices } from '../services/onboardingService'
 
 function Home({ onNavigate, user }) {
   const modules = [
     {
       id: 'service-catalogue',
       title: 'Service Catalogue',
-      icon: '📦',
       color: '#6C5DD3'
     },
     {
       id: 'scorecard-viewer',
       title: 'Scorecard Viewer',
-      icon: '📊',
       color: '#00D9A5'
     },
     {
       id: 'regression-testing',
       title: 'Regression Testing',
-      icon: '🧪',
       color: '#FFB800'
     },
     {
       id: 'integration-analysis',
       title: 'Integration Analysis',
-      icon: '🔗',
       color: '#4E9FFF'
     }
   ]
+
+  const [serviceCount, setServiceCount] = useState(0)
+  const [isLoadingCount, setIsLoadingCount] = useState(true)
+
+  useEffect(()=> {
+    const fetchServiceCount = async () => {
+      try {
+        const result = await getAllServices()
+        if (result.success && Array.isArray(result.data)) {
+          setServiceCount(result.data.length)
+          console.log('Service count loaded:', result.data.length)
+        }
+        else {
+          console.log('Failed to load service count:', result.error)
+          setServiceCount(0)
+        }
+      } catch (error) {
+        console.error('Error fetching service count:', error)
+        setServiceCount(0)
+      } finally {
+        setIsLoadingCount(false)
+      }
+    }
+
+    fetchServiceCount()
+  },[])
 
   return (
     <div className="home-container">
@@ -45,7 +69,6 @@ function Home({ onNavigate, user }) {
             onClick={() => onNavigate(module.id)}
             style={{ '--module-color': module.color }}
           >
-            <span className="module-nav-icon">{module.icon}</span>
             <span className="module-nav-title">{module.title}</span>
           </button>
         ))}
@@ -57,7 +80,7 @@ function Home({ onNavigate, user }) {
           <p>Your centralized platform for managing services, monitoring performance, and analyzing integrations.</p>
           <div className="quick-stats">
             <div className="stat-box">
-              <div className="stat-number">12</div>
+              <div className="stat-number">{isLoadingCount ? '...' : serviceCount}</div>
               <div className="stat-label">Active Services</div>
             </div>
             <div className="stat-box">

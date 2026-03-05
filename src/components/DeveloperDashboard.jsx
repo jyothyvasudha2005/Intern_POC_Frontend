@@ -55,40 +55,67 @@ function DeveloperDashboard({ onNavigate, user }) {
           const repos = reposResponse.data
 
           // Fetch PRs from all repos
-          const prPromises = repos.map(repo => getOpenPullRequests(repo.name))
+          const prPromises = repos.map(repo =>
+            getOpenPullRequests(repo.name).then(result => ({
+              ...result,
+              repoName: repo.name,
+              repoUrl: repo.github || repo.url || ''
+            }))
+          )
           const prResults = await Promise.all(prPromises)
 
           // Flatten and combine all PRs
           const allPRs = prResults
             .filter(result => result.success && result.data)
-            .flatMap(result => result.data)
-            .map(pr => ({
-              id: pr.number,
-              title: pr.title,
-              link: pr.html_url || `https://github.com/${pr.repo}/pull/${pr.number}`,
-              daysOld: calculateDaysOld(pr.created_at),
-              repo: pr.repo || 'Unknown',
-              state: pr.state
-            }))
+            .flatMap(result =>
+              result.data.map(pr => {
+                // Extract repo name from repoUrl or use repoName
+                const repoNameForUrl = result.repoName || (result.repoUrl ? result.repoUrl.split('/').pop() : 'unknown')
+                return {
+                  id: pr.number,
+                  title: pr.title,
+                  link: `https://github.com/${repoNameForUrl}/pull/${pr.number}`,
+                  daysOld: calculateDaysOld(pr.created_at),
+                  repo: result.repoName || 'Unknown',
+                  state: pr.state,
+                  user: pr.user || 'Unknown'
+                }
+              })
+            )
 
+          console.log(`✅ Loaded ${allPRs.length} open PRs from ${repos.length} repositories`)
+          console.log('Sample PR data:', allPRs.length > 0 ? allPRs[0] : 'No PRs')
           setMyOpenPRs(allPRs)
 
           // Fetch Issues from all repos
-          const issuePromises = repos.map(repo => getOpenIssues(repo.name))
+          const issuePromises = repos.map(repo =>
+            getOpenIssues(repo.name).then(result => ({
+              ...result,
+              repoName: repo.name,
+              repoUrl: repo.github || repo.url || ''
+            }))
+          )
           const issueResults = await Promise.all(issuePromises)
 
           const allIssues = issueResults
             .filter(result => result.success && result.data)
-            .flatMap(result => result.data)
-            .map(issue => ({
-              id: issue.number,
-              title: issue.title,
-              link: issue.html_url || `https://github.com/${issue.repo}/issues/${issue.number}`,
-              daysOld: calculateDaysOld(issue.created_at),
-              repo: issue.repo || 'Unknown',
-              state: issue.state
-            }))
+            .flatMap(result =>
+              result.data.map(issue => {
+                // Extract repo name from repoUrl or use repoName
+                const repoNameForUrl = result.repoName || (result.repoUrl ? result.repoUrl.split('/').pop() : 'unknown')
+                return {
+                  id: issue.number,
+                  title: issue.title,
+                  link: `https://github.com/${repoNameForUrl}/issues/${issue.number}`,
+                  daysOld: calculateDaysOld(issue.created_at),
+                  repo: result.repoName || 'Unknown',
+                  state: issue.state,
+                  user: issue.user || 'Unknown'
+                }
+              })
+            )
 
+          console.log(`✅ Loaded ${allIssues.length} open issues from ${repos.length} repositories`)
           setMyOpenIssues(allIssues)
 
           // Fetch Jira bugs and tasks from repos that have Jira project keys
@@ -247,7 +274,7 @@ function DeveloperDashboard({ onNavigate, user }) {
           <>
             <div className="dev-table-card">
               <h3 className="table-title">
-                <span className="table-icon">🔀</span>
+                <span className="table-icon"></span>
                 My Open PRs
                 <span className="count-badge">{myOpenPRs.length}</span>
               </h3>
@@ -281,7 +308,7 @@ function DeveloperDashboard({ onNavigate, user }) {
                   </table>
                 ) : (
                   <div className="empty-state">
-                    <p>🎉 No open PRs! Great job!</p>
+                    <p> No open PRs! Great job!</p>
                   </div>
                 )}
               </div>
@@ -290,7 +317,6 @@ function DeveloperDashboard({ onNavigate, user }) {
             {/* My Open Issues */}
             <div className="dev-table-card">
               <h3 className="table-title">
-                <span className="table-icon">🐛</span>
                 My Open Issues
                 <span className="count-badge">{myOpenIssues.length}</span>
               </h3>
@@ -324,7 +350,7 @@ function DeveloperDashboard({ onNavigate, user }) {
                   </table>
                 ) : (
                   <div className="empty-state">
-                    <p>✅ No open issues!</p>
+                    <p>No open issues!</p>
                   </div>
                 )}
               </div>
@@ -335,7 +361,6 @@ function DeveloperDashboard({ onNavigate, user }) {
         {/* PRs Waiting for My Review */}
         <div className="dev-table-card">
           <h3 className="table-title">
-            <span className="table-icon">👀</span>
             PRs Waiting for My Review
           </h3>
           <div className="table-wrapper">
@@ -374,7 +399,6 @@ function DeveloperDashboard({ onNavigate, user }) {
         {!isLoading && !loadError && (
           <div className="dev-table-card">
             <h3 className="table-title">
-              <span className="table-icon">🐞</span>
               My Open Bugs
               <span className="count-badge">{myOpenBugs.length}</span>
             </h3>
@@ -429,7 +453,6 @@ function DeveloperDashboard({ onNavigate, user }) {
         {!isLoading && !loadError && (
           <div className="dev-table-card">
             <h3 className="table-title">
-              <span className="table-icon">📋</span>
               My Open Tasks
               <span className="count-badge">{myOpenTasks.length}</span>
             </h3>
@@ -473,7 +496,7 @@ function DeveloperDashboard({ onNavigate, user }) {
                 </table>
               ) : (
                 <div className="empty-state">
-                  <p>✅ No open tasks!</p>
+                  <p>No open tasks!</p>
                 </div>
               )}
             </div>

@@ -22,7 +22,7 @@ function ServiceCatalogue({ onServiceClick, onScorecardClick }) {
 
 		// Automatically load organizations and services from API on mount
 		useEffect(() => {
-			console.log('📦 ServiceCatalogue mounted - loading organizations and services from API')
+			console.log('ServiceCatalogue mounted - loading organizations and services from API')
 			initializeCatalogue()
 			// eslint-disable-next-line react-hooks/exhaustive-deps
 		}, [])
@@ -152,7 +152,6 @@ function ServiceCatalogue({ onServiceClick, onScorecardClick }) {
 	      {/* Error Message */}
 	      {loadError && (
 	        <div className="data-source-banner error-data">
-	          <span className="banner-icon">❌</span>
 	          <span className="banner-text">
 	            <strong>API Error:</strong> {loadError}. No services are currently available.
 	          </span>
@@ -199,7 +198,6 @@ function ServiceCatalogue({ onServiceClick, onScorecardClick }) {
       {/* Error State */}
       {!isLoading && loadError && (
         <div className="error-state">
-          <div className="error-icon">⚠️</div>
           <h3>Failed to Load Services</h3>
           <p>{loadError}</p>
           <button className="retry-btn" onClick={() => loadServicesForOrg(selectedOrgId)}>
@@ -232,7 +230,6 @@ function ServiceCatalogue({ onServiceClick, onScorecardClick }) {
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <div className="modal-title-section">
-                <span className="modal-icon">🎯</span>
                 <div>
                   <h2 className="modal-title">Onboard New Service</h2>
                   <p className="modal-subtitle">Register a new microservice or app from catalog by providing its ownership, repository, and team assignment</p>

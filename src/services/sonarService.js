@@ -516,6 +516,7 @@ export const getOpenIssues = async (repo) => {
 /**
  * Get README content for a repository
  * @param {string} repo - Repository name
+ * @param {string} owner - Repository owner (GitHub username/org)
  * @returns {Promise<Object>} README content
  */
 export const getReadmeForRepo = async (repo, owner) => {
@@ -527,12 +528,25 @@ export const getReadmeForRepo = async (repo, owner) => {
     }
   }
 
+  // If no owner provided, return error instead of using hardcoded value
+  if (!owner) {
+    console.warn(`⚠️ No GitHub owner provided for ${repo}. README fetch skipped.`)
+    return {
+      success: false,
+      data: null,
+      error: 'GitHub owner is required to fetch README'
+    }
+  }
+
   try {
     // Direct GitHub raw URL for README
     const readmeUrl = `https://github.com/${owner}/${repo}/blob/main/README.md`
     console.log(`📖 Fetching README from: ${readmeUrl}`)
 
-    const response = await fetch(readmeUrl)
+    const response = await fetch(readmeUrl, {
+      // Add cache to prevent repeated 404 requests
+      cache: 'force-cache'
+    })
 
     if (response.ok) {
       const readmeContent = await response.text()
@@ -546,7 +560,10 @@ export const getReadmeForRepo = async (repo, owner) => {
       const masterUrl = `https://raw.githubusercontent.com/${owner}/${repo}/master/README.md`
       console.log(`📖 Trying master branch: ${masterUrl}`)
 
-      const masterResponse = await fetch(masterUrl)
+      const masterResponse = await fetch(masterUrl, {
+        cache: 'force-cache'
+      })
+
       if (masterResponse.ok) {
         const readmeContent = await masterResponse.text()
         console.log(`✅ Loaded README from GitHub (master branch) for ${repo}`)
@@ -556,6 +573,8 @@ export const getReadmeForRepo = async (repo, owner) => {
         }
       }
 
+      // Don't log error for 404 - it's expected for repos without README
+      console.log(`ℹ️ README.md not found for ${owner}/${repo}`)
       return {
         success: false,
         data: null,
