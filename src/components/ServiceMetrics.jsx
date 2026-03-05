@@ -184,9 +184,10 @@ function ServiceMetrics({ service, onClose }) {
         }
 
         setIsLoadingReadme(true)
-        console.log(`📄 Fetching README for: ${owner}/${service.name}`)
-
         try {
+          // Use the org from service (selected organization)
+          const owner = service.org || service.github_owner || 'tekion'
+          console.log('📖 Using owner:', owner)
           const result = await getReadmeForRepo(service.name, owner)
           if (result.success && result.data) {
             setReadme(result.data.content || result.data)
@@ -194,9 +195,11 @@ function ServiceMetrics({ service, onClose }) {
           } else {
             console.log('ℹ️ README not available:', result.error)
           }
-        } catch (error) {
+        } 
+        catch (error) {
           console.error('❌ Error fetching README:', error)
-        } finally {
+        } 
+        finally {
           setIsLoadingReadme(false)
         }
       }
@@ -215,9 +218,10 @@ function ServiceMetrics({ service, onClose }) {
     }
 
     setIsLoadingReadme(true)
-    console.log(`📄 Manually fetching README for: ${owner}/${service.name}`)
-
     try {
+      // Use the org from service (selected organization)
+      const owner = service.org || service.github_owner || 'jyothyvasudha2005'
+      console.log('📖 Using owner:', owner)
       const result = await getReadmeForRepo(service.name, owner)
       if (result.success && result.data) {
         setReadme(result.data.content || result.data)

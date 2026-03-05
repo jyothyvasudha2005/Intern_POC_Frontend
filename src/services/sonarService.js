@@ -114,7 +114,7 @@ export const getOrganizations = async () => {
  * This keeps the rest of the UI unchanged while switching the data source
  * from the onboarding service to the SonarShell swagger_2 endpoints.
  */
-const mapRepositoryToUIService = (repo) => {
+const mapRepositoryToUIService = (repo, orgName = null) => {
   if (!repo) return null
 
   const owningTeam = repo.owner || 'Unknown Team'
@@ -129,7 +129,9 @@ const mapRepositoryToUIService = (repo) => {
     icon: '📦',
     team: owningTeam,
     owningTeam,
+    org: orgName || repo.org_name || 'Unknown',  // Add organization name
     jiraProjectKey: repo.jira_project_key || '',
+    jira_project_key: repo.jira_project_key || '',  // Add snake_case version for consistency
 
     // Links
     github: repo.github_url,
@@ -248,6 +250,7 @@ const mapRepositoryToUIService = (repo) => {
 export const getRepositoriesForCatalogue = async (orgId) => {
   try {
     let finalOrgId = orgId
+    let orgName = null
 
     // If orgId is not provided, load organizations and pick the first one
     if (!finalOrgId) {
@@ -264,7 +267,15 @@ export const getRepositoriesForCatalogue = async (orgId) => {
       }
 
       finalOrgId = orgs[0].id
-      console.log('📁 Using SonarShell organization ID for repositories:', finalOrgId)
+      orgName = orgs[0].name
+      console.log('📁 Using SonarShell organization:', orgName, 'ID:', finalOrgId)
+    } else {
+      // Fetch organization name for the given orgId
+      const orgsResponse = await apiClient.get(API_ENDPOINTS.SONAR_ORGS_LIST)
+      const orgs = orgsResponse.data?.data || []
+      const selectedOrg = orgs.find(org => org.id === parseInt(finalOrgId))
+      orgName = selectedOrg?.name || null
+      console.log('📁 Using SonarShell organization:', orgName, 'ID:', finalOrgId)
     }
 
     const response = await apiClient.get(API_ENDPOINTS.SONAR_REPOS_FETCH, {
@@ -274,7 +285,7 @@ export const getRepositoriesForCatalogue = async (orgId) => {
     const repos = response.data?.data || []
     console.log('📦 Loaded repositories from SonarShell. Count:', repos.length)
 
-    const mapped = repos.map(mapRepositoryToUIService).filter(Boolean)
+    const mapped = repos.map(repo => mapRepositoryToUIService(repo, orgName)).filter(Boolean)
 
     return {
       success: true,
@@ -528,9 +539,8 @@ export const getReadmeForRepo = async (repo, owner) => {
   }
 
   try {
-    // Try backend API first (if available in future)
-    // For now, use direct GitHub raw URL
-    const readmeUrl = `https://raw.githubusercontent.com/${owner}/${repo}/main/README.md`
+    // Direct GitHub raw URL for README
+    const readmeUrl = `https://github.com/${owner}/${repo}/blob/main/README.md`
     console.log(`📖 Fetching README from: ${readmeUrl}`)
 
     const response = await fetch(readmeUrl, {
