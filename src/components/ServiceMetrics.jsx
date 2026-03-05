@@ -8,7 +8,8 @@ import {
   getGitHubMetricsForRepo,
   getSonarMetricsForRepo,
   getJiraMetricsForProject,
-  getCommitsForRepo
+  getCommitsForRepo,
+  getReadmeForRepo
 } from '../services/sonarService'
 
 const COLORS = {
@@ -23,10 +24,13 @@ const COLORS = {
 }
 
 function ServiceMetrics({ service, onClose }) {
+  console.log('🎯 ServiceMetrics rendering with service:', service.name)
   const [activeTab, setActiveTab] = useState('overview')
   const [enrichedService, setEnrichedService] = useState(service)
   const [isLoadingMetrics, setIsLoadingMetrics] = useState(false)
   const [commits, setCommits] = useState([])
+  const [readme, setReadme] = useState(null)
+  const [isLoadingReadme, setIsLoadingReadme] = useState(false)
   const [rawApiData, setRawApiData] = useState({
     github: null,
     sonar: null,
@@ -53,10 +57,16 @@ function ServiceMetrics({ service, onClose }) {
         const [githubResult, sonarResult, jiraResult, commitsResult] = await Promise.all([
           getGitHubMetricsForRepo(service.name),
           getSonarMetricsForRepo(service.name),
-          service.jira_project_key ? getJiraMetricsForProject(service.jira_project_key) : Promise.resolve({ success: false, data: null }),
+          service.jira_project_key ? getJiraMetricsForProject(service.jira_project_key, service.org) : Promise.resolve({ success: false, data: null }),
           getCommitsForRepo(service.name)
         ])
 
+          console.log('📊 Fetched metrics:', {
+          github: githubResult.success,
+          sonar: sonarResult.success,
+          jira: jiraResult.success,
+          commits: commitsResult.success
+        })
         // Map the fetched metrics to the service object
         const updatedService = { ...service }
 
@@ -81,23 +91,24 @@ function ServiceMetrics({ service, onClose }) {
             weeklyMergedPRs: ghMetrics.weekly_merged_prs || 0,
           }
 
-          updatedService.doraMetrics = {
-            changeFailureRate: ghMetrics.change_failure_rate || 0,
-            deploymentFrequency: ghMetrics.deployment_frequency || 0,
-            mttr: ghMetrics.mttr || 0,
-          }
-
           console.log('✅ GitHub metrics loaded:', ghMetrics)
         }
 
         // Sonar Metrics
         if (sonarResult.success && sonarResult.data) {
           const sonarMetrics = sonarResult.data
+            console.log('📊 Sonar metrics data:', sonarMetrics)
+          // Parse string values to numbers
+          const coverage = parseFloat(sonarMetrics.coverage) || 0
+          const vulnerabilities = parseInt(sonarMetrics.metrics.vulnerabilities) || 0
+          const codeSmells = parseInt(sonarMetrics.metrics.code_smells) || 0
+          const duplication = parseFloat(sonarMetrics.metrics.duplicated_lines_density) || 0
+
           updatedService.codeQuality = {
-            codeCoverage: sonarMetrics.coverage || 0,
-            vulnerabilities: sonarMetrics.vulnerabilities || 0,
-            codeSmells: sonarMetrics.code_smells || 0,
-            codeDuplication: sonarMetrics.duplicated_lines_density || 0,
+            codeCoverage: coverage,
+            vulnerabilities: vulnerabilities,
+            codeSmells: codeSmells,
+            codeDuplication: duplication,
           }
 
           updatedService.securityMaturity = {
@@ -107,6 +118,7 @@ function ServiceMetrics({ service, onClose }) {
           }
 
           console.log('✅ Sonar metrics loaded:', sonarMetrics)
+          console.log('📊 Parsed code quality:', updatedService.codeQuality)
         }
 
         // Jira Metrics
@@ -156,6 +168,56 @@ function ServiceMetrics({ service, onClose }) {
 
     fetchMetrics()
   }, [service])
+
+  // Fetch README when github-readme tab is active
+  useEffect(() => {
+    const fetchReadme = async () => {
+      if (activeTab === 'github-readme' && !readme && !isLoadingReadme && service.name) {
+        setIsLoadingReadme(true)
+        console.log('📄 Fetching README for:', service.name)
+
+        try {
+          // Use the owner from service or default to 'jyothyvasudha2005'
+          const owner = service.github_owner || 'jyothyvasudha2005'
+          const result = await getReadmeForRepo(service.name, owner)
+          if (result.success && result.data) {
+            setReadme(result.data.content || result.data)
+            console.log('✅ README loaded')
+          } else {
+            console.warn('⚠️ README not available:', result.error)
+          }
+        } catch (error) {
+          console.error('❌ Error fetching README:', error)
+        } finally {
+          setIsLoadingReadme(false)
+        }
+      }
+    }
+
+    fetchReadme()
+  }, [activeTab, service.name, readme, isLoadingReadme])
+
+  // Manual README fetch function
+  const handleFetchReadme = async () => {
+    setIsLoadingReadme(true)
+    console.log('📄 Manually fetching README for:', service.name)
+
+    try {
+      // Use the owner from service or default to 'jyothyvasudha2005'
+      const owner = service.github_owner || 'jyothyvasudha2005'
+      const result = await getReadmeForRepo(service.name, owner)
+      if (result.success && result.data) {
+        setReadme(result.data.content || result.data)
+        console.log('✅ README loaded')
+      } else {
+        console.warn('⚠️ README not available:', result.error)
+      }
+    } catch (error) {
+      console.error('❌ Error fetching README:', error)
+    } finally {
+      setIsLoadingReadme(false)
+    }
+  }
 
   // Helper function to get badge level for PR metrics
   const getPRBadge = (metric, value) => {
@@ -301,8 +363,7 @@ function ServiceMetrics({ service, onClose }) {
       <div className="service-details-content">
         {isLoadingMetrics && (
           <div className="loading-metrics">
-            <div className="loading-spinner">⏳</div>
-            <p>Loading metrics...</p>
+            <p className="loading-text">⏱️ Loading metrics...</p>
           </div>
         )}
         {!isLoadingMetrics && (
@@ -313,7 +374,7 @@ function ServiceMetrics({ service, onClose }) {
             {activeTab === 'runs' && renderRuns(enrichedService)}
             {activeTab === 'audit' && renderAuditLogTable(enrichedService, commits)}
             {activeTab === 'readme' && renderReadme(enrichedService)}
-            {activeTab === 'github-readme' && renderGitHubReadme(enrichedService)}
+            {activeTab === 'github-readme' && renderGitHubReadme(enrichedService, readme, isLoadingReadme, handleFetchReadme)}
             {activeTab === 'codeowners' && renderCodeowners(enrichedService)}
             {activeTab === 'apidata' && renderApiData(rawApiData, enrichedService)}
           </>
@@ -387,38 +448,6 @@ function renderOverview(service) {
 
             <div className="port-detail-item">
               <div className="port-detail-label">
-                <span className="port-label-icon">⚙️</span>
-                Runbooks
-              </div>
-              <div className="port-detail-value port-links">
-                {service.runbooks && service.runbooks.length > 0 ? (
-                  service.runbooks.map((link, idx) => (
-                    <a key={idx} href={link} target="_blank" rel="noopener noreferrer" className="port-link-icon" title="Runbook">
-                      🔗
-                    </a>
-                  ))
-                ) : '-'}
-              </div>
-            </div>
-
-            <div className="port-detail-item">
-              <div className="port-detail-label">
-                <span className="port-label-icon">📊</span>
-                Monitor Dashboards
-              </div>
-              <div className="port-detail-value port-links">
-                {service.monitorDashboards && service.monitorDashboards.length > 0 ? (
-                  service.monitorDashboards.map((link, idx) => (
-                    <a key={idx} href={link} target="_blank" rel="noopener noreferrer" className="port-link-icon" title="Dashboard">
-                      📈
-                    </a>
-                  ))
-                ) : '-'}
-              </div>
-            </div>
-
-            <div className="port-detail-item">
-              <div className="port-detail-label">
                 <span className="port-label-icon">👤</span>
                 On Call
               </div>
@@ -436,16 +465,6 @@ function renderOverview(service) {
                     🔗
                   </a>
                 ) : '-'}
-              </div>
-            </div>
-
-            <div className="port-detail-item">
-              <div className="port-detail-label">
-                <span className="port-label-icon">🔄</span>
-                Sync Status in Prod
-              </div>
-              <div className="port-detail-value">
-                <span className="port-badge sync-badge">{service.syncStatusInProd || 'Unknown'}</span>
               </div>
             </div>
             <div className="port-detail-item">
@@ -532,13 +551,6 @@ function renderOverview(service) {
               <div className="port-scorecard-label">PR Metrics</div>
               <div className="port-scorecard-value">
                 <span className="port-badge badge-basic">Basic</span>
-              </div>
-            </div>
-
-            <div className="port-scorecard-item">
-              <div className="port-scorecard-label">DORA Metrics</div>
-              <div className="port-scorecard-value">
-                <span className="port-badge badge-elite">Elite</span>
               </div>
             </div>
 
@@ -638,17 +650,38 @@ function renderPRMetrics(service, getPRBadge) {
 
 // Code Quality Tab
 function renderCodeQuality(service, getQualityBadge) {
+  // Check if we have code quality data
+  if (!service.codeQuality) {
+    return (
+      <div className="tab-content">
+        <div className="empty-state">
+          <p>⚠️ No SonarQube metrics available for this repository.</p>
+          <p className="empty-state-hint">Make sure SonarQube analysis is configured for this project.</p>
+        </div>
+      </div>
+    )
+  }
+
+  // Calculate scores for radar chart (0-100 scale)
+  const coverage = service.codeQuality.codeCoverage || 0
+  const vulnerabilities = service.codeQuality.vulnerabilities || 0
+  const codeSmells = service.codeQuality.codeSmells || 0
+  const duplication = service.codeQuality.codeDuplication || 0
+
   const qualityData = [
-    { name: 'Coverage', value: service.codeQuality.codeCoverage, max: 100 },
-    { name: 'Vulnerabilities', value: Math.max(0, 100 - (service.codeQuality.vulnerabilities * 10)), max: 100 },
-    { name: 'Code Smells', value: Math.max(0, 100 - (service.codeQuality.codeSmells / 2)), max: 100 },
-    { name: 'Duplication', value: Math.max(0, 100 - (service.codeQuality.codeDuplication * 5)), max: 100 }
+    { name: 'Coverage', value: coverage, max: 100 },
+    { name: 'Vulnerabilities', value: Math.max(0, 100 - (vulnerabilities * 10)), max: 100 },
+    { name: 'Code Smells', value: Math.max(0, 100 - (codeSmells / 2)), max: 100 },
+    { name: 'Duplication', value: Math.max(0, 100 - (duplication * 5)), max: 100 }
   ]
 
-  const coverageBadge = getQualityBadge('codeCoverage', service.codeQuality.codeCoverage)
-  const vulnBadge = getQualityBadge('vulnerabilities', service.codeQuality.vulnerabilities)
-  const smellsBadge = getQualityBadge('codeSmells', service.codeQuality.codeSmells)
-  const dupBadge = getQualityBadge('codeDuplication', service.codeQuality.codeDuplication)
+  console.log('📊 Quality Data for Chart:', qualityData)
+  console.log('📊 Raw Code Quality:', service.codeQuality)
+
+  const coverageBadge = getQualityBadge('codeCoverage', service.codeQuality.codeCoverage || 0)
+  const vulnBadge = getQualityBadge('vulnerabilities', service.codeQuality.vulnerabilities || 0)
+  const smellsBadge = getQualityBadge('codeSmells', service.codeQuality.codeSmells || 0)
+  const dupBadge = getQualityBadge('codeDuplication', service.codeQuality.codeDuplication || 0)
 
   return (
     <div className="tab-content">
@@ -672,7 +705,7 @@ function renderCodeQuality(service, getQualityBadge) {
               <span className="metric-name">Code Coverage</span>
               <span className="badge" style={{ background: coverageBadge.color }}>{coverageBadge.level}</span>
             </div>
-            <div className="metric-big-value">{service.codeQuality.codeCoverage}%</div>
+            <div className="metric-big-value">{(service.codeQuality.codeCoverage || 0).toFixed(1)}%</div>
             <div className="metric-description">Target: ≥80% (Gold), ≥70% (Silver), ≥60% (Bronze)</div>
           </div>
 
@@ -681,7 +714,7 @@ function renderCodeQuality(service, getQualityBadge) {
               <span className="metric-name">Vulnerabilities</span>
               <span className="badge" style={{ background: vulnBadge.color }}>{vulnBadge.level}</span>
             </div>
-            <div className="metric-big-value">{service.codeQuality.vulnerabilities}</div>
+            <div className="metric-big-value">{service.codeQuality.vulnerabilities || 0}</div>
             <div className="metric-description">Target: ≤2 (Gold), ≤5 (Silver), ≤10 (Bronze)</div>
           </div>
 
@@ -690,7 +723,7 @@ function renderCodeQuality(service, getQualityBadge) {
               <span className="metric-name">Code Smells</span>
               <span className="badge" style={{ background: smellsBadge.color }}>{smellsBadge.level}</span>
             </div>
-            <div className="metric-big-value">{service.codeQuality.codeSmells}</div>
+            <div className="metric-big-value">{service.codeQuality.codeSmells || 0}</div>
             <div className="metric-description">Target: ≤10 (Gold), ≤50 (Silver), ≤100 (Bronze)</div>
           </div>
 
@@ -699,8 +732,8 @@ function renderCodeQuality(service, getQualityBadge) {
               <span className="metric-name">Code Duplication</span>
               <span className="badge" style={{ background: dupBadge.color }}>{dupBadge.level}</span>
             </div>
-            <div className="metric-big-value">{service.codeQuality.codeDuplication}</div>
-            <div className="metric-description">Target: ≤5 (Gold), ≤20 (Silver), ≤50 (Bronze)</div>
+            <div className="metric-big-value">{(service.codeQuality.codeDuplication || 0).toFixed(1)}%</div>
+            <div className="metric-description">Target: ≤5% (Gold), ≤20% (Silver), ≤50% (Bronze)</div>
           </div>
         </div>
       </div>
@@ -751,66 +784,7 @@ function renderSecurity(service) {
   )
 }
 
-// DORA Metrics Tab
-function renderDORA(service) {
-  const doraData = [
-    { name: 'CFR Score', value: Math.max(0, 100 - service.doraMetrics.changeFailureRate * 2) },
-    { name: 'Deploy Freq', value: Math.min(service.doraMetrics.deploymentFrequency * 5, 100) },
-    { name: 'MTTR Score', value: Math.max(0, 100 - service.doraMetrics.mttr * 2) }
-  ]
-
-  const cfrLevel = service.doraMetrics.changeFailureRate <= 5 ? 'Elite' :
-                   service.doraMetrics.changeFailureRate <= 15 ? 'High' : 'Medium'
-  const mttrLevel = service.doraMetrics.mttr < 4 ? 'Elite' :
-                    service.doraMetrics.mttr < 24 ? 'High' : 'Medium'
-
-  return (
-    <div className="tab-content">
-      <div className="metrics-grid-2col">
-        <div className="chart-card">
-          <h3>DORA Metrics Performance</h3>
-          <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={doraData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
-              <XAxis dataKey="name" tick={{ fill: 'var(--text-primary)', fontSize: 11 }} />
-              <YAxis domain={[0, 100]} tick={{ fill: 'var(--text-secondary)', fontSize: 10 }} />
-              <Tooltip contentStyle={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-color)' }} />
-              <Line type="monotone" dataKey="value" stroke={COLORS.info} strokeWidth={3} dot={{ r: 6 }} />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
-
-        <div className="metrics-cards">
-          <div className="metric-detail-card">
-            <div className="metric-header">
-              <span className="metric-name">Change Failure Rate</span>
-              <span className="badge" style={{ background: cfrLevel === 'Elite' ? COLORS.gold : cfrLevel === 'High' ? COLORS.silver : COLORS.bronze }}>{cfrLevel}</span>
-            </div>
-            <div className="metric-big-value">{service.doraMetrics.changeFailureRate}%</div>
-            <div className="metric-description">Target: ≤5% (Elite), ≤15% (High), ≤30% (Medium)</div>
-          </div>
-
-          <div className="metric-detail-card">
-            <div className="metric-header">
-              <span className="metric-name">Deployment Frequency</span>
-            </div>
-            <div className="metric-big-value">{service.doraMetrics.deploymentFrequency}</div>
-            <div className="metric-description">deployments per week</div>
-          </div>
-
-          <div className="metric-detail-card">
-            <div className="metric-header">
-              <span className="metric-name">Mean Time to Restore (MTTR)</span>
-              <span className="badge" style={{ background: mttrLevel === 'Elite' ? COLORS.gold : mttrLevel === 'High' ? COLORS.silver : COLORS.bronze }}>{mttrLevel}</span>
-            </div>
-            <div className="metric-big-value">{service.doraMetrics.mttr}h</div>
-            <div className="metric-description">Target: &lt;4hrs (Elite), &lt;24hrs (High), &lt;72hrs (Medium)</div>
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}
+// DORA Metrics Tab - Removed as per requirements
 
 // Service History Tab (available for future use)
 function _renderHistory(service) {
@@ -962,12 +936,6 @@ function renderScorecards(service, getPRBadge, getQualityBadge) {
         <div className="scorecard-section">
           <h3 className="section-title">🔒 Security Maturity</h3>
           {renderSecurity(service)}
-        </div>
-
-        {/* DORA Metrics Card */}
-        <div className="scorecard-section">
-          <h3 className="section-title">🚀 DORA Metrics</h3>
-          {renderDORA(service)}
         </div>
       </div>
     </div>
@@ -1336,19 +1304,55 @@ function renderReadme(service) {
 }
 
 // GitHub README Tab
-function renderGitHubReadme(service) {
+function renderGitHubReadme(service, readme, isLoadingReadme, fetchReadme) {
+  // Simple markdown to HTML converter for basic formatting
+  const markdownToHtml = (markdown) => {
+    if (!markdown) return ''
+
+    let html = markdown
+      // Headers
+      .replace(/^### (.*$)/gim, '<h3>$1</h3>')
+      .replace(/^## (.*$)/gim, '<h2>$1</h2>')
+      .replace(/^# (.*$)/gim, '<h1>$1</h1>')
+      // Bold
+      .replace(/\*\*(.*?)\*\*/gim, '<strong>$1</strong>')
+      // Italic
+      .replace(/\*(.*?)\*/gim, '<em>$1</em>')
+      // Links
+      .replace(/\[([^\]]+)\]\(([^)]+)\)/gim, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>')
+      // Code blocks
+      .replace(/```([^`]+)```/gim, '<pre><code>$1</code></pre>')
+      // Inline code
+      .replace(/`([^`]+)`/gim, '<code>$1</code>')
+      // Line breaks
+      .replace(/\n\n/gim, '</p><p>')
+      .replace(/\n/gim, '<br>')
+
+    return `<p>${html}</p>`
+  }
+
   return (
     <div className="tab-content">
       <div className="readme-container">
         <div className="readme-header">
-          <h2>GitHub README</h2>
-          <a href={service.github} target="_blank" rel="noopener noreferrer" className="github-link">
+          <h2>📖 GitHub README</h2>
+          <a href={service.github || service.url} target="_blank" rel="noopener noreferrer" className="github-link">
             View on GitHub →
           </a>
         </div>
-        <div className="readme-content">
-          <p>This would display the README.md file from the GitHub repository.</p>
-          <p>Repository: <a href={service.github} target="_blank" rel="noopener noreferrer">{service.github}</a></p>
+        <div className="readme-content markdown-body">
+          {isLoadingReadme ? (
+            <p>⏱️ Loading README...</p>
+          ) : readme ? (
+            <div dangerouslySetInnerHTML={{ __html: markdownToHtml(readme) }} />
+          ) : (
+            <div>
+              <p>README not loaded yet.</p>
+              <button onClick={fetchReadme} className="load-readme-btn">
+                Load README
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -1419,14 +1423,7 @@ function calculateSecurityScore(securityMaturity) {
   return score
 }
 
-function calculateDORAScore(doraMetrics) {
-  if (!doraMetrics) return 0
-  let score = 0
-  if (doraMetrics.changeFailureRate !== undefined && doraMetrics.changeFailureRate <= 15) score += 33
-  if (doraMetrics.deploymentFrequency && doraMetrics.deploymentFrequency >= 4) score += 33
-  if (doraMetrics.mttr !== undefined && doraMetrics.mttr < 24) score += 34
-  return score
-}
+// calculateDORAScore removed - DORA metrics removed from application
 
 // API Data Tab - Show mapped API responses in presentable format
 function renderApiData(rawApiData, service) {
@@ -1574,7 +1571,7 @@ function renderApiData(rawApiData, service) {
             </div>
             <div className="api-section-content">
               <div className="api-endpoint">
-                <strong>Endpoint:</strong> <code>GET /sonar/api/v1/jira/metrics?project_key={service.jira_project_key || 'N/A'}</code>
+                <strong>Endpoint:</strong> <code>GET /sonar/api/v1/jira/metrics?project={service.jira_project_key || 'N/A'}&owner={service.org || 'N/A'}</code>
               </div>
 
               {rawApiData.jira?.success && rawApiData.jira?.data ? (

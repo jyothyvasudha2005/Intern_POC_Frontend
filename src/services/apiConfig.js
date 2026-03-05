@@ -55,9 +55,15 @@ export const API_ENDPOINTS = {
   SONAR_GITHUB_METRICS: '/sonar/api/v1/github/metrics',
   SONAR_GITHUB_METRICS_ALL: '/sonar/api/v1/github/metrics/all',
   SONAR_GITHUB_COMMITS: '/sonar/api/v1/github/commits',
+  SONAR_GITHUB_PULLS: '/sonar/api/v1/github/pulls',
+  SONAR_GITHUB_ISSUES: '/sonar/api/v1/github/issues',
+  SONAR_GITHUB_README: '/sonar/api/v1/github/readme',
 
   // SonarShell - Jira metrics
   SONAR_JIRA_METRICS: '/sonar/api/v1/jira/metrics',
+  SONAR_JIRA_BUGS_OPEN: '/sonar/api/v1/jira/bugs/open',
+  SONAR_JIRA_TASKS_OPEN: '/sonar/api/v1/jira/tasks/open',
+  SONAR_JIRA_ISSUES_SEARCH: '/sonar/api/v1/jira/issues/search',
 }
 
 // API Configuration
@@ -68,10 +74,6 @@ export const API_CONFIG = {
     'Accept': 'application/json',
   },
 }
-
-// Feature flags
-export const USE_REAL_API = true // Set to false to use mock data
-export const USE_DUMMY_DATA = !USE_REAL_API
 
 // Rate limiting info (for reference)
 export const RATE_LIMIT = {

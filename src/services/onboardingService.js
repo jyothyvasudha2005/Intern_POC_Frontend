@@ -4,8 +4,7 @@
  */
 
 import apiClient from './apiClient'
-import { API_ENDPOINTS, USE_REAL_API } from './apiConfig'
-import { repositoryServices } from '../data/servicesData'
+import { API_ENDPOINTS } from './apiConfig'
 
 // Map Service Catalog API (swagger_2 ServiceResponse) to UI service model
 const mapApiServiceToUI = (svc) => {
@@ -144,17 +143,6 @@ const mapApiServiceToUI = (svc) => {
  * @returns {Promise<Object>} List of services
  */
 export const getAllServices = async () => {
-	// Always rely on API; do not fall back to mock data
-	if (!USE_REAL_API) {
-		console.warn('USE_REAL_API is false - no services will be loaded')
-		return {
-			success: false,
-			data: [],
-			isMock: false,
-			error: 'Real API is disabled (USE_REAL_API = false)'
-		}
-	}
-
 	try {
 		const response = await apiClient.get(API_ENDPOINTS.ONBOARDING_GET_ALL_V1)
 		const apiServices = response.data?.data?.services || []
@@ -183,18 +171,6 @@ export const getAllServices = async () => {
  * @returns {Promise<Object>} Onboarding result
  */
 export const onboardService = async (serviceData) => {
-  if (!USE_REAL_API) {
-    console.log('🔧 MOCK: Service onboarding (USE_REAL_API = false)')
-    return {
-      success: true,
-      data: {
-        serviceId: `mock-${Date.now()}`,
-        message: 'Service onboarded successfully (MOCK)'
-      },
-      isMock: true
-    }
-  }
-
   try {
     // Construct payload matching backend API requirements
     const payload = {
@@ -241,16 +217,6 @@ export const onboardService = async (serviceData) => {
  * @returns {Promise<Object>} Service details
  */
 export const getServiceById = async (serviceId) => {
-  if (!USE_REAL_API) {
-    const mockServices = repositoryServices['ecommerce-platform'] || []
-    const service = mockServices.find(s => s.id === parseInt(serviceId))
-    return {
-      success: true,
-      data: service || null,
-      isMock: true
-    }
-  }
-
   try {
     const response = await apiClient.get(`${API_ENDPOINTS.ONBOARDING_GET_BY_ID_V1}/${serviceId}`)
 
@@ -259,27 +225,20 @@ export const getServiceById = async (serviceId) => {
     if (apiService) {
       return {
         success: true,
-        data: mapApiServiceToUI(apiService),
-        isMock: false
+        data: mapApiServiceToUI(apiService)
       }
     } else {
-      // Fallback to mock
-      const mockServices = repositoryServices['ecommerce-platform'] || []
-      const service = mockServices.find(s => s.id === parseInt(serviceId))
       return {
-        success: true,
-        data: service || null,
-        isMock: true
+        success: false,
+        data: null,
+        error: 'Service not found'
       }
     }
   } catch (error) {
     console.error('❌ Error fetching service:', error.message)
-    const mockServices = repositoryServices['ecommerce-platform'] || []
-    const service = mockServices.find(s => s.id === parseInt(serviceId))
     return {
-      success: true,
-      data: service || null,
-      isMock: true,
+      success: false,
+      data: null,
       error: error.message
     }
   }

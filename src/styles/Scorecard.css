@@ -3,6 +3,45 @@
   padding: 32px;
   max-width: 100%;
   overflow-y: auto;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 80vh;
+}
+
+/* Placeholder Styles */
+.scorecard-placeholder {
+  text-align: center;
+  padding: 60px 40px;
+  background: var(--bg-card);
+  border-radius: 12px;
+  border: 2px dashed var(--border-color);
+  max-width: 600px;
+}
+
+.placeholder-icon {
+  font-size: 64px;
+  margin-bottom: 24px;
+}
+
+.scorecard-placeholder h2 {
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 16px 0;
+}
+
+.scorecard-placeholder p {
+  font-size: 16px;
+  color: var(--text-secondary);
+  margin: 0 0 12px 0;
+  line-height: 1.6;
+}
+
+.placeholder-note {
+  font-size: 14px;
+  color: var(--text-tertiary);
+  font-style: italic;
 }
 
 /* Header Section */
