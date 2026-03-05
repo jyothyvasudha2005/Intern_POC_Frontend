@@ -21,7 +21,7 @@ function ServiceDetail({ service, onBack }) {
 
       <div className="detail-grid">
         <div className="detail-card">
-          <h3 className="detail-card-title">📋 Overview</h3>
+          <h3 className="detail-card-title">Overview</h3>
           <div className="detail-content">
             <p className="detail-description">{service.description}</p>
             <div className="detail-tags">
@@ -33,7 +33,7 @@ function ServiceDetail({ service, onBack }) {
         </div>
 
         <div className="detail-card">
-          <h3 className="detail-card-title">ℹ️ Information</h3>
+          <h3 className="detail-card-title">Information</h3>
           <div className="detail-content">
             <div className="info-row">
               <span className="info-label">Owner</span>
@@ -57,7 +57,7 @@ function ServiceDetail({ service, onBack }) {
         </div>
 
         <div className="detail-card">
-          <h3 className="detail-card-title">📊 Metrics</h3>
+          <h3 className="detail-card-title">Metrics</h3>
           <div className="detail-content">
             <div className="metric-item">
               <div className="metric-label">Response Time</div>
@@ -88,17 +88,14 @@ function ServiceDetail({ service, onBack }) {
           <div className="detail-content">
             <div className="dependency-list">
               <div className="dependency-item">
-                <span className="dependency-icon">🗄️</span>
                 <span className="dependency-name">PostgreSQL Database</span>
                 <span className="dependency-status healthy">●</span>
               </div>
               <div className="dependency-item">
-                <span className="dependency-icon">📨</span>
                 <span className="dependency-name">Redis Cache</span>
                 <span className="dependency-status healthy">●</span>
               </div>
               <div className="dependency-item">
-                <span className="dependency-icon">🔐</span>
                 <span className="dependency-name">Auth Service</span>
                 <span className="dependency-status healthy">●</span>
               </div>
@@ -107,7 +104,7 @@ function ServiceDetail({ service, onBack }) {
         </div>
 
         <div className="detail-card full-width">
-          <h3 className="detail-card-title">📝 Recent Activity</h3>
+          <h3 className="detail-card-title">Recent Activity</h3>
           <div className="detail-content">
             <div className="activity-list">
               <div className="activity-item">

@@ -173,18 +173,26 @@ function ServiceMetrics({ service, onClose }) {
   useEffect(() => {
     const fetchReadme = async () => {
       if (activeTab === 'github-readme' && !readme && !isLoadingReadme && service.name) {
+        // Extract owner from GitHub URL or use service property
+        const owner = extractGitHubOwner(service)
+
+        // Skip if no owner found
+        if (!owner) {
+          console.warn(`⚠️ No GitHub owner found for ${service.name}. Skipping README fetch.`)
+          setIsLoadingReadme(false)
+          return
+        }
+
         setIsLoadingReadme(true)
-        console.log('📄 Fetching README for:', service.name)
+        console.log(`📄 Fetching README for: ${owner}/${service.name}`)
 
         try {
-          // Use the owner from service or default to 'jyothyvasudha2005'
-          const owner = service.github_owner || 'jyothyvasudha2005'
           const result = await getReadmeForRepo(service.name, owner)
           if (result.success && result.data) {
             setReadme(result.data.content || result.data)
             console.log('✅ README loaded')
           } else {
-            console.warn('⚠️ README not available:', result.error)
+            console.log('ℹ️ README not available:', result.error)
           }
         } catch (error) {
           console.error('❌ Error fetching README:', error)
@@ -195,28 +203,59 @@ function ServiceMetrics({ service, onClose }) {
     }
 
     fetchReadme()
-  }, [activeTab, service.name, readme, isLoadingReadme])
+  }, [activeTab, service.name, readme, isLoadingReadme, service])
 
   // Manual README fetch function
   const handleFetchReadme = async () => {
+    const owner = extractGitHubOwner(service)
+
+    if (!owner) {
+      console.warn(`No GitHub owner found for ${service.name}. Cannot fetch README.`)
+      return
+    }
+
     setIsLoadingReadme(true)
-    console.log('📄 Manually fetching README for:', service.name)
+    console.log(`📄 Manually fetching README for: ${owner}/${service.name}`)
 
     try {
-      // Use the owner from service or default to 'jyothyvasudha2005'
-      const owner = service.github_owner || 'jyothyvasudha2005'
       const result = await getReadmeForRepo(service.name, owner)
       if (result.success && result.data) {
         setReadme(result.data.content || result.data)
         console.log('✅ README loaded')
       } else {
-        console.warn('⚠️ README not available:', result.error)
+        console.log('ℹ️ README not available:', result.error)
       }
     } catch (error) {
       console.error('❌ Error fetching README:', error)
     } finally {
       setIsLoadingReadme(false)
     }
+  }
+
+  // Helper function to extract GitHub owner from service data
+  const extractGitHubOwner = (service) => {
+    // 1. Check if github_owner property exists
+    if (service.github_owner) {
+      return service.github_owner
+    }
+
+    // 2. Try to extract from GitHub URL
+    if (service.github || service.url || service.repository) {
+      const githubUrl = service.github || service.url || service.repository
+      // Match patterns like: https://github.com/owner/repo or github.com/owner/repo
+      const match = githubUrl.match(/github\.com\/([^\/]+)\//)
+      if (match && match[1]) {
+        return match[1]
+      }
+    }
+
+    // 3. Check if owner property exists
+    if (service.owner) {
+      return service.owner
+    }
+
+    // No owner found
+    return null
   }
 
   // Helper function to get badge level for PR metrics
@@ -345,7 +384,7 @@ function ServiceMetrics({ service, onClose }) {
             className={`service-tab ${activeTab === 'apidata' ? 'active' : ''}`}
             onClick={() => setActiveTab('apidata')}
           >
-            📊 API Data
+            API Data
           </button>
           <button className="service-tab-add" title="Add tab">+</button>
         </div>
@@ -410,7 +449,6 @@ function renderOverview(service) {
           <div className="port-details-list">
             <div className="port-detail-item">
               <div className="port-detail-label">
-                <span className="port-label-icon">📝</span>
                 Title
               </div>
               <div className="port-detail-value">{service.title || service.name}</div>
@@ -418,7 +456,6 @@ function renderOverview(service) {
 
             <div className="port-detail-item">
               <div className="port-detail-label">
-                <span className="port-label-icon">💎</span>
                 Language
               </div>
               <div className="port-detail-value">
@@ -428,7 +465,6 @@ function renderOverview(service) {
 
             <div className="port-detail-item">
               <div className="port-detail-label">
-                <span className="port-label-icon">⚙️</span>
                 Type
               </div>
               <div className="port-detail-value">
@@ -438,7 +474,6 @@ function renderOverview(service) {
 
             <div className="port-detail-item">
               <div className="port-detail-label">
-                <span className="port-label-icon">🔄</span>
                 Lifecycle
               </div>
               <div className="port-detail-value">
@@ -448,7 +483,6 @@ function renderOverview(service) {
 
             <div className="port-detail-item">
               <div className="port-detail-label">
-                <span className="port-label-icon">👤</span>
                 On Call
               </div>
               <div className="port-detail-value">{service.onCall || service.metrics?.pagerduty?.onCall || '-'}</div>
@@ -456,7 +490,6 @@ function renderOverview(service) {
 
             <div className="port-detail-item">
               <div className="port-detail-label">
-                <span className="port-label-icon">🔗</span>
                 URL
               </div>
               <div className="port-detail-value">
@@ -469,7 +502,6 @@ function renderOverview(service) {
             </div>
             <div className="port-detail-item">
               <div className="port-detail-label">
-                <span className="port-label-icon">👥</span>
                 Owning Team
               </div>
               <div className="port-detail-value">
@@ -478,7 +510,6 @@ function renderOverview(service) {
             </div>
             <div className="port-detail-item">
               <div className="port-detail-label">
-                <span className="port-label-icon">🧑‍💻</span>
                 Last Committer
               </div>
               <div className="port-detail-value">
@@ -487,7 +518,6 @@ function renderOverview(service) {
             </div>
             <div className="port-detail-item">
               <div className="port-detail-label">
-                <span className="port-label-icon">💬</span>
                 Slack Channel
               </div>
               <div className="port-detail-value">
@@ -505,7 +535,6 @@ function renderOverview(service) {
             </div>
             <div className="port-detail-item">
               <div className="port-detail-label">
-                <span className="port-label-icon">🧪</span>
                 Sonar Project
               </div>
               <div className="port-detail-value">
@@ -514,7 +543,6 @@ function renderOverview(service) {
             </div>
             <div className="port-detail-item">
               <div className="port-detail-label">
-                <span className="port-label-icon">🌐</span>
                 Domain
               </div>
               <div className="port-detail-value">
@@ -523,7 +551,6 @@ function renderOverview(service) {
             </div>
             <div className="port-detail-item">
               <div className="port-detail-label">
-                <span className="port-label-icon">🔒</span>
                 Locked
               </div>
               <div className="port-detail-value">
@@ -536,7 +563,6 @@ function renderOverview(service) {
         {/* Right Column - Service Scorecards */}
         <div className="port-scorecards-section">
           <h3 className="port-section-title">
-            <span className="port-icon">🏆</span>
             Service Scorecards
           </h3>
           <div className="port-scorecards-list">
@@ -922,19 +948,19 @@ function renderScorecards(service, getPRBadge, getQualityBadge) {
       <div className="scorecards-grid">
         {/* PR Metrics Card */}
         <div className="scorecard-section">
-          <h3 className="section-title">📊 PR Metrics</h3>
+          <h3 className="section-title">PR Metrics</h3>
           {renderPRMetrics(service, getPRBadge)}
         </div>
 
         {/* Code Quality Card */}
         <div className="scorecard-section">
-          <h3 className="section-title">✨ Code Quality</h3>
+          <h3 className="section-title">Code Quality</h3>
           {renderCodeQuality(service, getQualityBadge)}
         </div>
 
         {/* Security Card */}
         <div className="scorecard-section">
-          <h3 className="section-title">🔒 Security Maturity</h3>
+          <h3 className="section-title">Security Maturity</h3>
           {renderSecurity(service)}
         </div>
       </div>
@@ -967,22 +993,22 @@ function renderRelatedEntities(_service) {
 
       <div className="entities-tabs">
         <button className="entity-tab active">
-          <span className="tab-icon">📦</span> Module <span className="tab-badge">+</span>
+          <span className="tab-icon"></span> Module <span className="tab-badge">+</span>
         </button>
         <button className="entity-tab">
-          <span className="tab-icon">🗄️</span> Repository <span className="tab-badge">+</span>
+          <span className="tab-icon"></span> Repository <span className="tab-badge">+</span>
         </button>
         <button className="entity-tab">
-          <span className="tab-icon">👤</span> User <span className="tab-badge">+</span>
+          <span className="tab-icon"></span> User <span className="tab-badge">+</span>
         </button>
         <button className="entity-tab">
-          <span className="tab-icon">👥</span> Team <span className="tab-badge">+</span>
+          <span className="tab-icon"></span> Team <span className="tab-badge">+</span>
         </button>
         <button className="entity-tab">
-          <span className="tab-icon">👥</span> GitHub Team <span className="tab-badge">+</span>
+          <span className="tab-icon"></span> GitHub Team <span className="tab-badge">+</span>
         </button>
         <button className="entity-tab">
-          <span className="tab-icon">🏢</span> Organization <span className="tab-badge">+</span>
+          <span className="tab-icon"></span> Organization <span className="tab-badge">+</span>
         </button>
         <button className="entity-tab-add">+</button>
       </div>
@@ -1006,19 +1032,16 @@ function renderRelatedEntities(_service) {
             <tr>
               <th className="col-title">
                 <div className="th-content">
-                  <span className="col-icon">📝</span>
                   Title
                 </div>
               </th>
               <th className="col-update">
                 <div className="th-content">
-                  <span className="col-icon">🕐</span>
                   Last Update
                 </div>
               </th>
               <th className="col-created">
                 <div className="th-content">
-                  <span className="col-icon">📅</span>
                   Entity Creation Date
                 </div>
               </th>
@@ -1028,7 +1051,6 @@ function renderRelatedEntities(_service) {
             <tr className="entity-row">
               <td>
                 <div className="entity-title">
-                  <span className="entity-icon">📦</span>
                   <span className="entity-name">drm / drp-drs</span>
                 </div>
               </td>
@@ -1096,21 +1118,18 @@ function renderAuditLog(service) {
         </div>
         <div className="audit-timeline">
           <div className="audit-item">
-            <div className="audit-icon">📝</div>
             <div className="audit-content">
               <div className="audit-title">Service configuration updated</div>
               <div className="audit-meta">by John Doe • {service.lastDeployed}</div>
             </div>
           </div>
           <div className="audit-item">
-            <div className="audit-icon">🚀</div>
             <div className="audit-content">
               <div className="audit-title">Deployed to production</div>
               <div className="audit-meta">by CI/CD Pipeline • 4 hours ago</div>
             </div>
           </div>
           <div className="audit-item">
-            <div className="audit-icon">🔒</div>
             <div className="audit-content">
               <div className="audit-title">Security scan completed</div>
               <div className="audit-meta">by Security Bot • 1 day ago</div>
@@ -1335,7 +1354,7 @@ function renderGitHubReadme(service, readme, isLoadingReadme, fetchReadme) {
     <div className="tab-content">
       <div className="readme-container">
         <div className="readme-header">
-          <h2>📖 GitHub README</h2>
+          <h2>GitHub README</h2>
           <a href={service.github || service.url} target="_blank" rel="noopener noreferrer" className="github-link">
             View on GitHub →
           </a>
@@ -1372,7 +1391,6 @@ function renderCodeowners(service) {
           <div className="codeowners-section">
             <h3>Team Ownership</h3>
             <div className="owner-item">
-              <span className="owner-icon">👥</span>
               <span className="owner-name">{service.team}</span>
               <span className="owner-role">Primary Owner</span>
             </div>
@@ -1441,7 +1459,7 @@ function renderApiData(rawApiData, service) {
     <div className="tab-content">
       <div className="api-data-container">
         <div className="api-data-header">
-          <h3>📊 API Response Data - Mapped to Frontend</h3>
+          <h3>API Response Data - Mapped to Frontend</h3>
           <p className="api-data-description">
             This shows the actual data received from backend APIs for <strong>{service.name}</strong>, mapped to match our frontend data structure
           </p>
@@ -1451,7 +1469,7 @@ function renderApiData(rawApiData, service) {
           {/* GitHub Metrics */}
           <div className="api-data-section">
             <div className="api-section-header">
-              <h4>🐙 GitHub Metrics</h4>
+              <h4>GitHub Metrics</h4>
               <span className={`api-status-badge ${rawApiData.github?.success ? 'success' : 'error'}`}>
                 {rawApiData.github?.success ? '✅ Success' : '❌ Failed'}
               </span>
@@ -1464,33 +1482,33 @@ function renderApiData(rawApiData, service) {
               {rawApiData.github?.success && rawApiData.github?.data ? (
                 <div className="metrics-grid">
                   <div className="metrics-category">
-                    <h5>📌 Pull Requests</h5>
+                    <h5>Pull Requests</h5>
                     <div className="metrics-list">
-                      {renderMetricCard('Open PRs', rawApiData.github.data.open_prs, '🔓')}
-                      {renderMetricCard('Closed PRs', rawApiData.github.data.closed_prs, '✅')}
-                      {renderMetricCard('Merged PRs', rawApiData.github.data.merged_prs, '🔀')}
-                      {renderMetricCard('Total PRs', rawApiData.github.data.total_prs, '📊')}
-                      {renderMetricCard('PRs with Conflicts', rawApiData.github.data.prs_with_conflicts, '⚠️')}
+                      {renderMetricCard('Open PRs', rawApiData.github.data.open_prs)}
+                      {renderMetricCard('Closed PRs', rawApiData.github.data.closed_prs)}
+                      {renderMetricCard('Merged PRs', rawApiData.github.data.merged_prs)}
+                      {renderMetricCard('Total PRs', rawApiData.github.data.total_prs)}
+                      {renderMetricCard('PRs with Conflicts', rawApiData.github.data.prs_with_conflicts)}
                     </div>
                   </div>
 
                   <div className="metrics-category">
-                    <h5>🐛 Issues</h5>
+                    <h5>Issues</h5>
                     <div className="metrics-list">
-                      {renderMetricCard('Open Issues', rawApiData.github.data.open_issues, '🔓')}
-                      {renderMetricCard('Closed Issues', rawApiData.github.data.closed_issues, '✅')}
+                      {renderMetricCard('Open Issues', rawApiData.github.data.open_issues)}
+                      {renderMetricCard('Closed Issues', rawApiData.github.data.closed_issues)}
                     </div>
                   </div>
 
                   <div className="metrics-category">
-                    <h5>📝 Commits & Activity</h5>
+                    <h5>Commits & Activity</h5>
                     <div className="metrics-list">
-                      {renderMetricCard('Total Commits', rawApiData.github.data.total_commits, '📝')}
-                      {renderMetricCard('Commits (Last 90 Days)', rawApiData.github.data.commits_last_90_days, '📅')}
-                      {renderMetricCard('Contributors', rawApiData.github.data.contributors, '👥')}
-                      {renderMetricCard('Branches', rawApiData.github.data.branches, '🌿')}
-                      {renderMetricCard('Last Commit', rawApiData.github.data.last_commit_date ? new Date(rawApiData.github.data.last_commit_date).toLocaleString() : 'N/A', '🕐')}
-                      {renderMetricCard('Is Active', rawApiData.github.data.is_active ? 'Yes' : 'No', '🟢')}
+                      {renderMetricCard('Total Commits', rawApiData.github.data.total_commits)}
+                      {renderMetricCard('Commits (Last 90 Days)', rawApiData.github.data.commits_last_90_days)}
+                      {renderMetricCard('Contributors', rawApiData.github.data.contributors)}
+                      {renderMetricCard('Branches', rawApiData.github.data.branches)}
+                      {renderMetricCard('Last Commit', rawApiData.github.data.last_commit_date ? new Date(rawApiData.github.data.last_commit_date).toLocaleString() : 'N/A')}
+                      {renderMetricCard('Is Active', rawApiData.github.data.is_active ? 'Yes' : 'No')}
                     </div>
                   </div>
                 </div>
@@ -1518,7 +1536,7 @@ function renderApiData(rawApiData, service) {
               {rawApiData.sonar?.success && rawApiData.sonar?.data ? (
                 <div className="metrics-grid">
                   <div className="metrics-category">
-                    <h5>🎯 Quality Gate</h5>
+                    <h5>Quality Gate</h5>
                     <div className="metrics-list">
                       {renderMetricCard('Project Key', rawApiData.sonar.data.project_key, '🔑')}
                       {renderMetricCard('Quality Gate Status', rawApiData.sonar.data.quality_gate_status, '🚦')}
@@ -1526,7 +1544,7 @@ function renderApiData(rawApiData, service) {
                   </div>
 
                   <div className="metrics-category">
-                    <h5>🐛 Code Issues</h5>
+                    <h5>Code Issues</h5>
                     <div className="metrics-list">
                       {renderMetricCard('Bugs', rawApiData.sonar.data.bugs, '🐛')}
                       {renderMetricCard('Vulnerabilities', rawApiData.sonar.data.vulnerabilities, '🔒')}
@@ -1535,7 +1553,7 @@ function renderApiData(rawApiData, service) {
                   </div>
 
                   <div className="metrics-category">
-                    <h5>📊 Code Quality</h5>
+                    <h5>Code Quality</h5>
                     <div className="metrics-list">
                       {renderMetricCard('Coverage', `${rawApiData.sonar.data.coverage?.toFixed(1) || 0}%`, '📈')}
                       {renderMetricCard('Duplicated Lines', `${rawApiData.sonar.data.duplicated_lines_density?.toFixed(1) || 0}%`, '📋')}
@@ -1545,7 +1563,7 @@ function renderApiData(rawApiData, service) {
                   </div>
 
                   <div className="metrics-category">
-                    <h5>⭐ Ratings</h5>
+                    <h5>Ratings</h5>
                     <div className="metrics-list">
                       {renderMetricCard('Security Rating', rawApiData.sonar.data.security_rating, '🔒')}
                       {renderMetricCard('Reliability Rating', rawApiData.sonar.data.reliability_rating, '🛡️')}
@@ -1564,7 +1582,7 @@ function renderApiData(rawApiData, service) {
           {/* Jira Metrics */}
           <div className="api-data-section">
             <div className="api-section-header">
-              <h4>📋 Jira Metrics</h4>
+              <h4>Jira Metrics</h4>
               <span className={`api-status-badge ${rawApiData.jira?.success ? 'success' : 'error'}`}>
                 {rawApiData.jira?.success ? '✅ Success' : '❌ Failed'}
               </span>
@@ -1577,7 +1595,7 @@ function renderApiData(rawApiData, service) {
               {rawApiData.jira?.success && rawApiData.jira?.data ? (
                 <div className="metrics-grid">
                   <div className="metrics-category">
-                    <h5>🐛 Bugs</h5>
+                    <h5>Bugs</h5>
                     <div className="metrics-list">
                       {renderMetricCard('Open Bugs', rawApiData.jira.data.open_bugs, '🔓')}
                       {renderMetricCard('Closed Bugs', rawApiData.jira.data.closed_bugs, '✅')}
@@ -1585,7 +1603,7 @@ function renderApiData(rawApiData, service) {
                   </div>
 
                   <div className="metrics-category">
-                    <h5>✅ Tasks</h5>
+                    <h5>Tasks</h5>
                     <div className="metrics-list">
                       {renderMetricCard('Open Tasks', rawApiData.jira.data.open_tasks, '📝')}
                       {renderMetricCard('Closed Tasks', rawApiData.jira.data.closed_tasks, '✅')}
@@ -1593,7 +1611,7 @@ function renderApiData(rawApiData, service) {
                   </div>
 
                   <div className="metrics-category">
-                    <h5>📊 Issues</h5>
+                    <h5>Issues</h5>
                     <div className="metrics-list">
                       {renderMetricCard('Open Issues', rawApiData.jira.data.open_issues, '🔓')}
                       {renderMetricCard('Closed Issues', rawApiData.jira.data.closed_issues, '✅')}
@@ -1601,7 +1619,7 @@ function renderApiData(rawApiData, service) {
                   </div>
 
                   <div className="metrics-category">
-                    <h5>⏱️ Performance</h5>
+                    <h5>Performance</h5>
                     <div className="metrics-list">
                       {renderMetricCard('Avg Time to Resolve', `${rawApiData.jira.data.avg_time_to_resolve?.toFixed(1) || 0} hrs`, '⏰')}
                       {renderMetricCard('Avg Sprint Time', `${rawApiData.jira.data.avg_sprint_time?.toFixed(1) || 0} days`, '📅')}
@@ -1621,7 +1639,7 @@ function renderApiData(rawApiData, service) {
           {/* Commits */}
           <div className="api-data-section">
             <div className="api-section-header">
-              <h4>📝 Recent Commits</h4>
+              <h4>Recent Commits</h4>
               <span className={`api-status-badge ${rawApiData.commits?.success ? 'success' : 'error'}`}>
                 {rawApiData.commits?.success ? `✅ ${rawApiData.commits?.data?.length || 0} commits` : '❌ Failed'}
               </span>
