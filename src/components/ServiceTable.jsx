@@ -8,11 +8,11 @@ function ServiceTable({ services, onServiceClick, onScorecardClick }) {
   const [sortDirection, setSortDirection] = useState('asc')
 
   const handleRowClick = (service) => {
-    console.log('🖱️ Row clicked in ServiceTable:', service.name)
+    console.log('Row clicked in ServiceTable:', service.name)
     if (onServiceClick) {
       onServiceClick(service)
     } else {
-      console.error('❌ onServiceClick is not defined!')
+      console.error('onServiceClick is not defined!')
     }
   }
 
@@ -100,7 +100,6 @@ function ServiceTable({ services, onServiceClick, onScorecardClick }) {
             >
               <td className="service-name-cell">
                 <div className="service-name-content">
-                  <span className="service-icon">{service.icon || '📦'}</span>
                   <span className="service-name">{service.title || service.name}</span>
                 </div>
               </td>
@@ -145,7 +144,7 @@ function ServiceTable({ services, onServiceClick, onScorecardClick }) {
               <td>{service.owningTeam || service.team || '-'}</td>
               <td>
                 <span className={`active-status ${service.is_active ? 'active' : 'inactive'}`}>
-                  {service.is_active ? "🟢" : "🔴"}
+                  {service.is_active ? "Active" : "Inactive"}
                 </span>
               </td>
               <td>
@@ -158,7 +157,6 @@ function ServiceTable({ services, onServiceClick, onScorecardClick }) {
                     }}
                     title="View Scorecard"
                   >
-                    <span className="button-icon">📊</span>
                     Scorecard
                   </button>
                 </div>

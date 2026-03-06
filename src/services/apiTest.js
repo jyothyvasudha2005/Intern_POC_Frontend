@@ -17,24 +17,24 @@ export const testChatService = async () => {
 
   try {
     // Test 1: Health Check
-    console.log('\n📋 Test 1: Health Check')
+    console.log('\nTest 1: Health Check')
     console.log(`Endpoint: GET ${API_BASE_URL}/chat/health`)
 
     const healthResult = await checkChatHealth()
 
     // Wait 1 second between requests to avoid rate limiting
     await delay(1000)
-    
+
     if (healthResult.success) {
-      console.log('✅ Health Check PASSED')
+      console.log('Health Check PASSED')
       console.log('Response:', healthResult.data)
     } else {
-      console.error('❌ Health Check FAILED')
+      console.error('Health Check FAILED')
       console.error('Error:', healthResult.error)
     }
 
     // Test 2: Send Chat Message (without conversationId)
-    console.log('\n📋 Test 2: Send Chat Message (New Conversation)')
+    console.log('\nTest 2: Send Chat Message (New Conversation)')
     console.log(`Endpoint: POST ${API_BASE_URL}/chat/api/v1/chat`)
     console.log('Request Body:', {
       message: 'What services are available in the platform?'
@@ -48,10 +48,10 @@ export const testChatService = async () => {
     if (messageResult1.success) {
       console.log('✅ Send Message PASSED')
       console.log('Response:', messageResult1.data)
-      
+
       // Test 3: Send Chat Message (with conversationId)
       if (messageResult1.data.conversationId) {
-        console.log('\n📋 Test 3: Send Chat Message (Existing Conversation)')
+        console.log('\nTest 3: Send Chat Message (Existing Conversation)')
         console.log(`Endpoint: POST ${API_BASE_URL}/chat/api/v1/chat`)
         console.log('Request Body:', {
           message: 'Tell me more about DORA metrics',
@@ -65,12 +65,12 @@ export const testChatService = async () => {
 
         // Wait 1 second after request
         await delay(1000)
-        
+
         if (messageResult2.success) {
-          console.log('✅ Conversation Context PASSED')
+          console.log('Conversation Context PASSED')
           console.log('Response:', messageResult2.data)
         } else {
-          console.error('❌ Conversation Context FAILED')
+          console.error('Conversation Context FAILED')
           console.error('Error:', messageResult2.error)
         }
       }

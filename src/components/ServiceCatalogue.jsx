@@ -44,52 +44,30 @@ function ServiceCatalogue({ onServiceClick, onScorecardClick }) {
 
   // Automatically load organizations and services from API on mount
   useEffect(() => {
-    console.log('📦 ServiceCatalogue mounted - loading organizations and services from Redux')
+    console.log('ServiceCatalogue mounted - loading organizations and services from Redux')
     initializeCatalogue()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const initializeCatalogue = async () => {
+  const initializeCatalogue = () => {
     try {
-      console.log('🔄 Initializing catalogue from Redux...')
-      console.log('🏢 Available organizations:', organizations)
+      console.log('Initializing catalogue from Redux...')
+      console.log('Available organizations:', organizations)
 
       // Organizations are already in Redux (default or extracted from previous service fetch)
       // Select first organization if none selected
       if (organizations.length > 0) {
         const defaultOrgId = selectedOrgId || organizations[0].id
+        console.log('Selected organization ID:', defaultOrgId)
+
+        // Just set the selected org ID - the useEffect will handle fetching
         setSelectedOrgId(defaultOrgId)
-        console.log('✅ Selected organization ID:', defaultOrgId)
-
-        // Set current org in Redux
-        dispatch(setCurrentOrg(defaultOrgId))
-
-        // ✅ CHECK CACHE BEFORE FETCHING
-        const hasCached = selectHasCachedServices(defaultOrgId)(store.getState())
-        const isStale = selectIsDataStale(defaultOrgId)(store.getState())
-
-        console.log('📦 Cache status:', { hasCached, isStale })
-
-        // Only fetch if we don't have cached data OR if it's stale (> 5 minutes old)
-        if (!hasCached || isStale) {
-          console.log('🔄 Fetching services for org:', defaultOrgId, '(Cache:', hasCached ? 'stale' : 'missing', ')')
-          try {
-            await dispatch(fetchServicesForOrg(defaultOrgId)).unwrap()
-            console.log('✅ Services loaded successfully from API')
-          } catch (fetchError) {
-            console.error('❌ Error fetching services:', fetchError)
-            setLoadError(typeof fetchError === 'string' ? fetchError : fetchError.message || 'Failed to load services')
-          }
-        } else {
-          console.log('✅ Using cached services from Redux - no API call needed!')
-          console.log('📊 Cached services count:', services.length)
-        }
       } else {
-        console.error('❌ No organizations found')
+        console.error('No organizations found')
         setLoadError('No organizations available')
       }
     } catch (error) {
-      console.error('❌ Error initializing catalogue:', error)
+      console.error('Error initializing catalogue:', error)
       setLoadError(error.message || 'Failed to initialize catalogue')
     }
   }
@@ -101,35 +79,35 @@ function ServiceCatalogue({ onServiceClick, onScorecardClick }) {
     // Set current org in Redux
     dispatch(setCurrentOrg(orgId))
 
-    // ✅ CHECK CACHE BEFORE FETCHING
+    // CHECK CACHE BEFORE FETCHING
     const hasCached = selectHasCachedServices(orgId)(store.getState())
     const isStale = selectIsDataStale(orgId)(store.getState())
 
-    console.log('🔄 Organization changed to:', orgId)
-    console.log('📦 Cache status:', { hasCached, isStale })
+    console.log('Organization changed to:', orgId)
+    console.log('Cache status:', { hasCached, isStale })
 
     // Only fetch if we don't have cached data OR if it's stale
     if (!hasCached || isStale) {
-      console.log('🔄 Fetching services for org:', orgId, '(Cache:', hasCached ? 'stale' : 'missing', ')')
+      console.log('Fetching services for org:', orgId, '(Cache:', hasCached ? 'stale' : 'missing', ')')
       try {
         await dispatch(fetchServicesForOrg(orgId)).unwrap()
-        console.log('✅ Services loaded successfully from API')
+        console.log('Services loaded successfully from API')
       } catch (error) {
-        console.error('❌ Error fetching services:', error)
+        console.error('Error fetching services:', error)
         setLoadError(error.message || 'Failed to load services')
       }
     } else {
-      console.log('✅ Using cached services for org:', orgId)
+      console.log('Using cached services for org:', orgId)
     }
   }
 
   const handleRefresh = async () => {
     if (selectedOrgId) {
-      console.log('🔄 Refreshing services for org', selectedOrgId)
+      console.log('Refreshing services for org', selectedOrgId)
       try {
         await dispatch(refreshServicesForOrg(selectedOrgId)).unwrap()
       } catch (err) {
-        console.error('❌ Error refreshing services:', err)
+        console.error('Error refreshing services:', err)
         setLoadError(err)
       }
     }
@@ -137,12 +115,12 @@ function ServiceCatalogue({ onServiceClick, onScorecardClick }) {
 
   const handleRetry = async () => {
     if (selectedOrgId) {
-      console.log('🔄 Retrying to load services for org', selectedOrgId)
+      console.log('Retrying to load services for org', selectedOrgId)
       setLoadError(null)
       try {
         await dispatch(fetchServicesForOrg(selectedOrgId)).unwrap()
       } catch (err) {
-        console.error('❌ Error loading services:', err)
+        console.error('Error loading services:', err)
         setLoadError(err)
       }
     }
@@ -159,7 +137,7 @@ function ServiceCatalogue({ onServiceClick, onScorecardClick }) {
 
   // Debug logging
   useEffect(() => {
-    console.log('📊 ServiceCatalogue State:', {
+    console.log('ServiceCatalogue State:', {
       selectedOrgId,
       organizationsCount: organizations.length,
       servicesCount: services.length,
@@ -168,6 +146,26 @@ function ServiceCatalogue({ onServiceClick, onScorecardClick }) {
       loadError
     })
   }, [selectedOrgId, organizations, services, isLoading, error, loadError])
+
+  // When organization changes, fetch services for that org
+  useEffect(() => {
+    if (selectedOrgId && selectedOrgId > 0) {
+      console.log('Organization changed to:', selectedOrgId)
+      // Set current org in Redux
+      dispatch(setCurrentOrg(selectedOrgId))
+
+      // Check cache and fetch if needed
+      const hasCached = selectHasCachedServices(selectedOrgId)(store.getState())
+      const isStale = selectIsDataStale(selectedOrgId)(store.getState())
+
+      if (!hasCached || isStale) {
+        console.log('Fetching services for org:', selectedOrgId)
+        dispatch(fetchServicesForOrg(selectedOrgId))
+      } else {
+        console.log('Using cached services for org:', selectedOrgId)
+      }
+    }
+  }, [selectedOrgId])
 
   const handleAddService = () => {
     setShowAddModal(true)
@@ -212,13 +210,13 @@ function ServiceCatalogue({ onServiceClick, onScorecardClick }) {
 	    const result = await onboardService(serviceData)
 
 	    if (result.success) {
-	      console.log('✅ Service onboarded via API')
+	      console.log('Service onboarded via API')
 	      // Reload services from Redux so the new service appears in the catalogue
 	      await dispatch(fetchServicesForOrg(selectedOrgId)).unwrap()
 	      // Close modal and reset form
 	      handleCloseModal()
 	    } else {
-	      console.error('❌ Failed to onboard service:', result.error)
+	      console.error('Failed to onboard service:', result.error)
 	      if (result.details) {
 	        console.error('Error details:', result.details)
 	      }
@@ -234,7 +232,6 @@ function ServiceCatalogue({ onServiceClick, onScorecardClick }) {
 	      {/* Error Message */}
 	      {loadError && (
 	        <div className="data-source-banner error-data">
-	          <span className="banner-icon">❌</span>
 	          <span className="banner-text">
 	            <strong>API Error:</strong> {loadError}. No services are currently available.
 	          </span>
@@ -274,18 +271,17 @@ function ServiceCatalogue({ onServiceClick, onScorecardClick }) {
       {/* Loading State */}
       {isLoading && (
         <div className="loading-state">
-          <p className="loading-text">⏱️ Loading repositories...</p>
+          <p className="loading-text">Loading repositories...</p>
         </div>
       )}
 
       {/* Error State */}
       {!isLoading && (loadError || error) && (
         <div className="error-state">
-          <div className="error-icon">⚠️</div>
           <h3>Failed to Load Services</h3>
           <p>{loadError || error}</p>
           <button className="retry-btn" onClick={handleRetry}>
-            🔄 Retry
+            Retry
           </button>
         </div>
       )}
@@ -302,11 +298,10 @@ function ServiceCatalogue({ onServiceClick, onScorecardClick }) {
       {/* Empty State */}
       {!isLoading && !loadError && !error && currentServices.length === 0 && (
         <div className="empty-state">
-          <div className="empty-icon">📭</div>
           <h3>No Services Found</h3>
           <p>No services found in the selected repository.</p>
           <button className="retry-btn" onClick={handleRetry}>
-            🔄 Retry Loading
+            Retry Loading
           </button>
         </div>
       )}
@@ -317,7 +312,6 @@ function ServiceCatalogue({ onServiceClick, onScorecardClick }) {
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <div className="modal-title-section">
-                <span className="modal-icon">🎯</span>
                 <div>
                   <h2 className="modal-title">Onboard New Service</h2>
                   <p className="modal-subtitle">Register a new microservice or app from catalog by providing its ownership, repository, and team assignment</p>

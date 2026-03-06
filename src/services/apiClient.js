@@ -21,13 +21,13 @@ const requestTracker = {
 
     // Check if this endpoint has failed too many times
     if (this.failedEndpoints[url] >= this.maxFailuresPerEndpoint) {
-      console.error(`🛑 Endpoint ${url} has failed ${this.failedEndpoints[url]} times. Blocking further requests.`)
-      console.log('💡 Refresh the page to reset failure counter.')
+      console.error(`Endpoint ${url} has failed ${this.failedEndpoints[url]} times. Blocking further requests.`)
+      console.log('Refresh the page to reset failure counter.')
       return false
     }
 
     if (this.requests.length >= this.maxRequests) {
-      console.warn('⚠️ Rate limit approaching. Slowing down requests...')
+      console.warn('Rate limit approaching. Slowing down requests...')
       return false
     }
 
@@ -40,7 +40,7 @@ const requestTracker = {
       this.failedEndpoints[url] = 0
     }
     this.failedEndpoints[url]++
-    console.warn(`⚠️ Endpoint ${url} failure count: ${this.failedEndpoints[url]}/${this.maxFailuresPerEndpoint}`)
+    console.warn(`Endpoint ${url} failure count: ${this.failedEndpoints[url]}/${this.maxFailuresPerEndpoint}`)
   },
 
   reset() {
@@ -63,7 +63,7 @@ apiClient.interceptors.request.use(
 
     // Check rate limit and failure count before making request
     if (!requestTracker.canMakeRequest(fullUrl)) {
-      console.error('🚫 Request blocked. Either rate limit reached or endpoint has failed too many times.')
+      console.error('Request blocked. Either rate limit reached or endpoint has failed too many times.')
       return Promise.reject(new Error('Request blocked to prevent excessive retries.'))
     }
 
@@ -72,7 +72,7 @@ apiClient.interceptors.request.use(
 
     // Log request in development
     if (process.env.NODE_ENV === 'development') {
-      console.log(`🚀 API Request: ${config.method.toUpperCase()} ${config.url}`, config.data)
+      console.log(`API Request: ${config.method.toUpperCase()} ${config.url}`, config.data)
     }
 
     // Add JWT token if available (optional)
@@ -84,7 +84,7 @@ apiClient.interceptors.request.use(
     return config
   },
   (error) => {
-    console.error('❌ Request Error:', error)
+    console.error('Request Error:', error)
     return Promise.reject(error)
   }
 )
@@ -98,7 +98,7 @@ apiClient.interceptors.response.use(
     // Log response in development
     if (process.env.NODE_ENV === 'development') {
       console.log(
-        `✅ API Response: ${response.config.method.toUpperCase()} ${response.config.url} (${duration}ms)`,
+        `API Response: ${response.config.method.toUpperCase()} ${response.config.url} (${duration}ms)`,
         response.data
       )
     }
@@ -112,7 +112,7 @@ apiClient.interceptors.response.use(
 
     // Log error
     if (process.env.NODE_ENV === 'development') {
-      console.error('❌ API Error:', error.response?.data || error.message)
+      console.error('API Error:', error.response?.data || error.message)
     }
 
     // Handle specific error cases

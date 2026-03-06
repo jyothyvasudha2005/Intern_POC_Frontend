@@ -5,6 +5,43 @@
   position: relative;
 }
 
+/* Top Section: Chatbot and Self Service Side by Side */
+.dashboard-top-section {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  margin-bottom: 32px;
+}
+
+.chatbot-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.chatbot-header-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 4px;
+}
+
+.chatbot-header-title h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.chatbot-emoji {
+  font-size: 24px;
+}
+
+.self-service-section {
+  display: flex;
+  flex-direction: column;
+}
+
 .dashboard-section {
   margin-bottom: 32px;
 }
@@ -14,6 +51,7 @@
   justify-content: space-between;
   align-items: center;
   margin-bottom: 20px;
+  width: 100%;
 }
 
 .section-title {
@@ -24,6 +62,7 @@
   display: flex;
   align-items: center;
   gap: 12px;
+  flex: 1;
 }
 
 .org-selector {
@@ -80,9 +119,7 @@
   gap: 10px;
 }
 
-.table-icon {
-  font-size: 20px;
-}
+
 
 .table-wrapper {
   overflow-x: auto;
@@ -217,6 +254,11 @@
   align-items: flex-start;
 }
 
+.my-work-section .section-header {
+  grid-column: 1 / -1;
+  margin-bottom: 16px;
+}
+
 .my-work-section .section-title {
   grid-column: 1 / -1;
 }
@@ -225,46 +267,13 @@
   grid-column: 1 / -1;
 }
 
-/* Chatbot Toggle Button */
-.chatbot-toggle-btn {
-  position: fixed;
-  bottom: 32px;
-  right: 32px;
-  width: 60px;
-  height: 60px;
-  border-radius: 50%;
-  background: var(--accent-primary);
-  border: none;
-  cursor: pointer;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-  transition: all 0.3s ease;
-  z-index: 999;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
 
-.chatbot-toggle-btn:hover {
-  transform: scale(1.1);
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
-}
 
-.chatbot-toggle-btn:active {
-  transform: scale(0.95);
-}
-
-.chatbot-icon {
-  font-size: 28px;
-}
-
-.chatbot-floating-container {
-  position: fixed;
-  bottom: 110px;
-  right: 32px;
-  z-index: 998;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
-  border-radius: 16px;
-  overflow: hidden;
+@media (max-width: 1200px) {
+  .dashboard-top-section {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
 }
 
 @media (max-width: 768px) {
@@ -280,23 +289,10 @@
     min-width: 600px;
   }
 
-  .chatbot-toggle-btn {
-    bottom: 20px;
-    right: 20px;
-    width: 50px;
-    height: 50px;
+  .dashboard-top-section {
+    grid-template-columns: 1fr;
+    gap: 16px;
   }
-
-  .chatbot-icon {
-    font-size: 24px;
-  }
-
-	  .chatbot-floating-container {
-	    bottom: 85px;
-	    right: 20px;
-	    left: 20px;
-	    width: auto;
-	  }
 }
 
 /* Loading State */
