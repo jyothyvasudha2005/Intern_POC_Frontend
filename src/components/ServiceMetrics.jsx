@@ -85,36 +85,45 @@ function ServiceMetrics({ service, onClose }) {
     const fetchReadme = async () => {
       if (activeTab === 'github-readme' && !readme && !isLoadingReadme && enrichedService.name) {
         setIsLoadingReadme(true)
-        console.log('Fetching README for:', enrichedService.name, 'org:', enrichedService.org)
+        console.log('Fetching README for:', enrichedService.name)
 
         try {
-          // Use the org from enrichedService (selected organization)
-          const owner = enrichedService.org || enrichedService.github_owner || enrichedService.organization?.name || 'teknex-poc'
-          console.log('Using owner:', owner)
+          // First, check if README exists using the API (via proxy)
+          const checkUrl = `/api/sonar/api/v1/github/readme?repo=${enrichedService.name}`
+          console.log(`Checking if README exists: ${checkUrl}`)
 
-          // Fetch README directly from GitHub
-          const readmeUrl = `https://raw.githubusercontent.com/${owner}/${enrichedService.name}/main/README.md`
-          console.log(`Fetching README from: ${readmeUrl}`)
+          const checkResponse = await fetch(checkUrl)
 
-          const response = await fetch(readmeUrl)
+          if (checkResponse.ok) {
+            const checkData = await checkResponse.json()
+            console.log('README check response:', checkData)
 
-          if (response.ok) {
-            const content = await response.text()
-            setReadme(content)
-            console.log('README loaded from main branch')
-          } else if (response.status === 404) {
-            // Try master branch as fallback
-            const masterUrl = `https://raw.githubusercontent.com/${owner}/${enrichedService.name}/master/README.md`
-            console.log(`Trying master branch: ${masterUrl}`)
-            const masterResponse = await fetch(masterUrl)
+            // Check if README exists (must be explicitly true)
+            if (checkData.success && checkData.data?.exists === true) {
+              const contentUrl = `/api/sonar/api/v1/github/readme?repo=${enrichedService.name}&content=true`
+              console.log(`Fetching README content: ${contentUrl}`)
 
-            if (masterResponse.ok) {
-              const content = await masterResponse.text()
-              setReadme(content)
-              console.log('README loaded from master branch')
+              const contentResponse = await fetch(contentUrl)
+
+              if (contentResponse.ok) {
+                const contentData = await contentResponse.json()
+                console.log('README content response:', contentData)
+                const content = contentData.data?.content || contentData.content
+
+                if (content) {
+                  setReadme(content)
+                  console.log('README loaded successfully from API')
+                } else {
+                  console.warn('README content is empty')
+                }
+              } else {
+                console.warn('Failed to fetch README content:', contentResponse.status)
+              }
             } else {
-              console.warn('README not available')
+              console.warn('README does not exist for this repository:', enrichedService.name)
             }
+          } else {
+            console.warn('Failed to check README existence:', checkResponse.status)
           }
         } catch (error) {
           console.error('Error fetching README:', error)
@@ -131,36 +140,45 @@ function ServiceMetrics({ service, onClose }) {
   const handleFetchReadme = async () => {
     setIsLoadingReadme(true)
     setReadme(null) // Clear existing README
-    console.log('Manually fetching README for:', enrichedService.name, 'org:', enrichedService.org)
+    console.log('Manually fetching README for:', enrichedService.name)
 
     try {
-      // Use the org from enrichedService (selected organization)
-      const owner = enrichedService.org || enrichedService.github_owner || enrichedService.organization?.name || 'teknex-poc'
-      console.log('Using owner:', owner)
+      // First, check if README exists using the API (via proxy)
+      const checkUrl = `/api/sonar/api/v1/github/readme?repo=${enrichedService.name}`
+      console.log(`Checking if README exists: ${checkUrl}`)
 
-      // Fetch README directly from GitHub
-      const readmeUrl = `https://raw.githubusercontent.com/${owner}/${enrichedService.name}/main/README.md`
-      console.log(`Fetching README from: ${readmeUrl}`)
+      const checkResponse = await fetch(checkUrl)
 
-      const response = await fetch(readmeUrl)
+      if (checkResponse.ok) {
+        const checkData = await checkResponse.json()
+        console.log('README check response:', checkData)
 
-      if (response.ok) {
-        const content = await response.text()
-        setReadme(content)
-        console.log('README loaded from main branch')
-      } else if (response.status === 404) {
-        // Try master branch as fallback
-        const masterUrl = `https://raw.githubusercontent.com/${owner}/${enrichedService.name}/master/README.md`
-        console.log(`Trying master branch: ${masterUrl}`)
-        const masterResponse = await fetch(masterUrl)
+        // Check if README exists (must be explicitly true)
+        if (checkData.success && checkData.data?.exists === true) {
+          const contentUrl = `/api/sonar/api/v1/github/readme?repo=${enrichedService.name}&content=true`
+          console.log(`Fetching README content: ${contentUrl}`)
 
-        if (masterResponse.ok) {
-          const content = await masterResponse.text()
-          setReadme(content)
-          console.log('README loaded from master branch')
+          const contentResponse = await fetch(contentUrl)
+
+          if (contentResponse.ok) {
+            const contentData = await contentResponse.json()
+            console.log('README content response:', contentData)
+            const content = contentData.data?.content || contentData.content
+
+            if (content) {
+              setReadme(content)
+              console.log('README loaded successfully from API')
+            } else {
+              console.warn('README content is empty')
+            }
+          } else {
+            console.warn('Failed to fetch README content:', contentResponse.status)
+          }
         } else {
-          console.warn('README not available')
+          console.warn('README does not exist for this repository:', enrichedService.name)
         }
+      } else {
+        console.warn('Failed to check README existence:', checkResponse.status)
       }
     } catch (error) {
       console.error('Error fetching README:', error)

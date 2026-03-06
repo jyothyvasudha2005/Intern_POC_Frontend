@@ -516,6 +516,7 @@ export const getOpenIssues = async (repo) => {
 /**
  * Get README content for a repository
  * @param {string} repo - Repository name
+ * @param {string} owner - Repository owner (optional, not used with new API)
  * @returns {Promise<Object>} README content
  */
 export const getReadmeForRepo = async (repo, owner) => {
@@ -528,44 +529,64 @@ export const getReadmeForRepo = async (repo, owner) => {
   }
 
   try {
-    // Direct GitHub raw URL for README
-    const readmeUrl = `https://github.com/${owner}/${repo}/blob/main/README.md`
-    console.log(`📖 Fetching README from: ${readmeUrl}`)
+    // First, check if README exists using the API (via proxy)
+    const checkUrl = `/api/sonar/api/v1/github/readme?repo=${repo}`
+    console.log(`📖 Checking if README exists: ${checkUrl}`)
 
-    const response = await fetch(readmeUrl)
+    const checkResponse = await fetch(checkUrl)
 
-    if (response.ok) {
-      const readmeContent = await response.text()
-      console.log(`✅ Loaded README from GitHub for ${repo}`)
-      return {
-        success: true,
-        data: readmeContent
-      }
-    } else if (response.status === 404) {
-      // Try master branch if main doesn't exist
-      const masterUrl = `https://raw.githubusercontent.com/${owner}/${repo}/master/README.md`
-      console.log(`📖 Trying master branch: ${masterUrl}`)
+    if (checkResponse.ok) {
+      const checkData = await checkResponse.json()
+      console.log('README check response:', checkData)
 
-      const masterResponse = await fetch(masterUrl)
-      if (masterResponse.ok) {
-        const readmeContent = await masterResponse.text()
-        console.log(`✅ Loaded README from GitHub (master branch) for ${repo}`)
+      // Check if README exists (must be explicitly true)
+      if (checkData.success && checkData.data?.exists === true) {
+        const contentUrl = `/api/sonar/api/v1/github/readme?repo=${repo}&content=true`
+        console.log(`📖 Fetching README content: ${contentUrl}`)
+
+        const contentResponse = await fetch(contentUrl)
+
+        if (contentResponse.ok) {
+          const contentData = await contentResponse.json()
+          console.log('README content response:', contentData)
+          const content = contentData.data?.content || contentData.content
+
+          if (content) {
+            console.log(`✅ Loaded README from API for ${repo}`)
+            return {
+              success: true,
+              data: content
+            }
+          } else {
+            console.warn('README content is empty')
+            return {
+              success: false,
+              data: null,
+              error: 'README content is empty'
+            }
+          }
+        } else {
+          console.warn('Failed to fetch README content:', contentResponse.status)
+          return {
+            success: false,
+            data: null,
+            error: `Failed to fetch README content: ${contentResponse.status}`
+          }
+        }
+      } else {
+        console.warn('README does not exist for this repository:', repo)
         return {
-          success: true,
-          data: readmeContent
+          success: false,
+          data: null,
+          error: 'README does not exist for this repository'
         }
       }
-
-      return {
-        success: false,
-        data: null,
-        error: 'README.md not found in main or master branch'
-      }
     } else {
+      console.warn('Failed to check README existence:', checkResponse.status)
       return {
         success: false,
         data: null,
-        error: `Failed to fetch README: ${response.status} ${response.statusText}`
+        error: `Failed to check README existence: ${checkResponse.status}`
       }
     }
   } catch (error) {
