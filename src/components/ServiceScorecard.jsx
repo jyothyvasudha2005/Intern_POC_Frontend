@@ -108,10 +108,10 @@ function ServiceScorecard({ service, onBack }) {
 
   // Get score level and color
   function getScoreLevel(score) {
-    if (score >= 90) return { level: 'Excellent', color: '#00D9A5', icon: '🏆' }
-    if (score >= 75) return { level: 'Good', color: '#4E9FFF', icon: '✓' }
-    if (score >= 60) return { level: 'Fair', color: '#FFB800', icon: '⚠' }
-    return { level: 'Needs Improvement', color: '#FF6B6B', icon: '!' }
+    if (score >= 90) return { level: 'Excellent', color: '#00D9A5', icon: '' }
+    if (score >= 75) return { level: 'Good', color: '#4E9FFF', icon: '' }
+    if (score >= 60) return { level: 'Fair', color: '#FFB800', icon: '' }
+    return { level: 'Needs Improvement', color: '#FF6B6B', icon: '' }
   }
 
   // Render metric card
@@ -183,7 +183,6 @@ function ServiceScorecard({ service, onBack }) {
           Back to Services
         </button>
         <div className="service-info-header">
-          <span className="service-icon-large">{service.icon || '📦'}</span>
           <div className="service-title-info">
             <h1 className="service-title-large">{service.name}</h1>
             <p className="service-subtitle">{service.team} • {service.environment}</p>

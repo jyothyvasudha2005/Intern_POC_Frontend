@@ -11,15 +11,14 @@ function Home({ onNavigate, user }) {
   // Get services from Redux store
   const servicesByOrg = useSelector(state => state.services.servicesByOrg)
   const currentOrgId = useSelector(state => state.services.currentOrgId)
-  const isLoading = useSelector(state => state.services.isLoading)
 
   // Fetch services on component mount
   useEffect(() => {
     const orgId = currentOrgId || 1 // Default to org 1
-    console.log('🏠 Home: Fetching services for org', orgId)
+    console.log('Home: Fetching services for org', orgId)
     setIsLoadingServices(true)
     dispatch(fetchServicesForOrg(orgId)).finally(() => {
-      console.log('🏠 Home: Services fetch completed')
+      console.log('Home: Services fetch completed')
       setIsLoadingServices(false)
     })
   }, [dispatch, currentOrgId])
@@ -28,16 +27,16 @@ function Home({ onNavigate, user }) {
   useEffect(() => {
     const orgId = currentOrgId || 1
     const orgServices = servicesByOrg[orgId]
-    console.log('🏠 Home: servicesByOrg[' + orgId + ']:', orgServices)
+    console.log('Home: servicesByOrg[' + orgId + ']:', orgServices)
     if (orgServices && orgServices.services) {
       // Count active services (filter by status if available)
       const activeCount = orgServices.services.filter(
         service => service.status === 'active' || service.disposition === 'active' || !service.status
       ).length
-      console.log('🏠 Home: Calculated activeCount:', activeCount, 'total services:', orgServices.services.length)
+      console.log('Home: Calculated activeCount:', activeCount, 'total services:', orgServices.services.length)
       setActiveServicesCount(activeCount || orgServices.services.length)
     } else {
-      console.log('🏠 Home: No services found for org', orgId)
+      console.log('Home: No services found for org', orgId)
     }
   }, [servicesByOrg, currentOrgId])
 
@@ -45,25 +44,21 @@ function Home({ onNavigate, user }) {
     {
       id: 'service-catalogue',
       title: 'Service Catalogue',
-      icon: '📦',
       color: '#6C5DD3'
     },
     {
       id: 'scorecard-viewer',
       title: 'Scorecard Viewer',
-      icon: '📊',
       color: '#00D9A5'
     },
     {
       id: 'regression-testing',
       title: 'Regression Testing',
-      icon: '🧪',
       color: '#FFB800'
     },
     {
       id: 'integration-analysis',
       title: 'Integration Analysis',
-      icon: '🔗',
       color: '#4E9FFF'
     }
   ]
@@ -85,7 +80,6 @@ function Home({ onNavigate, user }) {
             onClick={() => onNavigate(module.id)}
             style={{ '--module-color': module.color }}
           >
-            <span className="module-nav-icon">{module.icon}</span>
             <span className="module-nav-title">{module.title}</span>
           </button>
         ))}

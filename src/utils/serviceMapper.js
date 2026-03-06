@@ -26,7 +26,7 @@ export const mapApiServiceToUI = (apiService) => {
     id,
     name: title,
     title,
-    icon: '📦',
+    icon: '',
     team: owner,
     owningTeam: owner,
     org: organization?.name || 'Unknown',

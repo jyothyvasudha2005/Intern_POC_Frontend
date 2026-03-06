@@ -32,9 +32,7 @@
   color: #721C24;
 }
 
-.banner-icon {
-  font-size: 16px;
-}
+
 
 .banner-text strong {
   font-weight: 700;
@@ -591,11 +589,7 @@
   text-align: center;
 }
 
-.error-icon {
-  font-size: 64px;
-  margin-bottom: 20px;
-  opacity: 0.8;
-}
+
 
 .error-state h3 {
   color: var(--text-primary);
