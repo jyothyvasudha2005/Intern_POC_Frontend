@@ -85,39 +85,52 @@ function ServiceMetrics({ service, onClose }) {
     const fetchReadme = async () => {
       if (activeTab === 'github-readme' && !readme && !isLoadingReadme && enrichedService.name) {
         setIsLoadingReadme(true)
-        console.log('📄 Fetching README for:', enrichedService.name, 'org:', enrichedService.org)
+        console.log('📄 Fetching README for:', enrichedService.name)
 
         try {
-          // Use the org from enrichedService (selected organization)
-          const owner = enrichedService.org || enrichedService.github_owner || enrichedService.organization?.name || 'jyothyvasudha2005'
-          console.log('📖 Using owner:', owner)
+          // First, check if README exists
+          const checkUrl = `/api/sonar/api/v1/github/readme?repo=${enrichedService.name}`
+          console.log(`📖 Checking if README exists: ${checkUrl}`)
 
-          // Fetch README directly from GitHub
-          const readmeUrl = `https://raw.githubusercontent.com/${owner}/${enrichedService.name}/main/README.md`
-          console.log(`📖 Fetching README from: ${readmeUrl}`)
+          const checkResponse = await fetch(checkUrl)
+          console.log('📖 Check response status:', checkResponse.status)
 
-          const response = await fetch(readmeUrl)
+          if (!checkResponse.ok) {
+            const errorText = await checkResponse.text()
+            console.warn('⚠️ README does not exist for this repository. Status:', checkResponse.status, 'Error:', errorText)
+            setReadme('README_NOT_FOUND') // Set a flag instead of null
+            setIsLoadingReadme(false)
+            return
+          }
 
-          if (response.ok) {
-            const content = await response.text()
-            setReadme(content)
-            console.log('✅ README loaded from main branch')
-          } else if (response.status === 404) {
-            // Try master branch as fallback
-            const masterUrl = `https://raw.githubusercontent.com/${owner}/${enrichedService.name}/master/README.md`
-            console.log(`📖 Trying master branch: ${masterUrl}`)
-            const masterResponse = await fetch(masterUrl)
+          const checkData = await checkResponse.json()
+          console.log('✅ README exists:', checkData)
 
-            if (masterResponse.ok) {
-              const content = await masterResponse.text()
-              setReadme(content)
-              console.log('✅ README loaded from master branch')
-            } else {
-              console.warn('⚠️ README not available')
-            }
+          // If README exists, fetch the content
+          const contentUrl = `/api/sonar/api/v1/github/readme?repo=${enrichedService.name}&content=true`
+          console.log(`📖 Fetching README content from: ${contentUrl}`)
+
+          const contentResponse = await fetch(contentUrl)
+          console.log('📖 Content response status:', contentResponse.status)
+
+          if (contentResponse.ok) {
+            const contentData = await contentResponse.json()
+            console.log('📖 Content data received:', contentData)
+
+            // Extract the content from the response
+            const readmeContent = contentData.data?.content || contentData.content || ''
+            console.log('📖 README content length:', readmeContent.length)
+            setReadme(readmeContent)
+            console.log('✅ README content loaded successfully')
+          } else {
+            const errorText = await contentResponse.text()
+            console.warn('⚠️ Failed to fetch README content. Status:', contentResponse.status, 'Error:', errorText)
+            setReadme('README_FETCH_FAILED')
           }
         } catch (error) {
           console.error('❌ Error fetching README:', error)
+          console.error('❌ Error details:', error.message, error.stack)
+          setReadme('README_ERROR')
         } finally {
           setIsLoadingReadme(false)
         }
@@ -125,45 +138,58 @@ function ServiceMetrics({ service, onClose }) {
     }
 
     fetchReadme()
-  }, [activeTab, enrichedService.name, enrichedService.org, readme, isLoadingReadme])
+  }, [activeTab, enrichedService.name, readme, isLoadingReadme])
 
   // Manual README fetch function
   const handleFetchReadme = async () => {
     setIsLoadingReadme(true)
     setReadme(null) // Clear existing README
-    console.log('📄 Manually fetching README for:', enrichedService.name, 'org:', enrichedService.org)
+    console.log('📄 Manually fetching README for:', enrichedService.name)
 
     try {
-      // Use the org from enrichedService (selected organization)
-      const owner = enrichedService.org || enrichedService.github_owner || enrichedService.organization?.name || 'jyothyvasudha2005'
-      console.log('📖 Using owner:', owner)
+      // First, check if README exists
+      const checkUrl = `/api/sonar/api/v1/github/readme?repo=${enrichedService.name}`
+      console.log(`📖 Checking if README exists: ${checkUrl}`)
 
-      // Fetch README directly from GitHub
-      const readmeUrl = `https://raw.githubusercontent.com/${owner}/${enrichedService.name}/main/README.md`
-      console.log(`📖 Fetching README from: ${readmeUrl}`)
+      const checkResponse = await fetch(checkUrl)
+      console.log('📖 Check response status:', checkResponse.status)
 
-      const response = await fetch(readmeUrl)
+      if (!checkResponse.ok) {
+        const errorText = await checkResponse.text()
+        console.warn('⚠️ README does not exist for this repository. Status:', checkResponse.status, 'Error:', errorText)
+        setReadme('README_NOT_FOUND')
+        setIsLoadingReadme(false)
+        return
+      }
 
-      if (response.ok) {
-        const content = await response.text()
-        setReadme(content)
-        console.log('✅ README loaded from main branch')
-      } else if (response.status === 404) {
-        // Try master branch as fallback
-        const masterUrl = `https://raw.githubusercontent.com/${owner}/${enrichedService.name}/master/README.md`
-        console.log(`📖 Trying master branch: ${masterUrl}`)
-        const masterResponse = await fetch(masterUrl)
+      const checkData = await checkResponse.json()
+      console.log('✅ README exists:', checkData)
 
-        if (masterResponse.ok) {
-          const content = await masterResponse.text()
-          setReadme(content)
-          console.log('✅ README loaded from master branch')
-        } else {
-          console.warn('⚠️ README not available')
-        }
+      // If README exists, fetch the content
+      const contentUrl = `/api/sonar/api/v1/github/readme?repo=${enrichedService.name}&content=true`
+      console.log(`📖 Fetching README content from: ${contentUrl}`)
+
+      const contentResponse = await fetch(contentUrl)
+      console.log('📖 Content response status:', contentResponse.status)
+
+      if (contentResponse.ok) {
+        const contentData = await contentResponse.json()
+        console.log('📖 Content data received:', contentData)
+
+        // Extract the content from the response
+        const readmeContent = contentData.data?.content || contentData.content || ''
+        console.log('📖 README content length:', readmeContent.length)
+        setReadme(readmeContent)
+        console.log('✅ README content loaded successfully')
+      } else {
+        const errorText = await contentResponse.text()
+        console.warn('⚠️ Failed to fetch README content. Status:', contentResponse.status, 'Error:', errorText)
+        setReadme('README_FETCH_FAILED')
       }
     } catch (error) {
       console.error('❌ Error fetching README:', error)
+      console.error('❌ Error details:', error.message, error.stack)
+      setReadme('README_ERROR')
     } finally {
       setIsLoadingReadme(false)
     }
@@ -425,7 +451,7 @@ function renderOverview(service) {
                 Last Committer
               </div>
               <div className="port-detail-value">
-                {service.lastCommitter || service.metrics?.github?.lastCommitter || '-'}
+                {service.lastCommitter || service.metrics?.github?.lastCommitter || '-'}{console.log("serices with its things are", service)}
               </div>
             </div>
             <div className="port-detail-item">
@@ -1286,6 +1312,27 @@ function renderGitHubReadme(service, readme, isLoadingReadme, fetchReadme) {
         <div className="readme-content markdown-body">
           {isLoadingReadme ? (
             <p>⏱️ Loading README...</p>
+          ) : readme === 'README_NOT_FOUND' ? (
+            <div>
+              <p>⚠️ README not found for this repository.</p>
+              <button onClick={fetchReadme} className="load-readme-btn">
+                Retry
+              </button>
+            </div>
+          ) : readme === 'README_FETCH_FAILED' ? (
+            <div>
+              <p>❌ Failed to fetch README content.</p>
+              <button onClick={fetchReadme} className="load-readme-btn">
+                Retry
+              </button>
+            </div>
+          ) : readme === 'README_ERROR' ? (
+            <div>
+              <p>❌ Error loading README. Check console for details.</p>
+              <button onClick={fetchReadme} className="load-readme-btn">
+                Retry
+              </button>
+            </div>
           ) : readme ? (
             <div dangerouslySetInnerHTML={{ __html: markdownToHtml(readme) }} />
           ) : (

@@ -114,60 +114,73 @@ export const fetchDashboardData = createAsyncThunk(
       }
 
       console.log(`🔄 Redux: Aggregating dashboard data for org ${orgId}`)
+      console.log(`📊 Total services in org: ${orgServices.services.length}`)
 
       // Aggregate PRs, bugs, and tasks from all services
       const openPRs = []
       const openBugs = []
       const openTasks = []
 
-      orgServices.services.forEach(service => {
+      orgServices.services.forEach((service, index) => {
+        console.log(`\n🔍 Processing service ${index + 1}/${orgServices.services.length}: ${service.name || service.title} (ID: ${service.id})`)
+
         // Get detailed service data from cache
         const detailedService = state.services.serviceDetails[service.id]
-        if (!detailedService) return
+        if (!detailedService) {
+          console.warn(`⚠️ No detailed data found for service ${service.id}`)
+          return
+        }
+
+        console.log(`  📦 Service has pullRequests: ${!!detailedService.pullRequests}, count: ${detailedService.pullRequests?.length || 0}`)
+        console.log(`  📦 Service has jiraIssues: ${!!detailedService.jiraIssues}, count: ${detailedService.jiraIssues?.length || 0}`)
 
         // Extract open PRs
         if (detailedService.pullRequests && Array.isArray(detailedService.pullRequests)) {
-          detailedService.pullRequests
-            .filter(pr => pr.state === 'open')
-            .forEach(pr => {
-              openPRs.push({
-                id: pr.number,
-                title: pr.title,
-                url: pr.url,
-                author: pr.author,
-                createdAt: pr.createdAt,
-                serviceName: service.name || service.title,
-                serviceId: service.id
-              })
+          const openPRsForService = detailedService.pullRequests.filter(pr => pr.state === 'open')
+          console.log(`  ✅ Found ${openPRsForService.length} open PRs for ${service.name}`)
+
+          openPRsForService.forEach(pr => {
+            openPRs.push({
+              id: pr.number,
+              title: pr.title,
+              url: pr.url,
+              author: pr.author,
+              createdAt: pr.createdAt,
+              serviceName: service.name || service.title,
+              serviceId: service.id
             })
+          })
         }
 
         // Extract open bugs and tasks from Jira issues
         if (detailedService.jiraIssues && Array.isArray(detailedService.jiraIssues)) {
-          detailedService.jiraIssues
-            .filter(issue => issue.status !== 'Done' && issue.status !== 'Closed')
-            .forEach(issue => {
-              const issueData = {
-                id: issue.key,
-                title: issue.summary,
-                issueType: issue.issueType,
-                status: issue.status,
-                priority: issue.priority,
-                assignee: issue.assignee,
-                serviceName: service.name || service.title,
-                serviceId: service.id
-              }
+          const openIssues = detailedService.jiraIssues.filter(issue => issue.status !== 'Done' && issue.status !== 'Closed')
+          console.log(`  ✅ Found ${openIssues.length} open Jira issues for ${service.name}`)
 
-              if (issue.issueType?.toLowerCase() === 'bug') {
-                openBugs.push(issueData)
-              } else if (issue.issueType?.toLowerCase() === 'task') {
-                openTasks.push(issueData)
-              }
-            })
+          openIssues.forEach(issue => {
+            const issueData = {
+              id: issue.key,
+              title: issue.summary,
+              issueType: issue.issueType,
+              status: issue.status,
+              priority: issue.priority,
+              assignee: issue.assignee,
+              serviceName: service.name || service.title,
+              serviceId: service.id
+            }
+
+            if (issue.issueType?.toLowerCase() === 'bug') {
+              openBugs.push(issueData)
+              console.log(`    🐛 Added bug: ${issue.key}`)
+            } else if (issue.issueType?.toLowerCase() === 'task') {
+              openTasks.push(issueData)
+              console.log(`    📋 Added task: ${issue.key}`)
+            }
+          })
         }
       })
 
-      console.log(`✅ Redux: Aggregated dashboard data - PRs: ${openPRs.length}, Bugs: ${openBugs.length}, Tasks: ${openTasks.length}`)
+      console.log(`\n✅ Redux: Aggregated dashboard data - PRs: ${openPRs.length}, Bugs: ${openBugs.length}, Tasks: ${openTasks.length}`)
 
       return {
         orgId,
