@@ -36,7 +36,7 @@ const mapApiServiceToUI = (svc) => {
     id: svc.id,
     name: svc.title,
     title: svc.title,
-    icon: '📦',
+    icon: '',
     team: ownerName,
     owningTeam: ownerName,
     github: svc.repositoryUrl,
@@ -188,18 +188,18 @@ export const onboardService = async (serviceData) => {
       throw new Error('Service name is required')
     }
 
-    console.log('📤 Sending onboarding request:', payload)
+    console.log('Sending onboarding request:', payload)
 
     const response = await apiClient.post(API_ENDPOINTS.ONBOARDING_CREATE, payload)
 
-    console.log('✅ Service onboarded via API:', response.data)
+    console.log('Service onboarded via API:', response.data)
     return {
       success: true,
       data: response.data,
       isMock: false
     }
   } catch (error) {
-    console.error('❌ Error onboarding service:', error.message)
+    console.error('Error onboarding service:', error.message)
     console.error('Error details:', error.response?.data)
 
     return {
@@ -235,7 +235,7 @@ export const getServiceById = async (serviceId) => {
       }
     }
   } catch (error) {
-    console.error('❌ Error fetching service:', error.message)
+    console.error('Error fetching service:', error.message)
     return {
       success: false,
       data: null,
