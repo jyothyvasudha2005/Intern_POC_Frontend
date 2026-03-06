@@ -89,7 +89,7 @@ function ServiceMetrics({ service, onClose }) {
 
         try {
           // Use the org from enrichedService (selected organization)
-          const owner = enrichedService.org || enrichedService.github_owner || enrichedService.organization?.name || 'jyothyvasudha2005'
+          const owner = enrichedService.org || enrichedService.github_owner || enrichedService.organization?.name || 'teknex-poc'
           console.log('Using owner:', owner)
 
           // Fetch README directly from GitHub
@@ -125,7 +125,7 @@ function ServiceMetrics({ service, onClose }) {
     }
 
     fetchReadme()
-  }, [activeTab, enrichedService.name, enrichedService.org, readme, isLoadingReadme])
+  }, [activeTab, enrichedService.name, readme, isLoadingReadme])
 
   // Manual README fetch function
   const handleFetchReadme = async () => {
@@ -135,7 +135,7 @@ function ServiceMetrics({ service, onClose }) {
 
     try {
       // Use the org from enrichedService (selected organization)
-      const owner = enrichedService.org || enrichedService.github_owner || enrichedService.organization?.name || 'jyothyvasudha2005'
+      const owner = enrichedService.org || enrichedService.github_owner || enrichedService.organization?.name || 'teknex-poc'
       console.log('Using owner:', owner)
 
       // Fetch README directly from GitHub
@@ -399,7 +399,7 @@ function renderOverview(service) {
                 Last Committer
               </div>
               <div className="port-detail-value">
-                {service.lastCommitter || service.metrics?.github?.lastCommitter || '-'}
+                {service.lastCommitter || service.metrics?.github?.lastCommitter || '-'}{console.log("serices with its things are", service)}
               </div>
             </div>
             <div className="port-detail-item">

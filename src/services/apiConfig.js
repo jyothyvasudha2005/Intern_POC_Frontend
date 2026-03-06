@@ -49,29 +49,16 @@ export const API_ENDPOINTS = {
   CHAT_HEALTH: '/chat/health',
   CHAT_MESSAGE: '/chat/api/v1/chat',
 
-  // Jira Trigger Service (for creating issues, not fetching metrics)
-  JIRA_HEALTH: '/jira/health',
-  JIRA_CREATE_ISSUE: '/jira/api/create-issue',
+  // GitHub README Service
+  // Check if README exists for a repository
+  // GET /sonar/api/v1/github/readme?repo={repo_name}
+  // Returns: { status, message, data: { exists: boolean, ... } }
+  GITHUB_README_CHECK: (repoName) => `/sonar/api/v1/github/readme?repo=${repoName}`,
 
-  // Approval Service
-  APPROVAL_HEALTH: '/approval/health',
-  APPROVAL_CREATE: '/approval/api/v1/approval/create',
-  APPROVAL_GET_ALL: '/approval/api/v1/approval/all',
-
-  // Onboarding Service (for creating new services)
-  ONBOARDING_HEALTH: '/onboarding/health',
-  ONBOARDING_CREATE: '/onboarding/api/onboard',
-
-  // ScoreCard Service
-  SCORECARD_HEALTH: '/scorecard/health',
-  SCORECARD_CREATE: '/scorecard/api/v1/scorecards',
-  SCORECARD_GET_LATEST: '/scorecard/api/v1/scorecards/service',
-  SCORECARD_EVALUATE_V2: '/scorecard/api/v2/scorecards/evaluate',
-
-  // SonarShell - Only for organization/repo management (NOT for metrics)
-  SONAR_HEALTH: '/sonar/health',
-  SONAR_ORGS_LIST: '/sonar/api/v1/orgs',
-  SONAR_REPOS_FETCH: '/sonar/api/v1/repos/fetch',
+  // Get README content for a repository
+  // GET /sonar/api/v1/github/readme?repo={repo_name}&content=true
+  // Returns: { status, message, data: { content: string, ... } }
+  GITHUB_README_CONTENT: (repoName) => `/sonar/api/v1/github/readme?repo=${repoName}&content=true`,
 }
 
 // API Configuration
