@@ -10,6 +10,12 @@ import {
   getJiraMetricsForProject,
   getCommitsForRepo
 } from '../services/sonarService'
+import {
+  getScorecardDefinitions,
+  evaluateService,
+  mapServiceToScorecardData
+} from '../services/scorecardApiService'
+import { getServiceById } from '../services/serviceCatalogService'
 
 const COLORS = {
   primary: '#6C5DD3',
@@ -35,11 +41,140 @@ function ServiceMetrics({ service, onClose }) {
   })
   const [activeScorecardTab, setActiveScorecardTab] = useState('PR_Metrics')
 
+  // Scorecard API data
+  const [scorecardDefinitions, setScorecardDefinitions] = useState(null)
+  const [scorecardEvaluation, setScorecardEvaluation] = useState(null)
+  const [isLoadingScorecards, setIsLoadingScorecards] = useState(false)
+
   if (!service) {
     return null
   }
 
   console.log('🎯 ServiceMetrics rendering with service:', service.name)
+
+  // Helper function to map service name to service ID
+  const getServiceIdFromName = (serviceName) => {
+    // Map service names to their IDs (based on actual API data)
+    const serviceNameToIdMap = {
+      'delivery-management-frontend': 'svc_1',
+      'sonarqube': 'svc_2',
+      'dms-backend': 'svc_3',
+      'test-backend': 'svc_4',
+    }
+
+    // Also try lowercase and normalized versions
+    const normalizedName = serviceName?.toLowerCase().trim()
+
+    // Direct match
+    if (serviceNameToIdMap[serviceName]) {
+      return serviceNameToIdMap[serviceName]
+    }
+
+    // Normalized match
+    if (serviceNameToIdMap[normalizedName]) {
+      return serviceNameToIdMap[normalizedName]
+    }
+
+    // Partial match (for flexibility)
+    for (const [name, id] of Object.entries(serviceNameToIdMap)) {
+      if (serviceName?.includes(name) || name.includes(serviceName)) {
+        return id
+      }
+    }
+
+    console.warn(`⚠️ No service ID mapping found for: "${serviceName}"`)
+    return null
+  }
+
+  // Helper function to map Service Catalog API data to component format
+  const mapServiceCatalogData = (catalogService) => {
+    const evalMetrics = catalogService.evaluationMetrics || {}
+    const metrics = catalogService.metrics || {}
+
+    return {
+      ...catalogService,
+      name: catalogService.title,
+      title: catalogService.title,
+
+      // Map GitHub metrics
+      metrics: {
+        github: {
+          language: catalogService.language || 'Unknown',
+          openPRs: metrics.openPullRequests || 0,
+          mergedPRs: metrics.commitsLast90Days || 0,
+          contributors: metrics.contributors || 0,
+          lastCommit: catalogService.lastCommit || '',
+          lastCommitter: catalogService.lastCommitter || 'Unknown',
+          coverage: evalMetrics.coverage || 0,
+        },
+        jira: {
+          openIssues: metrics.jiraOpenTasks || 0,
+          inProgress: metrics.jiraInProgress || 0,
+          resolved: metrics.jiraClosedTasks || 0,
+          bugs: metrics.jiraOpenBugs || 0,
+          avgResolutionTime: 'N/A',
+          sprintProgress: 0,
+        },
+        pagerduty: {
+          activeIncidents: 0,
+          totalIncidents: 0,
+          mttr: evalMetrics.mttr || 0,
+          mtta: 'N/A',
+          uptime: 99,
+          onCall: catalogService.onCall || '',
+        },
+      },
+
+      // PR Metrics
+      prMetrics: {
+        avgCommitsPerPR: metrics.avgCommitsPerPR || 0,
+        openPRCount: metrics.openPullRequests || 0,
+        avgLOCPerPR: metrics.avgLOCPerPR || 0,
+        weeklyMergedPRs: Math.round((metrics.commitsLast90Days || 0) / 12) || 0,
+      },
+
+      // Code Quality
+      codeQuality: {
+        codeCoverage: evalMetrics.coverage || 0,
+        vulnerabilities: evalMetrics.vulnerabilities || 0,
+        codeSmells: evalMetrics.codeSmells || 0,
+        codeDuplication: evalMetrics.duplicatedLinesDensity || 0,
+      },
+
+      // DORA Metrics
+      doraMetrics: {
+        changeFailureRate: evalMetrics.changeFailureRate || 0,
+        deploymentFrequency: evalMetrics.deploymentFrequency || 0,
+        mttr: evalMetrics.mttr || 0,
+      },
+
+      // Security Maturity
+      securityMaturity: {
+        owaspCompliance: evalMetrics.owaspCompliance || 'Baseline',
+        branchProtection: evalMetrics.branchProtection || evalMetrics.hasReadme === 1,
+        requiredApprovals: evalMetrics.requiredApprovals || 1,
+      },
+
+      // Production Readiness
+      productionReadiness: {
+        pagerdutyIntegration: false,
+        observabilityDashboard: false,
+      },
+
+      // Jira Metrics
+      jiraMetrics: {
+        openHighPriorityBugs: metrics.jiraOpenBugs || 0,
+        totalIssues: metrics.jiraOpenTasks || 0,
+        inProgress: metrics.jiraInProgress || 0,
+        resolved: metrics.jiraClosedTasks || 0,
+      },
+
+      // Keep original data
+      evaluationMetrics: evalMetrics,
+      pullRequests: catalogService.pullRequests || [],
+      jiraIssues: catalogService.jiraIssues || [],
+    }
+  }
 
   // Fetch real metrics when service changes
   useEffect(() => {
@@ -50,11 +185,35 @@ function ServiceMetrics({ service, onClose }) {
       console.log('📊 Fetching metrics for service:', service.name)
 
       try {
-        // Check if service already has Service Catalog API data
+        // PRIORITY 1: Try to fetch from Service Catalog API
+        const serviceId = getServiceIdFromName(service.name)
+
+        if (serviceId) {
+          console.log(`🔄 Fetching service data from Service Catalog API: ${serviceId}`)
+          try {
+            const catalogService = await getServiceById(serviceId, 1)
+
+            if (catalogService && catalogService.evaluationMetrics) {
+              console.log('✅ Using Service Catalog API data for:', catalogService.title)
+              console.log('📊 Evaluation metrics:', catalogService.evaluationMetrics)
+              console.log('📊 General metrics:', catalogService.metrics)
+
+              // Use the catalog service data
+              const updatedService = mapServiceCatalogData(catalogService)
+              setEnrichedService(updatedService)
+              setIsLoadingMetrics(false)
+              return
+            }
+          } catch (catalogError) {
+            console.warn('⚠️ Service Catalog API failed, trying fallback:', catalogError.message)
+          }
+        }
+
+        // PRIORITY 2: Check if service already has Service Catalog API data
         const hasServiceCatalogData = service.evaluationMetrics || service.metrics
 
         if (hasServiceCatalogData) {
-          console.log('✅ Using Service Catalog API data for:', service.name || service.title)
+          console.log('✅ Using existing Service Catalog API data for:', service.name || service.title)
           console.log('📊 Evaluation metrics:', service.evaluationMetrics)
           console.log('📊 General metrics:', service.metrics)
 
@@ -245,6 +404,176 @@ function ServiceMetrics({ service, onClose }) {
     fetchMetrics()
   }, [service])
 
+  // Helper function to evaluate a rule locally
+  const evaluateRule = (rule, serviceData) => {
+    const { property, operator, threshold } = rule
+    const actualValue = serviceData[property]
+
+    if (actualValue === undefined || actualValue === null) {
+      return { passed: false, actualValue: 'N/A' }
+    }
+
+    let passed = false
+    switch (operator) {
+      case '>=':
+        passed = actualValue >= threshold
+        break
+      case '<=':
+        passed = actualValue <= threshold
+        break
+      case '>':
+        passed = actualValue > threshold
+        break
+      case '<':
+        passed = actualValue < threshold
+        break
+      case '==':
+        passed = actualValue == threshold
+        break
+      default:
+        passed = false
+    }
+
+    return { passed, actualValue }
+  }
+
+  // Helper function to calculate scorecard locally
+  const calculateScorecardLocally = (definitions, serviceData) => {
+    if (!definitions || !definitions.scorecards) {
+      return null
+    }
+
+    const evaluatedScorecards = definitions.scorecards.map(scorecard => {
+      const evaluatedLevels = scorecard.levels.map(level => {
+        const evaluatedRules = level.rules.map(rule => {
+          const { passed, actualValue } = evaluateRule(rule, serviceData)
+          return {
+            rule_name: rule.name,
+            threshold: `${rule.operator} ${rule.threshold}`,
+            actual_value: actualValue,
+            passed: passed,
+            operator: rule.operator
+          }
+        })
+
+        const passedCount = evaluatedRules.filter(r => r.passed).length
+        const totalCount = evaluatedRules.length
+        const passPercentage = totalCount > 0 ? (passedCount / totalCount) * 100 : 0
+
+        return {
+          level_name: level.name,
+          rules: evaluatedRules,
+          pass_percentage: passPercentage
+        }
+      })
+
+      // Calculate overall scorecard pass percentage
+      const allRules = evaluatedLevels.flatMap(l => l.rules)
+      const passedCount = allRules.filter(r => r.passed).length
+      const totalCount = allRules.length
+      const passPercentage = totalCount > 0 ? (passedCount / totalCount) * 100 : 0
+
+      return {
+        scorecard_name: scorecard.name,
+        display_name: scorecard.display_name,
+        pass_percentage: passPercentage,
+        levels: evaluatedLevels
+      }
+    })
+
+    return {
+      service_name: serviceData.serviceName || 'Unknown',
+      overall_percentage: evaluatedScorecards.reduce((sum, sc) => sum + sc.pass_percentage, 0) / evaluatedScorecards.length,
+      scorecards: evaluatedScorecards
+    }
+  }
+
+  // Fetch scorecard definitions and evaluate service LOCALLY
+  useEffect(() => {
+    const fetchScorecardData = async () => {
+      if (!service || activeTab !== 'scorecards') return
+
+      setIsLoadingScorecards(true)
+      console.log('📊 Fetching scorecard data for:', service.name)
+
+      try {
+        // STEP 1: Fetch scorecard definitions
+        const definitions = await getScorecardDefinitions()
+        setScorecardDefinitions(definitions)
+        console.log('✅ Scorecard definitions loaded:', definitions)
+
+        // STEP 2: Get the Service Catalog data
+        const serviceId = getServiceIdFromName(service.name)
+        if (!serviceId) {
+          console.error('❌ No service ID mapping found for:', service.name)
+          return
+        }
+
+        console.log(`🔄 Fetching Service Catalog data: ${serviceId}`)
+        const catalogService = await getServiceById(serviceId, 1)
+        console.log('✅ Service Catalog data:', catalogService)
+
+        // STEP 3: Prepare service data for evaluation - MAP ALL AVAILABLE METRICS
+        const serviceData = {
+          serviceName: catalogService.title,
+
+          // ===== From evaluationMetrics =====
+          coverage: catalogService.evaluationMetrics?.coverage || 0,
+          vulnerabilities: catalogService.evaluationMetrics?.vulnerabilities || 0,
+          code_smells: catalogService.evaluationMetrics?.codeSmells || 0,
+          duplicated_lines_density: catalogService.evaluationMetrics?.duplicatedLinesDensity || 0,
+          has_readme: catalogService.evaluationMetrics?.hasReadme || 0,
+          deployment_frequency: catalogService.evaluationMetrics?.deploymentFrequency || 0,
+          mttr: catalogService.evaluationMetrics?.mttr || 0,
+
+          // ===== From metrics =====
+          // PR Metrics
+          open_prs: catalogService.metrics?.openPullRequests || 0,
+          openPullRequests: catalogService.metrics?.openPullRequests || 0, // Alternative name
+          merged_prs: catalogService.metrics?.commitsLast90Days || 0,
+          commitsLast90Days: catalogService.metrics?.commitsLast90Days || 0, // Alternative name
+
+          // Team Metrics
+          contributors: catalogService.metrics?.contributors || 0,
+
+          // Jira Metrics
+          bugs: catalogService.metrics?.jiraOpenBugs || 0,
+          open_bugs: catalogService.metrics?.jiraOpenBugs || 0,
+          jiraOpenBugs: catalogService.metrics?.jiraOpenBugs || 0, // Alternative name
+          jiraOpenTasks: catalogService.metrics?.jiraOpenTasks || 0,
+          jiraActiveSprints: catalogService.metrics?.jiraActiveSprints || 0,
+
+          // ===== Calculated/Derived Metrics =====
+          prs_with_conflicts: 0, // Not available in current API
+          security_hotspots: 0, // Not available in current API
+          days_since_last_commit: 0, // Could calculate from lastCommit if needed
+          quality_gate_passed: 0, // Not available in current API
+
+          // ===== Additional Service Info =====
+          owner: catalogService.owner || '',
+          language: catalogService.language || '',
+          defaultBranch: catalogService.defaultBranch || 'main',
+          onCall: catalogService.onCall || '',
+        }
+
+        console.log('📊 Complete service data mapped for evaluation:', serviceData)
+
+        console.log('📊 Service data for evaluation:', serviceData)
+
+        // STEP 4: Calculate scorecard evaluation LOCALLY
+        const evaluation = calculateScorecardLocally(definitions, serviceData)
+        setScorecardEvaluation(evaluation)
+        console.log('✅ Scorecard evaluation complete (LOCAL):', evaluation)
+      } catch (error) {
+        console.error('❌ Error fetching scorecard data:', error)
+      } finally {
+        setIsLoadingScorecards(false)
+      }
+    }
+
+    fetchScorecardData()
+  }, [service, activeTab])
+
   // Helper function to get badge level for PR metrics
   const getPRBadge = (metric, value) => {
     const thresholds = {
@@ -396,7 +725,7 @@ function ServiceMetrics({ service, onClose }) {
         {!isLoadingMetrics && (
           <>
             {activeTab === 'overview' && renderOverview(enrichedService)}
-            {activeTab === 'scorecards' && renderScorecards(enrichedService, getPRBadge, getQualityBadge, activeScorecardTab, setActiveScorecardTab)}
+            {activeTab === 'scorecards' && renderScorecards(enrichedService, getPRBadge, getQualityBadge, activeScorecardTab, setActiveScorecardTab, scorecardEvaluation, scorecardDefinitions, isLoadingScorecards)}
             {activeTab === 'related' && renderRelatedEntities(enrichedService)}
             {activeTab === 'runs' && renderRuns(enrichedService)}
             {activeTab === 'audit' && renderAuditLogTable(enrichedService, commits)}
@@ -1029,156 +1358,141 @@ function _renderHistory(service) {
   )
 }
 
-// Scorecards Tab - Tier-based view matching the reference image
-function renderScorecards(service, getPRBadge, getQualityBadge, activeScorecardTab, setActiveScorecardTab) {
-  // Calculate badge levels for scorecards
-  const prMetrics = service.prMetrics || {}
-  const codeQuality = service.codeQuality || {}
-
-  // Get overall badge for PR Metrics (use the lowest tier among all metrics)
-  const prBadges = [
-    getPRBadge('avgCommitsPerPR', prMetrics.avgCommitsPerPR || 0),
-    getPRBadge('openPRCount', prMetrics.openPRCount || 0),
-    getPRBadge('avgLOCPerPR', prMetrics.avgLOCPerPR || 0),
-    getPRBadge('weeklyMergedPRs', prMetrics.weeklyMergedPRs || 0)
-  ]
-  const prBadgeLevel = prBadges.some(b => b.level === 'Bronze') ? 'Bronze' :
-                       prBadges.some(b => b.level === 'Silver') ? 'Silver' : 'Gold'
-
-  // Get overall badge for Code Quality
-  const qualityBadges = [
-    getQualityBadge('codeCoverage', codeQuality.codeCoverage || 0),
-    getQualityBadge('vulnerabilities', codeQuality.vulnerabilities || 0),
-    getQualityBadge('codeSmells', codeQuality.codeSmells || 0)
-  ]
-  const qualityBadgeLevel = qualityBadges.some(b => b.level === 'Bronze') ? 'Bronze' :
-                            qualityBadges.some(b => b.level === 'Silver') ? 'Silver' : 'Gold'
-
-  // Define scorecard tabs based on the image
-  const scorecardTabs = [
-    { id: 'PR_Metrics', label: 'PR Metrics', badge: prBadgeLevel },
-    { id: 'Code_Quality', label: 'Code Quality', badge: qualityBadgeLevel },
-    { id: 'Security_Maturity', label: 'Security Maturity', badge: 'Basic' },
-    { id: 'DORA_Metrics', label: 'DORA Metrics', badge: 'Elite' },
-    { id: 'Service_Health', label: 'Service Health', badge: 'Bronze' },
-    { id: 'Production_Readiness', label: 'Production Readiness', badge: 'Orange' },
-  ]
-
-  // Define rules for each scorecard tier
-  const getScorecardRules = (scorecardId) => {
-    const evalMetrics = service.evaluationMetrics || {}
-    const metrics = service.metrics || {}
-
-    const rules = {
-      PR_Metrics: {
-        Bronze: [
-          { name: 'Open PRs', value: metrics.openPullRequests || 0, threshold: '< 6', passed: (metrics.openPullRequests || 0) < 6 },
-          { name: 'Average Commits per PR', value: metrics.avgCommitsPerPR || 3, threshold: '< 30', passed: (metrics.avgCommitsPerPR || 3) < 30 },
-          { name: 'Weekly Merged PRs', value: Math.round((metrics.commitsLast90Days || 0) / 12), threshold: '< 2', passed: Math.round((metrics.commitsLast90Days || 0) / 12) < 2 },
-          { name: 'Average LOC per PR', value: metrics.avgLOCPerPR || 500, threshold: '< 2000', passed: (metrics.avgLOCPerPR || 500) < 2000 },
-        ],
-        Silver: [
-          { name: 'Open PRs', value: metrics.openPullRequests || 0, threshold: '< 4', passed: (metrics.openPullRequests || 0) < 4 },
-          { name: 'Average LOC per PR', value: metrics.avgLOCPerPR || 500, threshold: '< 1000', passed: (metrics.avgLOCPerPR || 500) < 1000 },
-          { name: 'Average Commits per PR', value: metrics.avgCommitsPerPR || 3, threshold: '< 4', passed: (metrics.avgCommitsPerPR || 3) < 4 },
-          { name: 'Weekly Merged PRs', value: Math.round((metrics.commitsLast90Days || 0) / 12), threshold: '< 4', passed: Math.round((metrics.commitsLast90Days || 0) / 12) < 4 },
-        ],
-        Gold: [
-          { name: 'Open PRs', value: metrics.openPullRequests || 0, threshold: '< 2', passed: (metrics.openPullRequests || 0) < 2 },
-          { name: 'Weekly Merged PRs', value: Math.round((metrics.commitsLast90Days || 0) / 12), threshold: '< 5', passed: Math.round((metrics.commitsLast90Days || 0) / 12) < 5 },
-          { name: 'Average Commits per PR', value: metrics.avgCommitsPerPR || 3, threshold: '< 7', passed: (metrics.avgCommitsPerPR || 3) < 7 },
-          { name: 'Average LOC per PR', value: metrics.avgLOCPerPR || 500, threshold: '< 1000', passed: (metrics.avgLOCPerPR || 500) < 1000 },
-        ],
-      },
-      Code_Quality: {
-        Bronze: [
-          { name: 'Code Coverage', value: `${evalMetrics.coverage || 0}%`, threshold: '>= 60%', passed: (evalMetrics.coverage || 0) >= 60 },
-          { name: 'Vulnerabilities', value: evalMetrics.vulnerabilities || 0, threshold: '< 10', passed: (evalMetrics.vulnerabilities || 0) < 10 },
-          { name: 'Code Smells', value: evalMetrics.codeSmells || 0, threshold: '< 50', passed: (evalMetrics.codeSmells || 0) < 50 },
-        ],
-        Silver: [
-          { name: 'Code Coverage', value: `${evalMetrics.coverage || 0}%`, threshold: '>= 75%', passed: (evalMetrics.coverage || 0) >= 75 },
-          { name: 'Vulnerabilities', value: evalMetrics.vulnerabilities || 0, threshold: '< 5', passed: (evalMetrics.vulnerabilities || 0) < 5 },
-          { name: 'Code Smells', value: evalMetrics.codeSmells || 0, threshold: '< 25', passed: (evalMetrics.codeSmells || 0) < 25 },
-          { name: 'Code Duplication', value: `${evalMetrics.duplicatedLinesDensity || 0}%`, threshold: '< 5%', passed: (evalMetrics.duplicatedLinesDensity || 0) < 5 },
-        ],
-        Gold: [
-          { name: 'Code Coverage', value: `${evalMetrics.coverage || 0}%`, threshold: '>= 85%', passed: (evalMetrics.coverage || 0) >= 85 },
-          { name: 'Vulnerabilities', value: evalMetrics.vulnerabilities || 0, threshold: '= 0', passed: (evalMetrics.vulnerabilities || 0) === 0 },
-          { name: 'Code Smells', value: evalMetrics.codeSmells || 0, threshold: '< 10', passed: (evalMetrics.codeSmells || 0) < 10 },
-          { name: 'Code Duplication', value: `${evalMetrics.duplicatedLinesDensity || 0}%`, threshold: '< 3%', passed: (evalMetrics.duplicatedLinesDensity || 0) < 3 },
-        ],
-      },
-      Security_Maturity: {
-        Bronze: [
-          { name: 'Security Hotspots', value: evalMetrics.vulnerabilities || 0, threshold: '< 10', passed: (evalMetrics.vulnerabilities || 0) < 10 },
-          { name: 'Branch Protection', value: evalMetrics.hasReadme === 1 ? 'Enabled' : 'Disabled', threshold: 'Enabled', passed: evalMetrics.hasReadme === 1 },
-        ],
-        Silver: [
-          { name: 'Security Hotspots', value: evalMetrics.vulnerabilities || 0, threshold: '< 5', passed: (evalMetrics.vulnerabilities || 0) < 5 },
-          { name: 'Required Approvals', value: evalMetrics.requiredApprovals || 1, threshold: '>= 1', passed: (evalMetrics.requiredApprovals || 1) >= 1 },
-        ],
-        Gold: [
-          { name: 'Security Hotspots', value: evalMetrics.vulnerabilities || 0, threshold: '= 0', passed: (evalMetrics.vulnerabilities || 0) === 0 },
-          { name: 'Required Approvals', value: evalMetrics.requiredApprovals || 1, threshold: '>= 2', passed: (evalMetrics.requiredApprovals || 1) >= 2 },
-        ],
-      },
-      DORA_Metrics: {
-        Bronze: [
-          { name: 'MTTR', value: `${evalMetrics.mttr || 0} days`, threshold: '< 30 days', passed: (evalMetrics.mttr || 0) < 30 },
-          { name: 'Deployment Frequency', value: evalMetrics.deploymentFrequency || 0, threshold: '>= 1/week', passed: (evalMetrics.deploymentFrequency || 0) >= 1 },
-        ],
-        Silver: [
-          { name: 'MTTR', value: `${evalMetrics.mttr || 0} days`, threshold: '< 15 days', passed: (evalMetrics.mttr || 0) < 15 },
-          { name: 'Deployment Frequency', value: evalMetrics.deploymentFrequency || 0, threshold: '>= 2/week', passed: (evalMetrics.deploymentFrequency || 0) >= 2 },
-          { name: 'Change Failure Rate', value: `${evalMetrics.changeFailureRate || 0}%`, threshold: '< 15%', passed: (evalMetrics.changeFailureRate || 0) < 15 },
-        ],
-        Gold: [
-          { name: 'MTTR', value: `${evalMetrics.mttr || 0} days`, threshold: '< 8 days', passed: (evalMetrics.mttr || 0) < 8 },
-          { name: 'Deployment Frequency', value: evalMetrics.deploymentFrequency || 0, threshold: '>= 5/week', passed: (evalMetrics.deploymentFrequency || 0) >= 5 },
-          { name: 'Change Failure Rate', value: `${evalMetrics.changeFailureRate || 0}%`, threshold: '< 5%', passed: (evalMetrics.changeFailureRate || 0) < 5 },
-        ],
-      },
-      Service_Health: {
-        Bronze: [
-          { name: 'Open Bugs', value: metrics.jiraOpenBugs || 0, threshold: '< 20', passed: (metrics.jiraOpenBugs || 0) < 20 },
-          { name: 'Contributors', value: metrics.contributors || 0, threshold: '>= 2', passed: (metrics.contributors || 0) >= 2 },
-        ],
-        Silver: [
-          { name: 'Open Bugs', value: metrics.jiraOpenBugs || 0, threshold: '< 10', passed: (metrics.jiraOpenBugs || 0) < 10 },
-          { name: 'Contributors', value: metrics.contributors || 0, threshold: '>= 3', passed: (metrics.contributors || 0) >= 3 },
-        ],
-        Gold: [
-          { name: 'Open Bugs', value: metrics.jiraOpenBugs || 0, threshold: '< 5', passed: (metrics.jiraOpenBugs || 0) < 5 },
-          { name: 'Contributors', value: metrics.contributors || 0, threshold: '>= 5', passed: (metrics.contributors || 0) >= 5 },
-        ],
-      },
-      Production_Readiness: {
-        Bronze: [
-          { name: 'Has README', value: evalMetrics.hasReadme === 1 ? 'Yes' : 'No', threshold: 'Yes', passed: evalMetrics.hasReadme === 1 },
-          { name: 'Quality Gate', value: (evalMetrics.coverage || 0) >= 80 ? 'Passed' : 'Failed', threshold: 'Passed', passed: (evalMetrics.coverage || 0) >= 80 },
-        ],
-        Silver: [
-          { name: 'Has README', value: evalMetrics.hasReadme === 1 ? 'Yes' : 'No', threshold: 'Yes', passed: evalMetrics.hasReadme === 1 },
-          { name: 'Quality Gate', value: (evalMetrics.coverage || 0) >= 80 ? 'Passed' : 'Failed', threshold: 'Passed', passed: (evalMetrics.coverage || 0) >= 80 },
-          { name: 'Contributors', value: metrics.contributors || 0, threshold: '>= 3', passed: (metrics.contributors || 0) >= 3 },
-        ],
-        Gold: [
-          { name: 'Has README', value: evalMetrics.hasReadme === 1 ? 'Yes' : 'No', threshold: 'Yes', passed: evalMetrics.hasReadme === 1 },
-          { name: 'Quality Gate', value: (evalMetrics.coverage || 0) >= 80 ? 'Passed' : 'Failed', threshold: 'Passed', passed: (evalMetrics.coverage || 0) >= 80 },
-          { name: 'Contributors', value: metrics.contributors || 0, threshold: '>= 5', passed: (metrics.contributors || 0) >= 5 },
-          { name: 'Days Since Last Commit', value: 0, threshold: '< 7', passed: true },
-        ],
-      },
-    }
-
-    return rules[scorecardId] || { Bronze: [], Silver: [], Gold: [] }
+// Scorecards Tab - Tier-based view matching the reference image using REAL API DATA
+function renderScorecards(service, getPRBadge, getQualityBadge, activeScorecardTab, setActiveScorecardTab, scorecardEvaluation, scorecardDefinitions, isLoadingScorecards) {
+  // Show loading state
+  if (isLoadingScorecards) {
+    return (
+      <div className="tab-content scorecards-tier-view">
+        <div className="loading-message">Loading scorecard data from API...</div>
+      </div>
+    )
   }
 
-  const currentRules = getScorecardRules(activeScorecardTab)
+  // Show error if no evaluation data
+  if (!scorecardEvaluation || !scorecardDefinitions) {
+    return (
+      <div className="tab-content scorecards-tier-view">
+        <div className="error-message">No scorecard data available. Please try again.</div>
+      </div>
+    )
+  }
+
+  console.log('📊 Rendering scorecards with evaluation:', scorecardEvaluation)
+  console.log('📊 Scorecard definitions:', scorecardDefinitions)
+
+  // Map scorecard names from API to display names
+  const scorecardNameMap = {
+    'PR_Metrics': 'PR Metrics',
+    'CodeQuality': 'Code Quality',
+    'Security_Maturity': 'Security Maturity',
+    'DORA_Metrics': 'DORA Metrics',
+    'Service_Health': 'Service Health',
+    'Production_Readiness': 'Production Readiness',
+  }
+
+  // Helper function to get badge level from pass percentage
+  const getBadgeFromPercentage = (percentage) => {
+    if (percentage >= 85) return 'Gold'
+    if (percentage >= 70) return 'Silver'
+    return 'Bronze'
+  }
+
+  // Build scorecard tabs from API evaluation data
+  const scorecardTabs = (scorecardEvaluation.scorecards || [])
+    .filter(sc => sc.scorecard_name !== 'DORA_Metrics') // Filter out DORA if needed
+    .map(sc => ({
+      id: sc.scorecard_name,
+      label: scorecardNameMap[sc.scorecard_name] || sc.scorecard_name.replace(/_/g, ' '),
+      badge: getBadgeFromPercentage(sc.pass_percentage || 0),
+      passPercentage: sc.pass_percentage || 0
+    }))
+
+  // If no tabs available, show error
+  if (scorecardTabs.length === 0) {
+    return (
+      <div className="tab-content scorecards-tier-view">
+        <div className="error-message">No scorecard data available from API</div>
+      </div>
+    )
+  }
+
+  // Auto-select first tab if current tab doesn't exist
+  const currentTabExists = scorecardTabs.some(tab => tab.id === activeScorecardTab)
+  if (!currentTabExists && scorecardTabs.length > 0) {
+    setActiveScorecardTab(scorecardTabs[0].id)
+  }
+
+  // Get the current scorecard evaluation
+  const currentScorecardEval = scorecardEvaluation.scorecards?.find(
+    sc => sc.scorecard_name === activeScorecardTab
+  )
+
+  console.log('📊 Active scorecard tab:', activeScorecardTab)
+  console.log('📊 Current scorecard evaluation:', currentScorecardEval)
+
+  // Helper function to organize rules by tier (Bronze, Silver, Gold)
+  const getRulesByTier = () => {
+    if (!currentScorecardEval) {
+      console.warn('⚠️ No current scorecard evaluation found')
+      return { Bronze: [], Silver: [], Gold: [] }
+    }
+
+    if (!currentScorecardEval.levels) {
+      console.warn('⚠️ No levels found in scorecard evaluation:', currentScorecardEval)
+      return { Bronze: [], Silver: [], Gold: [] }
+    }
+
+    const tiers = { Bronze: [], Silver: [], Gold: [] }
+
+    console.log('📊 Processing levels:', currentScorecardEval.levels)
+
+    currentScorecardEval.levels.forEach(level => {
+      const tierName = level.level_name // "Bronze", "Silver", or "Gold"
+      console.log(`📊 Processing tier: ${tierName}, rules:`, level.rules)
+
+      if (!tiers[tierName]) {
+        console.warn(`⚠️ Unknown tier name: ${tierName}`)
+        tiers[tierName] = []
+      }
+
+      if (level.rules && Array.isArray(level.rules)) {
+        level.rules.forEach(rule => {
+          tiers[tierName].push({
+            name: rule.rule_name,
+            value: rule.actual_value,
+            threshold: rule.threshold,
+            passed: rule.passed,
+            operator: rule.operator
+          })
+        })
+      }
+    })
+
+    console.log('📊 Final tiers:', tiers)
+    return tiers
+  }
+
+  const currentRules = getRulesByTier()
 
   return (
     <div className="tab-content scorecards-tier-view">
+      {/* Debug Info - Remove this after testing */}
+      {!currentScorecardEval && (
+        <div style={{ padding: '20px', background: '#fff3cd', border: '1px solid #ffc107', borderRadius: '4px', marginBottom: '20px' }}>
+          <h4>⚠️ Debug Info:</h4>
+          <p><strong>Active Tab:</strong> {activeScorecardTab}</p>
+          <p><strong>Available Scorecards:</strong> {scorecardTabs.map(t => t.id).join(', ')}</p>
+          <p><strong>Current Scorecard Eval:</strong> {currentScorecardEval ? 'Found' : 'Not Found'}</p>
+          <details>
+            <summary>View Full Evaluation Data</summary>
+            <pre style={{ fontSize: '10px', maxHeight: '200px', overflow: 'auto' }}>
+              {JSON.stringify(scorecardEvaluation, null, 2)}
+            </pre>
+          </details>
+        </div>
+      )}
+
       {/* Scorecard Type Tabs */}
       <div className="scorecard-type-tabs-horizontal">
         {scorecardTabs.map((tab) => (
