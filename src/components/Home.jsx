@@ -1,6 +1,46 @@
+import { useEffect, useState } from 'react'
+import { useDispatch, useSelector } from 'react-redux'
+import { fetchServicesForOrg } from '../store/servicesSlice'
 import '../styles/Home.css'
 
 function Home({ onNavigate, user }) {
+  const dispatch = useDispatch()
+  const [activeServicesCount, setActiveServicesCount] = useState(0)
+  const [isLoadingServices, setIsLoadingServices] = useState(false)
+
+  // Get services from Redux store
+  const servicesByOrg = useSelector(state => state.services.servicesByOrg)
+  const currentOrgId = useSelector(state => state.services.currentOrgId)
+  const isLoading = useSelector(state => state.services.isLoading)
+
+  // Fetch services on component mount
+  useEffect(() => {
+    const orgId = currentOrgId || 1 // Default to org 1
+    console.log('🏠 Home: Fetching services for org', orgId)
+    setIsLoadingServices(true)
+    dispatch(fetchServicesForOrg(orgId)).finally(() => {
+      console.log('🏠 Home: Services fetch completed')
+      setIsLoadingServices(false)
+    })
+  }, [dispatch, currentOrgId])
+
+  // Update active services count when services are loaded
+  useEffect(() => {
+    const orgId = currentOrgId || 1
+    const orgServices = servicesByOrg[orgId]
+    console.log('🏠 Home: servicesByOrg[' + orgId + ']:', orgServices)
+    if (orgServices && orgServices.services) {
+      // Count active services (filter by status if available)
+      const activeCount = orgServices.services.filter(
+        service => service.status === 'active' || service.disposition === 'active' || !service.status
+      ).length
+      console.log('🏠 Home: Calculated activeCount:', activeCount, 'total services:', orgServices.services.length)
+      setActiveServicesCount(activeCount || orgServices.services.length)
+    } else {
+      console.log('🏠 Home: No services found for org', orgId)
+    }
+  }, [servicesByOrg, currentOrgId])
+
   const modules = [
     {
       id: 'service-catalogue',
@@ -57,7 +97,7 @@ function Home({ onNavigate, user }) {
           <p>Your centralized platform for managing services, monitoring performance, and analyzing integrations.</p>
           <div className="quick-stats">
             <div className="stat-box">
-              <div className="stat-number">12</div>
+              <div className="stat-number">{isLoadingServices ? '...' : activeServicesCount}</div>
               <div className="stat-label">Active Services</div>
             </div>
             <div className="stat-box">
