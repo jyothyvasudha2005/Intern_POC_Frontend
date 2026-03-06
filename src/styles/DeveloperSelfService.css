@@ -5,9 +5,9 @@
   border-radius: 16px;
   overflow: hidden;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  height: 600px;
   display: flex;
   flex-direction: column;
+  height: 100%;
 }
 
 /* Header */
@@ -16,7 +16,7 @@
   align-items: center;
   gap: 12px;
   padding: 20px 24px;
-  background: linear-gradient(135deg, #1E1C25 0%, #2A2731 100%);
+  background: linear-gradient(135deg, var(--accent-primary) 0%, #667eea 100%);
   border-bottom: 1px solid var(--border-color);
 }
 
@@ -28,7 +28,7 @@
   margin: 0;
   font-size: 18px;
   font-weight: 600;
-  color: var(--text-primary);
+  color: white;
 }
 
 /* Dashboard Summary Cards */
@@ -58,16 +58,7 @@
   border-color: var(--primary-color);
 }
 
-.summary-icon {
-  font-size: 32px;
-  width: 56px;
-  height: 56px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 12px;
-  background: rgba(108, 93, 211, 0.1);
-}
+
 
 .pr-card .summary-icon {
   background: rgba(0, 217, 165, 0.1);

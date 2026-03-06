@@ -23,7 +23,7 @@ const COLORS = {
 function ServiceMetrics({ service, onClose }) {
   const dispatch = useDispatch()
 
-  console.log('🎯 ServiceMetrics rendering with service:', service)
+  console.log('ServiceMetrics rendering with service:', service)
   const [activeTab, setActiveTab] = useState('overview')
   const [readme, setReadme] = useState(null)
   const [isLoadingReadme, setIsLoadingReadme] = useState(false)
@@ -46,7 +46,7 @@ function ServiceMetrics({ service, onClose }) {
   useEffect(() => {
     const fetchDetailedService = async () => {
       if (!service || !service.id) {
-        console.warn('⚠️ No service or service ID provided')
+        console.warn('No service or service ID provided')
         return
       }
 
@@ -54,24 +54,24 @@ function ServiceMetrics({ service, onClose }) {
       const hasCached = selectHasCachedService(service.id)(store.getState())
 
       if (hasCached) {
-        console.log('✅ Using cached service details from Redux for:', service.id)
-        console.log('✅ No API call needed - data already stored!')
+        console.log('Using cached service details from Redux for:', service.id)
+        console.log('No API call needed - data already stored!')
         return
       }
 
       // If not cached, fetch from API (this should rarely happen since we cache on list fetch)
-      console.log('⚠️ Service not in cache, fetching from API:', service.id)
-      console.log('📊 Service object:', service)
+      console.log('Service not in cache, fetching from API:', service.id)
+      console.log('Service object:', service)
 
       try {
         // Extract org ID from service
         const orgId = service.organization?.id || service.orgId || 1
-        console.log('📊 Using org ID:', orgId)
+        console.log('Using org ID:', orgId)
 
         await dispatch(fetchServiceById({ orgId, serviceId: service.id })).unwrap()
-        console.log('✅ Detailed service data loaded from API and cached')
+        console.log('Detailed service data loaded from API and cached')
       } catch (error) {
-        console.error('❌ Error fetching detailed service:', error)
+        console.error('Error fetching detailed service:', error)
         // Don't fail silently - show the error to user
         alert(`Failed to load service details: ${error}`)
       }
@@ -85,39 +85,48 @@ function ServiceMetrics({ service, onClose }) {
     const fetchReadme = async () => {
       if (activeTab === 'github-readme' && !readme && !isLoadingReadme && enrichedService.name) {
         setIsLoadingReadme(true)
-        console.log('📄 Fetching README for:', enrichedService.name, 'org:', enrichedService.org)
+        console.log('Fetching README for:', enrichedService.name)
 
         try {
-          // Use the org from enrichedService (selected organization)
-          const owner = enrichedService.org || enrichedService.github_owner || enrichedService.organization?.name || 'jyothyvasudha2005'
-          console.log('📖 Using owner:', owner)
+          // First, check if README exists using the API (via proxy)
+          const checkUrl = `/api/sonar/api/v1/github/readme?repo=${enrichedService.name}`
+          console.log(`Checking if README exists: ${checkUrl}`)
 
-          // Fetch README directly from GitHub
-          const readmeUrl = `https://raw.githubusercontent.com/${owner}/${enrichedService.name}/main/README.md`
-          console.log(`📖 Fetching README from: ${readmeUrl}`)
+          const checkResponse = await fetch(checkUrl)
 
-          const response = await fetch(readmeUrl)
+          if (checkResponse.ok) {
+            const checkData = await checkResponse.json()
+            console.log('README check response:', checkData)
 
-          if (response.ok) {
-            const content = await response.text()
-            setReadme(content)
-            console.log('✅ README loaded from main branch')
-          } else if (response.status === 404) {
-            // Try master branch as fallback
-            const masterUrl = `https://raw.githubusercontent.com/${owner}/${enrichedService.name}/master/README.md`
-            console.log(`📖 Trying master branch: ${masterUrl}`)
-            const masterResponse = await fetch(masterUrl)
+            // Check if README exists (must be explicitly true)
+            if (checkData.success && checkData.data?.exists === true) {
+              const contentUrl = `/api/sonar/api/v1/github/readme?repo=${enrichedService.name}&content=true`
+              console.log(`Fetching README content: ${contentUrl}`)
 
-            if (masterResponse.ok) {
-              const content = await masterResponse.text()
-              setReadme(content)
-              console.log('✅ README loaded from master branch')
+              const contentResponse = await fetch(contentUrl)
+
+              if (contentResponse.ok) {
+                const contentData = await contentResponse.json()
+                console.log('README content response:', contentData)
+                const content = contentData.data?.content || contentData.content
+
+                if (content) {
+                  setReadme(content)
+                  console.log('README loaded successfully from API')
+                } else {
+                  console.warn('README content is empty')
+                }
+              } else {
+                console.warn('Failed to fetch README content:', contentResponse.status)
+              }
             } else {
-              console.warn('⚠️ README not available')
+              console.warn('README does not exist for this repository:', enrichedService.name)
             }
+          } else {
+            console.warn('Failed to check README existence:', checkResponse.status)
           }
         } catch (error) {
-          console.error('❌ Error fetching README:', error)
+          console.error('Error fetching README:', error)
         } finally {
           setIsLoadingReadme(false)
         }
@@ -125,45 +134,54 @@ function ServiceMetrics({ service, onClose }) {
     }
 
     fetchReadme()
-  }, [activeTab, enrichedService.name, enrichedService.org, readme, isLoadingReadme])
+  }, [activeTab, enrichedService.name, readme, isLoadingReadme])
 
   // Manual README fetch function
   const handleFetchReadme = async () => {
     setIsLoadingReadme(true)
     setReadme(null) // Clear existing README
-    console.log('📄 Manually fetching README for:', enrichedService.name, 'org:', enrichedService.org)
+    console.log('Manually fetching README for:', enrichedService.name)
 
     try {
-      // Use the org from enrichedService (selected organization)
-      const owner = enrichedService.org || enrichedService.github_owner || enrichedService.organization?.name || 'jyothyvasudha2005'
-      console.log('📖 Using owner:', owner)
+      // First, check if README exists using the API (via proxy)
+      const checkUrl = `/api/sonar/api/v1/github/readme?repo=${enrichedService.name}`
+      console.log(`Checking if README exists: ${checkUrl}`)
 
-      // Fetch README directly from GitHub
-      const readmeUrl = `https://raw.githubusercontent.com/${owner}/${enrichedService.name}/main/README.md`
-      console.log(`📖 Fetching README from: ${readmeUrl}`)
+      const checkResponse = await fetch(checkUrl)
 
-      const response = await fetch(readmeUrl)
+      if (checkResponse.ok) {
+        const checkData = await checkResponse.json()
+        console.log('README check response:', checkData)
 
-      if (response.ok) {
-        const content = await response.text()
-        setReadme(content)
-        console.log('✅ README loaded from main branch')
-      } else if (response.status === 404) {
-        // Try master branch as fallback
-        const masterUrl = `https://raw.githubusercontent.com/${owner}/${enrichedService.name}/master/README.md`
-        console.log(`📖 Trying master branch: ${masterUrl}`)
-        const masterResponse = await fetch(masterUrl)
+        // Check if README exists (must be explicitly true)
+        if (checkData.success && checkData.data?.exists === true) {
+          const contentUrl = `/api/sonar/api/v1/github/readme?repo=${enrichedService.name}&content=true`
+          console.log(`Fetching README content: ${contentUrl}`)
 
-        if (masterResponse.ok) {
-          const content = await masterResponse.text()
-          setReadme(content)
-          console.log('✅ README loaded from master branch')
+          const contentResponse = await fetch(contentUrl)
+
+          if (contentResponse.ok) {
+            const contentData = await contentResponse.json()
+            console.log('README content response:', contentData)
+            const content = contentData.data?.content || contentData.content
+
+            if (content) {
+              setReadme(content)
+              console.log('README loaded successfully from API')
+            } else {
+              console.warn('README content is empty')
+            }
+          } else {
+            console.warn('Failed to fetch README content:', contentResponse.status)
+          }
         } else {
-          console.warn('⚠️ README not available')
+          console.warn('README does not exist for this repository:', enrichedService.name)
         }
+      } else {
+        console.warn('Failed to check README existence:', checkResponse.status)
       }
     } catch (error) {
-      console.error('❌ Error fetching README:', error)
+      console.error('Error fetching README:', error)
     } finally {
       setIsLoadingReadme(false)
     }
@@ -234,10 +252,7 @@ function ServiceMetrics({ service, onClose }) {
           <span className="service-icon-badge">{service.icon}</span>
           <h1 className="service-main-title">{service.name}</h1>
         </div>
-        <div className="service-title-actions">
-          <button className="action-icon-btn" title="Favorite">⭐</button>
-          <button className="action-icon-btn" title="More options">⋯</button>
-        </div>
+
       </div>
 
       {/* Tabs Navigation */}
@@ -254,12 +269,6 @@ function ServiceMetrics({ service, onClose }) {
             onClick={() => setActiveTab('scorecards')}
           >
             Scorecards
-          </button>
-          <button
-            className={`service-tab ${activeTab === 'related' ? 'active' : ''}`}
-            onClick={() => setActiveTab('related')}
-          >
-            Related Entities
           </button>
           <button
             className={`service-tab ${activeTab === 'runs' ? 'active' : ''}`}
@@ -293,28 +302,20 @@ function ServiceMetrics({ service, onClose }) {
           </button>
           <button className="service-tab-add" title="Add tab">+</button>
         </div>
-        <div className="tab-view-controls">
-          <button className="view-control-btn active" title="Table view">
-            <span>⊞</span> Table
-          </button>
-          <button className="view-control-btn" title="Graph view">
-            <span>◉</span> Graph
-          </button>
-        </div>
+
       </div>
 
       {/* Tab Content */}
       <div className="service-details-content">
         {isFetchingService && (
           <div className="loading-metrics">
-            <p className="loading-text">⏱️ Loading metrics...</p>
+            <p className="loading-text">Loading metrics...</p>
           </div>
         )}
         {!isFetchingService && (
           <>
             {activeTab === 'overview' && renderOverview(enrichedService)}
             {activeTab === 'scorecards' && renderScorecards(enrichedService, getPRBadge, getQualityBadge)}
-            {activeTab === 'related' && renderRelatedEntities(enrichedService)}
             {activeTab === 'runs' && renderRuns(enrichedService)}
             {activeTab === 'audit' && renderAuditLogTable(enrichedService, commits)}
             {activeTab === 'readme' && renderReadme(enrichedService)}
@@ -347,13 +348,11 @@ function renderOverview(service) {
         {/* Left Column - Details */}
         <div className="port-details-section">
           <h3 className="port-section-title">
-            <span className="port-icon">ℹ️</span>
             Details
           </h3>
           <div className="port-details-list">
             <div className="port-detail-item">
               <div className="port-detail-label">
-                <span className="port-label-icon">📝</span>
                 Title
               </div>
               <div className="port-detail-value">{service.title || service.name}</div>
@@ -361,7 +360,6 @@ function renderOverview(service) {
 
             <div className="port-detail-item">
               <div className="port-detail-label">
-                <span className="port-label-icon">💎</span>
                 Language
               </div>
               <div className="port-detail-value">
@@ -371,7 +369,6 @@ function renderOverview(service) {
 
             <div className="port-detail-item">
               <div className="port-detail-label">
-                <span className="port-label-icon">⚙️</span>
                 Type
               </div>
               <div className="port-detail-value">
@@ -381,7 +378,6 @@ function renderOverview(service) {
 
             <div className="port-detail-item">
               <div className="port-detail-label">
-                <span className="port-label-icon">🔄</span>
                 Lifecycle
               </div>
               <div className="port-detail-value">
@@ -391,7 +387,6 @@ function renderOverview(service) {
 
             <div className="port-detail-item">
               <div className="port-detail-label">
-                <span className="port-label-icon">👤</span>
                 On Call
               </div>
               <div className="port-detail-value">{service.onCall || service.metrics?.pagerduty?.onCall || '-'}</div>
@@ -399,20 +394,18 @@ function renderOverview(service) {
 
             <div className="port-detail-item">
               <div className="port-detail-label">
-                <span className="port-label-icon">🔗</span>
                 URL
               </div>
               <div className="port-detail-value">
                 {service.url || service.github ? (
                   <a href={service.url || service.github} target="_blank" rel="noopener noreferrer" className="port-link">
-                    🔗
+                    Link
                   </a>
                 ) : '-'}
               </div>
             </div>
             <div className="port-detail-item">
               <div className="port-detail-label">
-                <span className="port-label-icon">👥</span>
                 Owning Team
               </div>
               <div className="port-detail-value">
@@ -421,16 +414,14 @@ function renderOverview(service) {
             </div>
             <div className="port-detail-item">
               <div className="port-detail-label">
-                <span className="port-label-icon">🧑‍💻</span>
                 Last Committer
               </div>
               <div className="port-detail-value">
-                {service.lastCommitter || service.metrics?.github?.lastCommitter || '-'}
+                {service.lastCommitter || service.metrics?.github?.lastCommitter || '-'}{console.log("serices with its things are", service)}
               </div>
             </div>
             <div className="port-detail-item">
               <div className="port-detail-label">
-                <span className="port-label-icon">💬</span>
                 Slack Channel
               </div>
               <div className="port-detail-value">
@@ -448,7 +439,6 @@ function renderOverview(service) {
             </div>
             <div className="port-detail-item">
               <div className="port-detail-label">
-                <span className="port-label-icon">🧪</span>
                 Sonar Project
               </div>
               <div className="port-detail-value">
@@ -457,7 +447,6 @@ function renderOverview(service) {
             </div>
             <div className="port-detail-item">
               <div className="port-detail-label">
-                <span className="port-label-icon">🌐</span>
                 Domain
               </div>
               <div className="port-detail-value">
@@ -466,7 +455,6 @@ function renderOverview(service) {
             </div>
             <div className="port-detail-item">
               <div className="port-detail-label">
-                <span className="port-label-icon">🔒</span>
                 Locked
               </div>
               <div className="port-detail-value">
@@ -479,16 +467,9 @@ function renderOverview(service) {
         {/* Right Column - Service Scorecards */}
         <div className="port-scorecards-section">
           <h3 className="port-section-title">
-            <span className="port-icon">🏆</span>
             Service Scorecards
           </h3>
           <div className="port-scorecards-list">
-            <div className="port-scorecard-item">
-              <div className="port-scorecard-label">Has Wiz Scan</div>
-              <div className="port-scorecard-value">
-                <span className="port-badge badge-false">False</span>
-              </div>
-            </div>
 
             <div className="port-scorecard-item">
               <div className="port-scorecard-label">PR Metrics</div>
@@ -598,7 +579,7 @@ function renderCodeQuality(service, getQualityBadge) {
     return (
       <div className="tab-content">
         <div className="empty-state">
-          <p>⚠️ No SonarQube metrics available for this repository.</p>
+          <p>No SonarQube metrics available for this repository.</p>
           <p className="empty-state-hint">Make sure SonarQube analysis is configured for this project.</p>
         </div>
       </div>
@@ -618,8 +599,8 @@ function renderCodeQuality(service, getQualityBadge) {
     { name: 'Duplication', value: Math.max(0, 100 - (duplication * 5)), max: 100 }
   ]
 
-  console.log('📊 Quality Data for Chart:', qualityData)
-  console.log('📊 Raw Code Quality:', service.codeQuality)
+  console.log('Quality Data for Chart:', qualityData)
+  console.log('Raw Code Quality:', service.codeQuality)
 
   const coverageBadge = getQualityBadge('codeCoverage', service.codeQuality.codeCoverage || 0)
   const vulnBadge = getQualityBadge('vulnerabilities', service.codeQuality.vulnerabilities || 0)
@@ -831,15 +812,15 @@ function _renderHistory(service) {
         <div className="history-card">
           <h3>Recent Incidents</h3>
           {incidents.length === 0 ? (
-            <div className="empty-state-small">No incidents recorded 🎉</div>
+            <div className="empty-state-small">No incidents recorded</div>
           ) : (
             <div className="incidents-list">
               {incidents.map((incident, index) => (
                 <div key={index} className="incident-item">
                   <div className={`incident-severity ${incident.severity}`}>
-                    {incident.severity === 'high' && '🔴'}
-                    {incident.severity === 'medium' && '🟡'}
-                    {incident.severity === 'low' && '🟢'}
+                    {incident.severity === 'high' && 'High'}
+                    {incident.severity === 'medium' && 'Medium'}
+                    {incident.severity === 'low' && 'Low'}
                   </div>
                   <div className="incident-content">
                     <div className="incident-title">{incident.title}</div>
@@ -865,123 +846,20 @@ function renderScorecards(service, getPRBadge, getQualityBadge) {
       <div className="scorecards-grid">
         {/* PR Metrics Card */}
         <div className="scorecard-section">
-          <h3 className="section-title">📊 PR Metrics</h3>
+          <h3 className="section-title">PR Metrics</h3>
           {renderPRMetrics(service, getPRBadge)}
         </div>
 
         {/* Code Quality Card */}
         <div className="scorecard-section">
-          <h3 className="section-title">✨ Code Quality</h3>
+          <h3 className="section-title">Code Quality</h3>
           {renderCodeQuality(service, getQualityBadge)}
         </div>
 
         {/* Security Card */}
         <div className="scorecard-section">
-          <h3 className="section-title">🔒 Security Maturity</h3>
+          <h3 className="section-title">Security Maturity</h3>
           {renderSecurity(service)}
-        </div>
-      </div>
-    </div>
-  )
-}
-
-// Related Entities Tab
-function renderRelatedEntities(_service) {
-  // Note: service parameter available for future use to show actual related entities
-  return (
-    <div className="tab-content">
-      <div className="related-entities-header">
-        <h2 className="entities-title">Related Entities</h2>
-        <div className="entities-controls">
-          <button className="control-btn">
-            <span className="icon">⚙</span>
-          </button>
-          <button className="control-btn">
-            <span className="icon">⋮</span>
-          </button>
-          <button className="control-btn">
-            <span className="icon">⊞</span>
-          </button>
-          <button className="control-btn">
-            <span className="icon">↓</span>
-          </button>
-        </div>
-      </div>
-
-      <div className="entities-tabs">
-        <button className="entity-tab active">
-          <span className="tab-icon">📦</span> Module <span className="tab-badge">+</span>
-        </button>
-        <button className="entity-tab">
-          <span className="tab-icon">🗄️</span> Repository <span className="tab-badge">+</span>
-        </button>
-        <button className="entity-tab">
-          <span className="tab-icon">👤</span> User <span className="tab-badge">+</span>
-        </button>
-        <button className="entity-tab">
-          <span className="tab-icon">👥</span> Team <span className="tab-badge">+</span>
-        </button>
-        <button className="entity-tab">
-          <span className="tab-icon">👥</span> GitHub Team <span className="tab-badge">+</span>
-        </button>
-        <button className="entity-tab">
-          <span className="tab-icon">🏢</span> Organization <span className="tab-badge">+</span>
-        </button>
-        <button className="entity-tab-add">+</button>
-      </div>
-
-      <div className="entities-toolbar">
-        <div className="toolbar-left">
-          <input type="text" className="search-columns" placeholder="🔍 Search columns" />
-        </div>
-        <div className="toolbar-right">
-          <button className="toolbar-icon-btn" title="Filter">≡</button>
-          <button className="toolbar-icon-btn" title="Sort">⇅</button>
-          <button className="toolbar-icon-btn" title="Group">⊞</button>
-          <button className="toolbar-icon-btn" title="Settings">⚙</button>
-          <button className="toolbar-icon-btn" title="Download">↓</button>
-        </div>
-      </div>
-
-      <div className="entities-table-wrapper">
-        <table className="entities-data-table">
-          <thead>
-            <tr>
-              <th className="col-title">
-                <div className="th-content">
-                  <span className="col-icon">📝</span>
-                  Title
-                </div>
-              </th>
-              <th className="col-update">
-                <div className="th-content">
-                  <span className="col-icon">🕐</span>
-                  Last Update
-                </div>
-              </th>
-              <th className="col-created">
-                <div className="th-content">
-                  <span className="col-icon">📅</span>
-                  Entity Creation Date
-                </div>
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr className="entity-row">
-              <td>
-                <div className="entity-title">
-                  <span className="entity-icon">📦</span>
-                  <span className="entity-name">drm / drp-drs</span>
-                </div>
-              </td>
-              <td className="entity-date">5 days ago</td>
-              <td className="entity-date">14 days ago</td>
-            </tr>
-          </tbody>
-        </table>
-        <div className="table-footer">
-          <span className="result-count">1 results</span>
         </div>
       </div>
     </div>
@@ -1039,21 +917,18 @@ function renderAuditLog(service) {
         </div>
         <div className="audit-timeline">
           <div className="audit-item">
-            <div className="audit-icon">📝</div>
             <div className="audit-content">
               <div className="audit-title">Service configuration updated</div>
               <div className="audit-meta">by John Doe • {service.lastDeployed}</div>
             </div>
           </div>
           <div className="audit-item">
-            <div className="audit-icon">🚀</div>
             <div className="audit-content">
               <div className="audit-title">Deployed to production</div>
               <div className="audit-meta">by CI/CD Pipeline • 4 hours ago</div>
             </div>
           </div>
           <div className="audit-item">
-            <div className="audit-icon">🔒</div>
             <div className="audit-content">
               <div className="audit-title">Security scan completed</div>
               <div className="audit-meta">by Security Bot • 1 day ago</div>
@@ -1278,14 +1153,14 @@ function renderGitHubReadme(service, readme, isLoadingReadme, fetchReadme) {
     <div className="tab-content">
       <div className="readme-container">
         <div className="readme-header">
-          <h2>📖 GitHub README</h2>
+          <h2>GitHub README</h2>
           <a href={service.github || service.url} target="_blank" rel="noopener noreferrer" className="github-link">
-            View on GitHub →
+            View on GitHub
           </a>
         </div>
         <div className="readme-content markdown-body">
           {isLoadingReadme ? (
-            <p>⏱️ Loading README...</p>
+            <p>Loading README...</p>
           ) : readme ? (
             <div dangerouslySetInnerHTML={{ __html: markdownToHtml(readme) }} />
           ) : (
@@ -1315,7 +1190,6 @@ function renderCodeowners(service) {
           <div className="codeowners-section">
             <h3>Team Ownership</h3>
             <div className="owner-item">
-              <span className="owner-icon">👥</span>
               <span className="owner-name">{service.team}</span>
               <span className="owner-role">Primary Owner</span>
             </div>
@@ -1370,9 +1244,9 @@ function calculateSecurityScore(securityMaturity) {
 
 // API Data Tab - Show mapped API responses in presentable format
 function renderApiData(rawApiData, service) {
-  const renderMetricCard = (label, value, icon = '📊') => (
+  const renderMetricCard = (label, value, icon = '') => (
     <div className="metric-card-item">
-      <span className="metric-icon">{icon}</span>
+      {icon && <span className="metric-icon">{icon}</span>}
       <div className="metric-info">
         <span className="metric-label">{label}</span>
         <span className="metric-value">{value ?? 'N/A'}</span>
@@ -1384,7 +1258,7 @@ function renderApiData(rawApiData, service) {
     <div className="tab-content">
       <div className="api-data-container">
         <div className="api-data-header">
-          <h3>📊 API Response Data - Mapped to Frontend</h3>
+          <h3>API Response Data - Mapped to Frontend</h3>
           <p className="api-data-description">
             This shows the actual data received from backend APIs for <strong>{service.name}</strong>, mapped to match our frontend data structure
           </p>
@@ -1394,9 +1268,9 @@ function renderApiData(rawApiData, service) {
           {/* GitHub Metrics */}
           <div className="api-data-section">
             <div className="api-section-header">
-              <h4>🐙 GitHub Metrics</h4>
+              <h4>GitHub Metrics</h4>
               <span className={`api-status-badge ${rawApiData.github?.success ? 'success' : 'error'}`}>
-                {rawApiData.github?.success ? '✅ Success' : '❌ Failed'}
+                {rawApiData.github?.success ? 'Success' : 'Failed'}
               </span>
             </div>
             <div className="api-section-content">
@@ -1407,33 +1281,33 @@ function renderApiData(rawApiData, service) {
               {rawApiData.github?.success && rawApiData.github?.data ? (
                 <div className="metrics-grid">
                   <div className="metrics-category">
-                    <h5>📌 Pull Requests</h5>
+                    <h5>Pull Requests</h5>
                     <div className="metrics-list">
-                      {renderMetricCard('Open PRs', rawApiData.github.data.open_prs, '🔓')}
-                      {renderMetricCard('Closed PRs', rawApiData.github.data.closed_prs, '✅')}
-                      {renderMetricCard('Merged PRs', rawApiData.github.data.merged_prs, '🔀')}
-                      {renderMetricCard('Total PRs', rawApiData.github.data.total_prs, '📊')}
-                      {renderMetricCard('PRs with Conflicts', rawApiData.github.data.prs_with_conflicts, '⚠️')}
+                      {renderMetricCard('Open PRs', rawApiData.github.data.open_prs)}
+                      {renderMetricCard('Closed PRs', rawApiData.github.data.closed_prs)}
+                      {renderMetricCard('Merged PRs', rawApiData.github.data.merged_prs)}
+                      {renderMetricCard('Total PRs', rawApiData.github.data.total_prs)}
+                      {renderMetricCard('PRs with Conflicts', rawApiData.github.data.prs_with_conflicts)}
                     </div>
                   </div>
 
                   <div className="metrics-category">
-                    <h5>🐛 Issues</h5>
+                    <h5>Issues</h5>
                     <div className="metrics-list">
-                      {renderMetricCard('Open Issues', rawApiData.github.data.open_issues, '🔓')}
-                      {renderMetricCard('Closed Issues', rawApiData.github.data.closed_issues, '✅')}
+                      {renderMetricCard('Open Issues', rawApiData.github.data.open_issues)}
+                      {renderMetricCard('Closed Issues', rawApiData.github.data.closed_issues)}
                     </div>
                   </div>
 
                   <div className="metrics-category">
-                    <h5>📝 Commits & Activity</h5>
+                    <h5>Commits & Activity</h5>
                     <div className="metrics-list">
-                      {renderMetricCard('Total Commits', rawApiData.github.data.total_commits, '📝')}
-                      {renderMetricCard('Commits (Last 90 Days)', rawApiData.github.data.commits_last_90_days, '📅')}
-                      {renderMetricCard('Contributors', rawApiData.github.data.contributors, '👥')}
-                      {renderMetricCard('Branches', rawApiData.github.data.branches, '🌿')}
-                      {renderMetricCard('Last Commit', rawApiData.github.data.last_commit_date ? new Date(rawApiData.github.data.last_commit_date).toLocaleString() : 'N/A', '🕐')}
-                      {renderMetricCard('Is Active', rawApiData.github.data.is_active ? 'Yes' : 'No', '🟢')}
+                      {renderMetricCard('Total Commits', rawApiData.github.data.total_commits)}
+                      {renderMetricCard('Commits (Last 90 Days)', rawApiData.github.data.commits_last_90_days)}
+                      {renderMetricCard('Contributors', rawApiData.github.data.contributors)}
+                      {renderMetricCard('Branches', rawApiData.github.data.branches)}
+                      {renderMetricCard('Last Commit', rawApiData.github.data.last_commit_date ? new Date(rawApiData.github.data.last_commit_date).toLocaleString() : 'N/A')}
+                      {renderMetricCard('Is Active', rawApiData.github.data.is_active ? 'Yes' : 'No')}
                     </div>
                   </div>
                 </div>
@@ -1448,9 +1322,9 @@ function renderApiData(rawApiData, service) {
           {/* Sonar Metrics */}
           <div className="api-data-section">
             <div className="api-section-header">
-              <h4>🔍 SonarCloud Metrics</h4>
+              <h4>SonarCloud Metrics</h4>
               <span className={`api-status-badge ${rawApiData.sonar?.success ? 'success' : 'error'}`}>
-                {rawApiData.sonar?.success ? '✅ Success' : '❌ Failed'}
+                {rawApiData.sonar?.success ? 'Success' : 'Failed'}
               </span>
             </div>
             <div className="api-section-content">
@@ -1461,38 +1335,38 @@ function renderApiData(rawApiData, service) {
               {rawApiData.sonar?.success && rawApiData.sonar?.data ? (
                 <div className="metrics-grid">
                   <div className="metrics-category">
-                    <h5>🎯 Quality Gate</h5>
+                    <h5>Quality Gate</h5>
                     <div className="metrics-list">
-                      {renderMetricCard('Project Key', rawApiData.sonar.data.project_key, '🔑')}
-                      {renderMetricCard('Quality Gate Status', rawApiData.sonar.data.quality_gate_status, '🚦')}
+                      {renderMetricCard('Project Key', rawApiData.sonar.data.project_key)}
+                      {renderMetricCard('Quality Gate Status', rawApiData.sonar.data.quality_gate_status )}
                     </div>
                   </div>
 
                   <div className="metrics-category">
-                    <h5>🐛 Code Issues</h5>
+                    <h5>Code Issues</h5>
                     <div className="metrics-list">
-                      {renderMetricCard('Bugs', rawApiData.sonar.data.bugs, '🐛')}
-                      {renderMetricCard('Vulnerabilities', rawApiData.sonar.data.vulnerabilities, '🔒')}
-                      {renderMetricCard('Code Smells', rawApiData.sonar.data.code_smells, '👃')}
+                      {renderMetricCard('Bugs', rawApiData.sonar.data.bugs)}
+                      {renderMetricCard('Vulnerabilities', rawApiData.sonar.data.vulnerabilities)}
+                      {renderMetricCard('Code Smells', rawApiData.sonar.data.code_smells)}
                     </div>
                   </div>
 
                   <div className="metrics-category">
-                    <h5>📊 Code Quality</h5>
+                    <h5>Code Quality</h5>
                     <div className="metrics-list">
-                      {renderMetricCard('Coverage', `${rawApiData.sonar.data.coverage?.toFixed(1) || 0}%`, '📈')}
-                      {renderMetricCard('Duplicated Lines', `${rawApiData.sonar.data.duplicated_lines_density?.toFixed(1) || 0}%`, '📋')}
-                      {renderMetricCard('Lines of Code', rawApiData.sonar.data.lines_of_code, '📝')}
-                      {renderMetricCard('Technical Debt', rawApiData.sonar.data.technical_debt, '⏱️')}
+                      {renderMetricCard('Coverage', `${rawApiData.sonar.data.coverage?.toFixed(1) || 0}%`)}
+                      {renderMetricCard('Duplicated Lines', `${rawApiData.sonar.data.duplicated_lines_density?.toFixed(1) || 0}%`)}
+                      {renderMetricCard('Lines of Code', rawApiData.sonar.data.lines_of_code)}
+                      {renderMetricCard('Technical Debt', rawApiData.sonar.data.technical_debt)}
                     </div>
                   </div>
 
                   <div className="metrics-category">
-                    <h5>⭐ Ratings</h5>
+                    <h5>Ratings</h5>
                     <div className="metrics-list">
-                      {renderMetricCard('Security Rating', rawApiData.sonar.data.security_rating, '🔒')}
-                      {renderMetricCard('Reliability Rating', rawApiData.sonar.data.reliability_rating, '🛡️')}
-                      {renderMetricCard('Maintainability Rating', rawApiData.sonar.data.maintainability_rating, '🔧')}
+                      {renderMetricCard('Security Rating', rawApiData.sonar.data.security_rating)}
+                      {renderMetricCard('Reliability Rating', rawApiData.sonar.data.reliability_rating)}
+                      {renderMetricCard('Maintainability Rating', rawApiData.sonar.data.maintainability_rating)}
                     </div>
                   </div>
                 </div>
@@ -1507,9 +1381,9 @@ function renderApiData(rawApiData, service) {
           {/* Jira Metrics */}
           <div className="api-data-section">
             <div className="api-section-header">
-              <h4>📋 Jira Metrics</h4>
+              <h4>Jira Metrics</h4>
               <span className={`api-status-badge ${rawApiData.jira?.success ? 'success' : 'error'}`}>
-                {rawApiData.jira?.success ? '✅ Success' : '❌ Failed'}
+                {rawApiData.jira?.success ? 'Success' : 'Failed'}
               </span>
             </div>
             <div className="api-section-content">
@@ -1520,36 +1394,36 @@ function renderApiData(rawApiData, service) {
               {rawApiData.jira?.success && rawApiData.jira?.data ? (
                 <div className="metrics-grid">
                   <div className="metrics-category">
-                    <h5>🐛 Bugs</h5>
+                    <h5>Bugs</h5>
                     <div className="metrics-list">
-                      {renderMetricCard('Open Bugs', rawApiData.jira.data.open_bugs, '🔓')}
-                      {renderMetricCard('Closed Bugs', rawApiData.jira.data.closed_bugs, '✅')}
+                      {renderMetricCard('Open Bugs', rawApiData.jira.data.open_bugs)}
+                      {renderMetricCard('Closed Bugs', rawApiData.jira.data.closed_bugs)}
                     </div>
                   </div>
 
                   <div className="metrics-category">
-                    <h5>✅ Tasks</h5>
+                    <h5>Tasks</h5>
                     <div className="metrics-list">
-                      {renderMetricCard('Open Tasks', rawApiData.jira.data.open_tasks, '📝')}
-                      {renderMetricCard('Closed Tasks', rawApiData.jira.data.closed_tasks, '✅')}
+                      {renderMetricCard('Open Tasks', rawApiData.jira.data.open_tasks)}
+                      {renderMetricCard('Closed Tasks', rawApiData.jira.data.closed_tasks)}
                     </div>
                   </div>
 
                   <div className="metrics-category">
-                    <h5>📊 Issues</h5>
+                    <h5>Issues</h5>
                     <div className="metrics-list">
-                      {renderMetricCard('Open Issues', rawApiData.jira.data.open_issues, '🔓')}
-                      {renderMetricCard('Closed Issues', rawApiData.jira.data.closed_issues, '✅')}
+                      {renderMetricCard('Open Issues', rawApiData.jira.data.open_issues)}
+                      {renderMetricCard('Closed Issues', rawApiData.jira.data.closed_issues)}
                     </div>
                   </div>
 
                   <div className="metrics-category">
-                    <h5>⏱️ Performance</h5>
+                    <h5>Performance</h5>
                     <div className="metrics-list">
-                      {renderMetricCard('Avg Time to Resolve', `${rawApiData.jira.data.avg_time_to_resolve?.toFixed(1) || 0} hrs`, '⏰')}
-                      {renderMetricCard('Avg Sprint Time', `${rawApiData.jira.data.avg_sprint_time?.toFixed(1) || 0} days`, '📅')}
-                      {renderMetricCard('Active Sprints', rawApiData.jira.data.active_sprints, '🏃')}
-                      {renderMetricCard('Project Key', rawApiData.jira.data.project_key, '🔑')}
+                      {renderMetricCard('Avg Time to Resolve', `${rawApiData.jira.data.avg_time_to_resolve?.toFixed(1) || 0} hrs`)}
+                      {renderMetricCard('Avg Sprint Time', `${rawApiData.jira.data.avg_sprint_time?.toFixed(1) || 0} days`)}
+                      {renderMetricCard('Active Sprints', rawApiData.jira.data.active_sprints)}
+                      {renderMetricCard('Project Key', rawApiData.jira.data.project_key)}
                     </div>
                   </div>
                 </div>
@@ -1564,9 +1438,9 @@ function renderApiData(rawApiData, service) {
           {/* Commits */}
           <div className="api-data-section">
             <div className="api-section-header">
-              <h4>📝 Recent Commits</h4>
+              <h4>Recent Commits</h4>
               <span className={`api-status-badge ${rawApiData.commits?.success ? 'success' : 'error'}`}>
-                {rawApiData.commits?.success ? `✅ ${rawApiData.commits?.data?.length || 0} commits` : '❌ Failed'}
+                {rawApiData.commits?.success ? `${rawApiData.commits?.data?.length || 0} commits` : 'Failed'}
               </span>
             </div>
             <div className="api-section-content">
