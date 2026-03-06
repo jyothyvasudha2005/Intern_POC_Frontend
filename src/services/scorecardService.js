@@ -101,9 +101,41 @@ export const evaluateServiceV2 = async (evaluationData) => {
   }
 }
 
+/**
+ * Get scorecard definitions (rules and thresholds)
+ * @returns {Promise<Object>} Scorecard definitions
+ */
+export const getScorecardDefinitions = async () => {
+  try {
+    console.log('📊 Fetching scorecard definitions from API...')
+    const response = await apiClient.get(API_ENDPOINTS.SCORECARD_GET_DEFINITIONS)
+
+    if (response.data) {
+      console.log('✅ Scorecard definitions loaded:', response.data)
+      return {
+        success: true,
+        data: response.data
+      }
+    } else {
+      console.log('⚠️ No scorecard definitions available')
+      return {
+        success: false,
+        error: 'No definitions data available'
+      }
+    }
+  } catch (error) {
+    console.error('❌ Error fetching scorecard definitions:', error.message)
+    return {
+      success: false,
+      error: error.message
+    }
+  }
+}
+
 export default {
   getLatestScorecard,
   createScorecard,
-  evaluateServiceV2
+  evaluateServiceV2,
+  getScorecardDefinitions
 }
 
