@@ -4,13 +4,10 @@ import '../styles/DeveloperDashboard.css'
 import DeveloperChatbot from './DeveloperChatbot'
 import DeveloperSelfService from './DeveloperSelfService'
 import { fetchServicesForOrg, fetchDashboardData } from '../store/servicesSlice'
-import store from '../store/store'
 import {
   selectOrganizations,
   selectIsLoading,
   selectCurrentOrgId,
-  selectHasCachedServices,
-  selectIsDataStale,
   selectDashboardOpenPRs,
   selectDashboardOpenBugs,
   selectDashboardOpenTasks,
@@ -19,7 +16,6 @@ import {
 
 function DeveloperDashboard({ onNavigate, user }) {
   const dispatch = useDispatch()
-  const [showChatbot, setShowChatbot] = useState(false)
 
   // Redux state
   const organizations = useSelector(selectOrganizations)
@@ -39,28 +35,18 @@ function DeveloperDashboard({ onNavigate, user }) {
   // Initialize services and dashboard data on mount
   useEffect(() => {
     const initializeDashboard = async () => {
-      const orgId = selectedOrgId || 1
-      console.log('🔄 Developer Dashboard - Initializing for org:', orgId)
+      const orgId = parseInt(selectedOrgId, 10) || 1
+      console.log('🔄 Developer Dashboard - Initializing for org:', orgId, '(type:', typeof orgId, ')')
 
-      // Check if services are cached
-      const hasCachedServices = selectHasCachedServices(orgId)(store.getState())
-      const isServiceStale = selectIsDataStale(orgId)(store.getState())
-
-      console.log('📦 Services cache status:', { hasCachedServices, isServiceStale })
-
-      // Fetch services if not cached or stale
-      if (!hasCachedServices || isServiceStale) {
-        console.log('🔄 Developer Dashboard - Fetching services for org:', orgId)
-        try {
-          await dispatch(fetchServicesForOrg(orgId)).unwrap()
-          console.log('✅ Developer Dashboard - Services loaded from API')
-        } catch (error) {
-          console.error('❌ Developer Dashboard - Error fetching services:', error)
-          setLoadError(error.message || 'Failed to load services')
-          return
-        }
-      } else {
-        console.log('✅ Developer Dashboard - Using cached services')
+      // Fetch services first
+      console.log('🔄 Developer Dashboard - Fetching services for org:', orgId)
+      try {
+        await dispatch(fetchServicesForOrg(orgId)).unwrap()
+        console.log('✅ Developer Dashboard - Services loaded from API')
+      } catch (error) {
+        console.error('❌ Developer Dashboard - Error fetching services:', error)
+        setLoadError(error.message || 'Failed to load services')
+        return
       }
 
       // Now fetch dashboard data (PRs, bugs, tasks) from the cached services
@@ -80,9 +66,18 @@ function DeveloperDashboard({ onNavigate, user }) {
   // Helper function to calculate days old
   return (
     <div className="developer-dashboard">
-      {/* Developer Self Service Section */}
-      <div className="dashboard-section">
-        <DeveloperSelfService onNavigate={onNavigate} />
+      {/* Top Section: Chatbot and Self Service Side by Side */}
+      <div className="dashboard-top-section">
+        {/* Chatbot Section - Left Side */}
+        <div className="chatbot-section">
+          
+          <DeveloperChatbot onClose={() => {}} />
+        </div>
+
+        {/* Self Service Section - Right Side */}
+        <div className="self-service-section">
+          <DeveloperSelfService onNavigate={onNavigate} />
+        </div>
       </div>
 
       {/* Developer Tables Section */}
@@ -95,7 +90,7 @@ function DeveloperDashboard({ onNavigate, user }) {
               <select
                 id="org-select"
                 value={selectedOrgId}
-                onChange={(e) => setSelectedOrgId(e.target.value)}
+                onChange={(e) => setSelectedOrgId(parseInt(e.target.value, 10))}
                 className="org-dropdown"
               >
                 {organizations.map(org => (
@@ -130,7 +125,6 @@ function DeveloperDashboard({ onNavigate, user }) {
           <>
             <div className="dev-table-card">
               <h3 className="table-title">
-                <span className="table-icon">🔀</span>
                 Open PRs (All Repos)
                 <span className="count-badge">{openPRs.length}</span>
               </h3>
@@ -162,7 +156,7 @@ function DeveloperDashboard({ onNavigate, user }) {
                   </table>
                 ) : (
                   <div className="empty-state">
-                    <p>🎉 No open PRs! Great job!</p>
+                    <p>No open PRs! Great job!</p>
                   </div>
                 )}
               </div>
@@ -175,7 +169,6 @@ function DeveloperDashboard({ onNavigate, user }) {
         {!isDashboardLoading && !loadError && (
           <div className="dev-table-card">
             <h3 className="table-title">
-              <span className="table-icon">🐞</span>
               Open Bugs (All Repos)
               <span className="count-badge">{openBugs.length}</span>
             </h3>
@@ -215,7 +208,7 @@ function DeveloperDashboard({ onNavigate, user }) {
                 </table>
               ) : (
                 <div className="empty-state">
-                  <p>✅ No open bugs!</p>
+                  <p>No open bugs!</p>
                 </div>
               )}
             </div>
@@ -226,7 +219,6 @@ function DeveloperDashboard({ onNavigate, user }) {
         {!isDashboardLoading && !loadError && (
           <div className="dev-table-card">
             <h3 className="table-title">
-              <span className="table-icon">📋</span>
               Open Tasks (All Repos)
               <span className="count-badge">{openTasks.length}</span>
             </h3>
@@ -257,7 +249,7 @@ function DeveloperDashboard({ onNavigate, user }) {
                         <td>{task.assignee || 'Unassigned'}</td>
                         <td>
                           <a href={`https://jira.example.com/browse/${task.id}`} target="_blank" rel="noopener noreferrer" className="pr-link">
-                            {task.id} →
+                            {task.id}
                           </a>
                         </td>
                       </tr>
@@ -266,7 +258,7 @@ function DeveloperDashboard({ onNavigate, user }) {
                 </table>
               ) : (
                 <div className="empty-state">
-                  <p>✅ No open tasks!</p>
+                  <p>No open tasks</p>
                 </div>
               )}
             </div>
@@ -274,21 +266,7 @@ function DeveloperDashboard({ onNavigate, user }) {
         )}
       </div>
 
-      {/* Chatbot Toggle Button */}
-      <button
-        className="chatbot-toggle-btn"
-        onClick={() => setShowChatbot(!showChatbot)}
-        title="Toggle AI Assistant"
-      >
-        <span className="chatbot-icon">🤖</span>
-      </button>
 
-      {/* Chatbot Component */}
-      {showChatbot && (
-        <div className="chatbot-floating-container">
-          <DeveloperChatbot onClose={() => setShowChatbot(false)} />
-        </div>
-      )}
     </div>
   )
 }

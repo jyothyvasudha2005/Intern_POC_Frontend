@@ -213,7 +213,6 @@ function ServiceCatalogue({ onServiceClick, onScorecardClick }) {
 	      {/* Error Message */}
 	      {loadError && (
 	        <div className="data-source-banner error-data">
-	          <span className="banner-icon">❌</span>
 	          <span className="banner-text">
 	            <strong>API Error:</strong> {loadError}. No services are currently available.
 	          </span>
@@ -260,11 +259,10 @@ function ServiceCatalogue({ onServiceClick, onScorecardClick }) {
       {/* Error State */}
       {!isLoading && (loadError || error) && (
         <div className="error-state">
-          <div className="error-icon">⚠️</div>
           <h3>Failed to Load Services</h3>
           <p>{loadError || error}</p>
           <button className="retry-btn" onClick={handleRetry}>
-            🔄 Retry
+            Retry
           </button>
         </div>
       )}
@@ -285,7 +283,7 @@ function ServiceCatalogue({ onServiceClick, onScorecardClick }) {
           <h3>No Services Found</h3>
           <p>No services found in the selected repository.</p>
           <button className="retry-btn" onClick={handleRetry}>
-            🔄 Retry Loading
+             Retry Loading
           </button>
         </div>
       )}
@@ -296,7 +294,6 @@ function ServiceCatalogue({ onServiceClick, onScorecardClick }) {
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <div className="modal-title-section">
-                <span className="modal-icon">🎯</span>
                 <div>
                   <h2 className="modal-title">Onboard New Service</h2>
                   <p className="modal-subtitle">Register a new microservice or app from catalog by providing its ownership, repository, and team assignment</p>

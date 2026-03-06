@@ -133,27 +133,6 @@ function App() {
       </div>
       <div className="header-right">
         <button
-          className="icon-button user-button"
-          onClick={() => {/* User profile action */}}
-          title="User Profile"
-        >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-            <circle cx="12" cy="7" r="4"></circle>
-          </svg>
-        </button>
-        <button
-          className="icon-button notification-button"
-          onClick={() => {/* Notifications action */}}
-          title="Notifications"
-        >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
-            <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
-          </svg>
-          <span className="notification-badge">3</span>
-        </button>
-        <button
           className="icon-button theme-switcher"
           onClick={toggleTheme}
           title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
@@ -314,7 +293,7 @@ function App() {
 
 
   // Debug: Log current state
-  console.log('🎯 App render state:', {
+  console.log('App render state:', {
     currentView,
     selectedService: selectedService?.name || null,
     viewMode,
@@ -442,7 +421,6 @@ function App() {
         {renderHeader()}
         <div className="content">
           <div className="placeholder-view">
-            <div className="placeholder-icon">🚧</div>
             <h2 className="placeholder-title">
               {currentView.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
             </h2>
