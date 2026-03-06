@@ -8,7 +8,7 @@ function DeveloperChatbot({ onClose }) {
   const [messages, setMessages] = useState([
     {
       type: 'bot',
-      text: '👋 Hi! I\'m your DevOps Assistant. How can I help you today?',
+      text: '👋 Hi! I\'m your GTP Assistant. How can I help you today?',
       timestamp: new Date()
     }
   ])
@@ -75,7 +75,7 @@ function DeveloperChatbot({ onClose }) {
 
         const errorMessage = {
           type: 'bot',
-          text: '❌ Sorry, I encountered an error. Please try again later.',
+          text: 'Sorry, I encountered an error. Please try again later.',
           timestamp: new Date()
         }
         setMessages(prev => [...prev, errorMessage])
@@ -87,7 +87,7 @@ function DeveloperChatbot({ onClose }) {
 
       const errorMessage = {
         type: 'bot',
-        text: '❌ Sorry, I\'m unable to connect to the chat service. Please try again later.',
+        text: 'Sorry, I\'m unable to connect to the chat service. Please try again later.',
         timestamp: new Date()
       }
       setMessages(prev => [...prev, errorMessage])
@@ -109,7 +109,7 @@ function DeveloperChatbot({ onClose }) {
     setMessages([
       {
         type: 'bot',
-        text: '👋 Hi! I\'m your DevOps Assistant. How can I help you today?',
+        text: '👋 Hi! I\'m your GTP Assistant. How can I help you today?',
         timestamp: new Date()
       }
     ])
@@ -134,7 +134,7 @@ function DeveloperChatbot({ onClose }) {
     // Add system message
     setMessages(prev => [...prev, {
       type: 'bot',
-      text: '🧪 API integration test completed! Check the browser console (F12) for detailed results.',
+      text: 'API integration test completed! Check the browser console (F12) for detailed results.',
       timestamp: new Date()
     }])
   }
@@ -143,38 +143,36 @@ function DeveloperChatbot({ onClose }) {
     <div className="chatbot-container">
       <div className="chatbot-header">
         <div className="chatbot-header-left">
-          <div className="chatbot-avatar">🤖</div>
+          <div className="chatbot-avatar">
+            <img src="/robot.svg" alt="GTP Assistant" className="avatar-icon" />
+          </div>
           <div className="chatbot-header-info">
-            <h3>DevOps Assistant</h3>
+            <h3>GTP Assistant</h3>
             <span className="chatbot-status">
               <span className={`status-dot ${apiMode === 'online' ? 'online' : 'offline'}`}></span>
-              {apiMode === 'online' ? '🟢 Online' : '🔴 Offline'}
+              {apiMode === 'online' ? 'Online' : 'Offline'}
             </span>
           </div>
         </div>
-        <div className="chatbot-header-actions">
-          <button className="chatbot-action-btn" onClick={handleTestAPI} title="Test API Integration">🧪</button>
-          <button className="chatbot-action-btn" onClick={handleClearChat} title="Clear chat">🗑️</button>
-          {onClose && <button className="chatbot-action-btn" onClick={onClose} title="Close chatbot">✕</button>}
-        </div>
+        <button className="chatbot-action-btn" onClick={handleClearChat} title="Clear chat">Clear</button>
       </div>
 
       <div className="chatbot-messages">
         {messages.map((message, index) => (
           <div key={index} className={`message ${message.type}`}>
-            {message.type === 'bot' && <div className="message-avatar">🤖</div>}
+            {message.type === 'bot' && <div className="message-avatar"></div>}
             <div className="message-content">
               <div className="message-text">{message.text}</div>
               <div className="message-time">
                 {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
               </div>
             </div>
-            {message.type === 'user' && <div className="message-avatar user">👤</div>}
+            {message.type === 'user' && <div className="message-avatar user"></div>}
           </div>
         ))}
         {isTyping && (
           <div className="message bot">
-            <div className="message-avatar">🤖</div>
+            <div className="message-avatar"></div>
             <div className="message-content">
               <div className="typing-indicator">
                 <span></span>
@@ -187,7 +185,7 @@ function DeveloperChatbot({ onClose }) {
       </div>
 
       <div className="chatbot-suggestions">
-        <div className="suggestions-label">💡 Suggested Questions:</div>
+        <div className="suggestions-label">Suggested Questions:</div>
         <div className="suggestions-grid">
           {suggestedQuestions.map((question, index) => (
             <button
@@ -195,7 +193,6 @@ function DeveloperChatbot({ onClose }) {
               className="suggestion-btn"
               onClick={() => handleSuggestedClick(question.text)}
             >
-              <span className="suggestion-icon">{question.icon}</span>
               <span className="suggestion-text">{question.text}</span>
             </button>
           ))}
@@ -211,7 +208,7 @@ function DeveloperChatbot({ onClose }) {
           onChange={(e) => setInputValue(e.target.value)}
         />
         <button type="submit" className="chatbot-send-btn">
-          ➤
+          Send
         </button>
       </form>
     </div>

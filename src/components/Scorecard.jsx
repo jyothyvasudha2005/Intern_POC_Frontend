@@ -4,7 +4,6 @@ const Scorecard = () => {
   return (
     <div className="scorecard-page">
       <div className="scorecard-placeholder">
-        <div className="placeholder-icon">📊</div>
         <h2>Scorecard Feature</h2>
         <p>The Scorecard feature requires backend API integration.</p>
         <p className="placeholder-note">

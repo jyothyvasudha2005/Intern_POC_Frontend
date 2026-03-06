@@ -130,7 +130,6 @@ function DeveloperSelfService({ onNavigate }) {
   return (
     <div className="self-service-container">
       <div className="self-service-header">
-        <span className="self-service-icon">⚡</span>
         <h3>Developer Self Service</h3>
       </div>
 
@@ -143,7 +142,6 @@ function DeveloperSelfService({ onNavigate }) {
       {/* Dashboard Summary Cards */}
       <div className="dashboard-summary">
         <div className="summary-card pr-card">
-          <div className="summary-icon">🔀</div>
           <div className="summary-content">
             <h4 className="summary-count">{isLoading ? '...' : dashboardData.totalOpenPRs}</h4>
             <p className="summary-label">Open Pull Requests</p>
@@ -151,7 +149,6 @@ function DeveloperSelfService({ onNavigate }) {
         </div>
 
         <div className="summary-card bug-card">
-          <div className="summary-icon">🐛</div>
           <div className="summary-content">
             <h4 className="summary-count">{isLoading ? '...' : dashboardData.totalOpenBugs}</h4>
             <p className="summary-label">Open Bugs</p>
@@ -159,7 +156,6 @@ function DeveloperSelfService({ onNavigate }) {
         </div>
 
         <div className="summary-card task-card">
-          <div className="summary-icon">✅</div>
           <div className="summary-content">
             <h4 className="summary-count">{isLoading ? '...' : dashboardData.totalOpenTasks}</h4>
             <p className="summary-label">Open Tasks</p>

@@ -8,16 +8,32 @@ export const fetchServicesForOrg = createAsyncThunk(
   'services/fetchServicesForOrg',
   async (orgId, { rejectWithValue }) => {
     try {
-      console.log(`🔄 Redux: Fetching services for org ${orgId}`)
+      console.log(`Redux: Fetching services for org ${orgId}`)
       const endpoint = API_ENDPOINTS.SERVICE_CATALOG_GET_ALL(orgId)
-      console.log(`📡 API Endpoint: ${endpoint}`)
+      console.log(`API Endpoint: ${endpoint}`)
 
       const response = await apiClient.get(endpoint)
 
+      console.log(`📡 Full API Response:`, response.data)
+
       if (response.data?.status === 'success' && response.data?.data) {
         const rawServices = response.data.data.services || []
+        const totalCount = response.data.data.total || 0
+
+        console.log(`✅ Redux: API returned ${totalCount} total services`)
+        console.log(`📦 Raw services array length: ${rawServices.length}`)
+
+        // Log each service with its data
+        rawServices.forEach((service, idx) => {
+          console.log(`\n📋 Service ${idx + 1}: ${service.title}`)
+          console.log(`   - ID: ${service.id}`)
+          console.log(`   - Pull Requests:`, service.pullRequests?.length || 0, service.pullRequests)
+          console.log(`   - Jira Issues:`, service.jiraIssues?.length || 0, service.jiraIssues)
+        })
+
         // Map API services to UI format
         const mappedServices = rawServices.map(mapApiServiceToUI).filter(Boolean)
+        console.log(`✅ Mapped ${mappedServices.length} services (filtered from ${rawServices.length})`)
 
         // Extract unique organizations from services
         const orgsMap = new Map()
@@ -27,10 +43,6 @@ export const fetchServicesForOrg = createAsyncThunk(
           }
         })
         const organizations = Array.from(orgsMap.values())
-
-        console.log(`✅ Redux: Loaded ${response.data.data.total} services`)
-        console.log(`📊 Mapped services:`, mappedServices)
-        console.log(`🏢 Extracted ${organizations.length} organizations:`, organizations)
 
         return {
           orgId,
@@ -42,7 +54,7 @@ export const fetchServicesForOrg = createAsyncThunk(
 
       throw new Error('Invalid response format')
     } catch (error) {
-      console.error('❌ Redux: Error fetching services:', error.message)
+      console.error('Redux: Error fetching services:', error.message)
       return rejectWithValue(error.message)
     }
   }
@@ -53,23 +65,23 @@ export const fetchServiceById = createAsyncThunk(
   'services/fetchServiceById',
   async ({ orgId, serviceId }, { rejectWithValue }) => {
     try {
-      console.log(`🔄 Redux: Fetching service ${serviceId} for org ${orgId}`)
+      console.log(`Redux: Fetching service ${serviceId} for org ${orgId}`)
       const endpoint = API_ENDPOINTS.SERVICE_CATALOG_GET_BY_ID(orgId, serviceId)
-      console.log(`📡 API Endpoint: ${endpoint}`)
+      console.log(`API Endpoint: ${endpoint}`)
 
       const response = await apiClient.get(endpoint)
 
       if (response.data?.status === 'success' && response.data?.data) {
-        console.log(`✅ Redux: Loaded service ${serviceId}`)
+        console.log(`Redux: Loaded service ${serviceId}`)
         // Map API service to UI format
         const mappedService = mapApiServiceToUI(response.data.data)
-        console.log(`📊 Mapped service:`, mappedService)
+        console.log(`Mapped service:`, mappedService)
         return mappedService
       }
 
       throw new Error('Invalid response format')
     } catch (error) {
-      console.error('❌ Redux: Error fetching service:', error.message)
+      console.error('Redux: Error fetching service:', error.message)
       return rejectWithValue(error.message)
     }
   }
@@ -80,14 +92,14 @@ export const refreshServicesForOrg = createAsyncThunk(
   'services/refreshServicesForOrg',
   async (orgId, { rejectWithValue, dispatch }) => {
     try {
-      console.log(`🔄 Redux: Refreshing services for org ${orgId}`)
+      console.log(`Redux: Refreshing services for org ${orgId}`)
       const endpoint = API_ENDPOINTS.SERVICE_CATALOG_REFRESH(orgId)
-      console.log(`📡 API Endpoint: ${endpoint}`)
+      console.log(`API Endpoint: ${endpoint}`)
 
       const response = await apiClient.post(endpoint)
 
       if (response.data?.status === 'success') {
-        console.log(`✅ Redux: Services refreshed, fetching updated data`)
+        console.log(`Redux: Services refreshed, fetching updated data`)
         // After refresh, fetch the updated services
         await dispatch(fetchServicesForOrg(orgId))
         return { orgId, message: response.data.message }
@@ -95,7 +107,7 @@ export const refreshServicesForOrg = createAsyncThunk(
 
       throw new Error('Failed to refresh services')
     } catch (error) {
-      console.error('❌ Redux: Error refreshing services:', error.message)
+      console.error('Redux: Error refreshing services:', error.message)
       return rejectWithValue(error.message)
     }
   }
@@ -114,31 +126,23 @@ export const fetchDashboardData = createAsyncThunk(
       }
 
       console.log(`🔄 Redux: Aggregating dashboard data for org ${orgId}`)
-      console.log(`📊 Total services in org: ${orgServices.services.length}`)
+      console.log(`📦 Total services to process: ${orgServices.services.length}`)
+      console.log(`📋 Services:`, orgServices.services.map(s => s.name || s.title))
 
       // Aggregate PRs, bugs, and tasks from all services
       const openPRs = []
       const openBugs = []
       const openTasks = []
 
-      orgServices.services.forEach((service, index) => {
-        console.log(`\n🔍 Processing service ${index + 1}/${orgServices.services.length}: ${service.name || service.title} (ID: ${service.id})`)
+      orgServices.services.forEach((service, idx) => {
+        console.log(`\n  [${idx + 1}/${orgServices.services.length}] Processing: ${service.name || service.title}`)
+        console.log(`    - Has pullRequests: ${!!service.pullRequests}, Length: ${service.pullRequests?.length || 0}`)
+        console.log(`    - Has jiraIssues: ${!!service.jiraIssues}, Length: ${service.jiraIssues?.length || 0}`)
 
-        // Get detailed service data from cache
-        const detailedService = state.services.serviceDetails[service.id]
-        if (!detailedService) {
-          console.warn(`⚠️ No detailed data found for service ${service.id}`)
-          return
-        }
-
-        console.log(`  📦 Service has pullRequests: ${!!detailedService.pullRequests}, count: ${detailedService.pullRequests?.length || 0}`)
-        console.log(`  📦 Service has jiraIssues: ${!!detailedService.jiraIssues}, count: ${detailedService.jiraIssues?.length || 0}`)
-
-        // Extract open PRs
-        if (detailedService.pullRequests && Array.isArray(detailedService.pullRequests)) {
-          const openPRsForService = detailedService.pullRequests.filter(pr => pr.state === 'open')
-          console.log(`  ✅ Found ${openPRsForService.length} open PRs for ${service.name}`)
-
+        // Extract open PRs from the service data directly
+        if (service.pullRequests && Array.isArray(service.pullRequests)) {
+          const openPRsForService = service.pullRequests.filter(pr => pr.state === 'open')
+          console.log(`    - Open PRs: ${openPRsForService.length}`)
           openPRsForService.forEach(pr => {
             openPRs.push({
               id: pr.number,
@@ -153,9 +157,12 @@ export const fetchDashboardData = createAsyncThunk(
         }
 
         // Extract open bugs and tasks from Jira issues
-        if (detailedService.jiraIssues && Array.isArray(detailedService.jiraIssues)) {
-          const openIssues = detailedService.jiraIssues.filter(issue => issue.status !== 'Done' && issue.status !== 'Closed')
-          console.log(`  ✅ Found ${openIssues.length} open Jira issues for ${service.name}`)
+        if (service.jiraIssues && Array.isArray(service.jiraIssues)) {
+          const openIssues = service.jiraIssues.filter(issue => issue.status !== 'Done' && issue.status !== 'Closed')
+          console.log(`    - Open Jira Issues: ${openIssues.length}`)
+
+          let bugsCount = 0
+          let tasksCount = 0
 
           openIssues.forEach(issue => {
             const issueData = {
@@ -171,16 +178,21 @@ export const fetchDashboardData = createAsyncThunk(
 
             if (issue.issueType?.toLowerCase() === 'bug') {
               openBugs.push(issueData)
-              console.log(`    🐛 Added bug: ${issue.key}`)
+              bugsCount++
             } else if (issue.issueType?.toLowerCase() === 'task') {
               openTasks.push(issueData)
-              console.log(`    📋 Added task: ${issue.key}`)
+              tasksCount++
             }
           })
+
+          console.log(`      → Bugs: ${bugsCount}, Tasks: ${tasksCount}`)
         }
       })
 
-      console.log(`\n✅ Redux: Aggregated dashboard data - PRs: ${openPRs.length}, Bugs: ${openBugs.length}, Tasks: ${openTasks.length}`)
+      console.log(`✅ Aggregation complete:`)
+      console.log(`   - Open PRs: ${openPRs.length}`)
+      console.log(`   - Open Bugs: ${openBugs.length}`)
+      console.log(`   - Open Tasks: ${openTasks.length}`)
 
       return {
         orgId,
@@ -264,7 +276,7 @@ const servicesSlice = createSlice({
         if (organizations && organizations.length > 0) {
           state.organizations = organizations
           state.organizationsLastFetched = Date.now()
-          console.log(`🏢 Redux: Updated organizations:`, organizations)
+          console.log(`Redux: Updated organizations:`, organizations)
         }
 
         // IMPORTANT: Store each service in serviceDetails cache immediately
@@ -276,7 +288,7 @@ const servicesSlice = createSlice({
           }
         })
 
-        console.log(`✅ Redux: Stored ${services.length} services in cache`)
+        console.log(`Redux: Stored ${services.length} services in cache`)
       })
       .addCase(fetchServicesForOrg.rejected, (state, action) => {
         state.isLoading = false
@@ -323,6 +335,12 @@ const servicesSlice = createSlice({
         state.isLoadingDashboard = false
         const { orgId, openPRs, openBugs, openTasks } = action.payload
 
+        console.log(`✅ Redux: Storing dashboard data for org ${orgId}:`, {
+          PRs: openPRs.length,
+          Bugs: openBugs.length,
+          Tasks: openTasks.length
+        })
+
         state.dashboardData[orgId] = {
           openPRs,
           openBugs,
@@ -330,7 +348,7 @@ const servicesSlice = createSlice({
           lastFetched: Date.now()
         }
 
-        console.log(`✅ Redux: Dashboard data stored for org ${orgId}`)
+        console.log(`✅ Redux: Dashboard data stored successfully`)
       })
       .addCase(fetchDashboardData.rejected, (state, action) => {
         state.isLoadingDashboard = false
