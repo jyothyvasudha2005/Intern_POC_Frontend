@@ -67,6 +67,7 @@ export const API_ENDPOINTS = {
   SCORECARD_CREATE: '/scorecard/api/v1/scorecards',
   SCORECARD_GET_LATEST: '/scorecard/api/v1/scorecards/service',
   SCORECARD_EVALUATE_V2: '/scorecard/api/v2/scorecards/evaluate',
+  SCORECARD_GET_DEFINITIONS: '/scorecard/api/v2/scorecards/definitions',
 
   // SonarShell - Only for organization/repo management (NOT for metrics)
   SONAR_HEALTH: '/sonar/health',
