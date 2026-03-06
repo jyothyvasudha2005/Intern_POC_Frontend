@@ -74,11 +74,6 @@ export const getSuggestedQuestions = () => {
       category: 'Deployment',
     },
     {
-      icon: '📊',
-      text: 'DORA metrics explained',
-      category: 'Metrics',
-    },
-    {
       icon: '🔒',
       text: 'Security best practices',
       category: 'Security',
