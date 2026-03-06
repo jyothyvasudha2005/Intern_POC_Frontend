@@ -1,112 +1,166 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { getScorecardDefinitions } from '../services/scorecardService'
 import '../styles/ServiceScorecard.css'
 
 /**
- * ServiceScorecard Component
+ * ServiceScorecard Component - Redux Integrated
  * Displays comprehensive scorecard metrics for a specific service
- * Designed to be easily integrated with real backend data
+ * Uses real scorecard definitions API and local evaluation
  */
 function ServiceScorecard({ service, onBack }) {
   const [activeTab, setActiveTab] = useState('overview')
+  const [scorecardDefinitions, setScorecardDefinitions] = useState(null)
+  const [scorecardEvaluation, setScorecardEvaluation] = useState(null)
+  const [isLoading, setIsLoading] = useState(true)
 
-  // Calculate scorecard data from service metrics
-  // This structure makes it easy to replace with real API data
-  const scorecardData = {
-    overallScore: calculateOverallScore(service),
-    categories: [
-      {
-        id: 'code-quality',
-        name: 'Code Quality',
-        score: calculateCodeQualityScore(service),
-        metrics: [
-          { label: 'Code Coverage', value: service.metrics?.github?.coverage || 0, unit: '%', target: 80 },
-          { label: 'Technical Debt', value: 15, unit: 'days', target: 10, inverse: true },
-          { label: 'Code Smells', value: 8, unit: 'issues', target: 5, inverse: true },
-          { label: 'Duplications', value: 3.2, unit: '%', target: 5, inverse: true }
-        ]
-      },
-      {
-        id: 'security',
-        name: 'Security Maturity',
-        score: calculateSecurityScore(service),
-        metrics: [
-          { label: 'Vulnerabilities', value: 2, unit: 'critical', target: 0, inverse: true },
-          { label: 'Security Hotspots', value: 5, unit: 'issues', target: 0, inverse: true },
-          { label: 'Dependency Updates', value: 92, unit: '%', target: 95 },
-          { label: 'Security Scan', value: 100, unit: '%', target: 100 }
-        ]
-      },
-      {
-        id: 'production-readiness',
-        name: 'Production Readiness',
-        score: calculateProductionReadinessScore(service),
-        metrics: [
-          { label: 'Uptime', value: service.metrics?.pagerduty?.uptime || 99.9, unit: '%', target: 99.9 },
-          { label: 'Monitoring Coverage', value: 95, unit: '%', target: 90 },
-          { label: 'Documentation', value: 88, unit: '%', target: 85 },
-          { label: 'Runbook Completeness', value: 100, unit: '%', target: 100 }
-        ]
-      },
-      {
-        id: 'api-readiness',
-        name: 'API Readiness',
-        score: calculateAPIReadinessScore(service),
-        metrics: [
-          { label: 'API Documentation', value: 95, unit: '%', target: 90 },
-          { label: 'API Tests', value: 87, unit: '%', target: 80 },
-          { label: 'API Versioning', value: 100, unit: '%', target: 100 },
-          { label: 'Rate Limiting', value: 100, unit: '%', target: 100 }
-        ]
-      },
-      {
-        id: 'pr-metrics',
-        name: 'PR Metrics',
-        score: calculatePRMetricsScore(service),
-        metrics: [
-          { label: 'PR Review Time', value: 4.2, unit: 'hours', target: 8, inverse: true },
-          { label: 'PR Size', value: 245, unit: 'lines', target: 300, inverse: true },
-          { label: 'Open PRs', value: service.metrics?.github?.openPRs || 0, unit: 'PRs', target: 5, inverse: true },
-          { label: 'PR Approval Rate', value: 98, unit: '%', target: 95 }
-        ]
+  // Fetch scorecard definitions and evaluate service
+  useEffect(() => {
+    const fetchAndEvaluate = async () => {
+      setIsLoading(true)
+      try {
+        console.log('📊 ServiceScorecard: Fetching definitions for', service.name)
+
+        // Fetch scorecard definitions
+        const result = await getScorecardDefinitions()
+
+        if (result.success && result.data) {
+          console.log('✅ Scorecard definitions loaded:', result.data)
+          setScorecardDefinitions(result.data)
+
+          // Map service data for evaluation
+          const serviceData = mapServiceDataForEvaluation(service)
+          console.log('📊 Service data mapped for evaluation:', serviceData)
+
+          // Evaluate locally
+          const evaluation = calculateScorecardLocally(result.data, serviceData)
+          console.log('✅ Scorecard evaluation complete:', evaluation)
+          setScorecardEvaluation(evaluation)
+        } else {
+          console.error('❌ Failed to load scorecard definitions:', result.error)
+        }
+      } catch (error) {
+        console.error('❌ Error in scorecard evaluation:', error)
+      } finally {
+        setIsLoading(false)
       }
-    ]
+    }
+
+    if (service) {
+      fetchAndEvaluate()
+    }
+  }, [service])
+
+  // Map service data for evaluation (from Redux service object)
+  const mapServiceDataForEvaluation = (service) => {
+    const evalMetrics = service.evaluationMetrics || {}
+    const metrics = service.metrics?.github || {}
+    const jiraMetrics = service.metrics?.jira || {}
+
+    return {
+      serviceName: service.name,
+
+      // From evaluationMetrics
+      coverage: evalMetrics.coverage || 0,
+      code_smells: evalMetrics.codeSmells || 0,
+      vulnerabilities: evalMetrics.vulnerabilities || 0,
+      duplicated_lines_density: evalMetrics.duplicatedLinesDensity || 0,
+      has_readme: evalMetrics.hasReadme || 0,
+      deployment_frequency: evalMetrics.deploymentFrequency || 0,
+      mttr: evalMetrics.mttr || 0,
+
+      // From metrics
+      open_prs: metrics.openPRs || 0,
+      merged_prs: metrics.mergedPRs || 0,
+      contributors: metrics.contributors || 0,
+      bugs: jiraMetrics.bugs || 0,
+      jiraOpenTasks: jiraMetrics.openIssues || 0,
+      jiraActiveSprints: 0,
+
+      // Defaults
+      prs_with_conflicts: 0,
+      security_hotspots: 0
+    }
   }
 
-  // Helper functions to calculate scores
-  function calculateOverallScore(service) {
-    const categories = [
-      calculateCodeQualityScore(service),
-      calculateSecurityScore(service),
-      calculateProductionReadinessScore(service),
-      calculateAPIReadinessScore(service),
-      calculatePRMetricsScore(service)
-    ]
-    return Math.round(categories.reduce((sum, score) => sum + score, 0) / categories.length)
+  // Evaluate a single rule against service data
+  const evaluateRule = (rule, serviceData) => {
+    const { property, operator, threshold } = rule
+    const actualValue = serviceData[property]
+
+    if (actualValue === undefined || actualValue === null) {
+      return { passed: false, actualValue: 'N/A' }
+    }
+
+    let passed = false
+    switch (operator) {
+      case '>=': passed = actualValue >= threshold; break
+      case '<=': passed = actualValue <= threshold; break
+      case '>':  passed = actualValue > threshold; break
+      case '<':  passed = actualValue < threshold; break
+      case '==': passed = actualValue == threshold; break
+      default:   passed = false
+    }
+
+    return { passed, actualValue }
   }
 
-  function calculateCodeQualityScore(service) {
-    const coverage = service.metrics?.github?.coverage || 0
-    return Math.min(100, Math.round((coverage / 80) * 100))
+  // Calculate scorecard locally using definitions
+  const calculateScorecardLocally = (definitions, serviceData) => {
+    if (!definitions || !definitions.scorecards) {
+      console.warn('⚠️ No scorecard definitions available')
+      return null
+    }
+
+    const evaluatedScorecards = definitions.scorecards.map(scorecard => {
+      const evaluatedLevels = scorecard.levels.map(level => {
+        const evaluatedRules = level.rules.map(rule => {
+          const { passed, actualValue } = evaluateRule(rule, serviceData)
+          return {
+            rule_name: rule.name,
+            threshold: `${rule.operator} ${rule.threshold}`,
+            actual_value: actualValue,
+            passed: passed,
+            operator: rule.operator
+          }
+        })
+
+        const passedCount = evaluatedRules.filter(r => r.passed).length
+        const passPercentage = evaluatedRules.length > 0
+          ? (passedCount / evaluatedRules.length) * 100
+          : 0
+
+        return {
+          level_name: level.name,
+          rules: evaluatedRules,
+          pass_percentage: passPercentage
+        }
+      })
+
+      const allRules = evaluatedLevels.flatMap(l => l.rules)
+      const overallPercentage = allRules.length > 0
+        ? (allRules.filter(r => r.passed).length / allRules.length) * 100
+        : 0
+
+      return {
+        scorecard_name: scorecard.name,
+        display_name: scorecard.display_name || scorecard.name,
+        pass_percentage: overallPercentage,
+        levels: evaluatedLevels
+      }
+    })
+
+    const avgPercentage = evaluatedScorecards.length > 0
+      ? evaluatedScorecards.reduce((sum, sc) => sum + sc.pass_percentage, 0) / evaluatedScorecards.length
+      : 0
+
+    return {
+      service_name: serviceData.serviceName,
+      overall_percentage: avgPercentage,
+      scorecards: evaluatedScorecards
+    }
   }
 
-  function calculateSecurityScore(service) {
-    return 85 // Placeholder - would be calculated from security metrics
-  }
-
-  function calculateProductionReadinessScore(service) {
-    const uptime = service.metrics?.pagerduty?.uptime || 0
-    return Math.round(uptime)
-  }
-
-  function calculateAPIReadinessScore(service) {
-    return 92 // Placeholder - would be calculated from API metrics
-  }
-
-  function calculatePRMetricsScore(service) {
-    return 88 // Placeholder - would be calculated from PR metrics
-  }
-
-  // Get score level and color
+  // Get score level and color based on pass percentage
   function getScoreLevel(score) {
     if (score >= 90) return { level: 'Excellent', color: '#00D9A5', icon: '' }
     if (score >= 75) return { level: 'Good', color: '#4E9FFF', icon: '' }
@@ -114,38 +168,77 @@ function ServiceScorecard({ service, onBack }) {
     return { level: 'Needs Improvement', color: '#FF6B6B', icon: '' }
   }
 
-  // Render metric card
-  function renderMetricCard(metric) {
-    const isOnTarget = metric.inverse
-      ? metric.value <= metric.target
-      : metric.value >= metric.target
-
-    const percentage = metric.inverse
-      ? Math.max(0, Math.min(100, ((metric.target / metric.value) * 100)))
-      : Math.max(0, Math.min(100, ((metric.value / metric.target) * 100)))
-
+  // Render loading state
+  if (isLoading) {
     return (
-      <div className="metric-card-small" key={metric.label}>
+      <div className="service-scorecard-container">
+        <div className="scorecard-loading">
+          <div className="loading-spinner"></div>
+          <p>Loading scorecard data...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // Render error state
+  if (!scorecardEvaluation) {
+    return (
+      <div className="service-scorecard-container">
+        <div className="scorecard-error">
+          <div className="error-icon">⚠️</div>
+          <h2>Unable to Load Scorecard</h2>
+          <p>Please check the backend API connection.</p>
+          <button className="back-button" onClick={onBack}>
+            <span className="back-icon">←</span>
+            Back to Services
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  // Map scorecard names to display names
+  const scorecardNameMap = {
+    'PR_Metrics': 'PR Metrics',
+    'CodeQuality': 'Code Quality',
+    'Security_Maturity': 'Security Maturity',
+    'DORA_Metrics': 'DORA Metrics',
+    'Service_Health': 'Service Health',
+    'Production_Readiness': 'Production Readiness',
+  }
+
+  // Build categories from evaluation data
+  const categories = scorecardEvaluation.scorecards.map(sc => ({
+    id: sc.scorecard_name,
+    name: scorecardNameMap[sc.scorecard_name] || sc.display_name || sc.scorecard_name.replace(/_/g, ' '),
+    score: Math.round(sc.pass_percentage),
+    levels: sc.levels
+  }))
+
+  // Render metric card from rule
+  function renderRuleCard(rule) {
+    return (
+      <div className="metric-card-small" key={rule.rule_name}>
         <div className="metric-header-small">
-          <span className="metric-label-small">{metric.label}</span>
-          <span className={`metric-status ${isOnTarget ? 'on-target' : 'off-target'}`}>
-            {isOnTarget ? '✓' : '!'}
+          <span className="metric-label-small">{rule.rule_name}</span>
+          <span className={`metric-status ${rule.passed ? 'on-target' : 'off-target'}`}>
+            {rule.passed ? '✓' : '!'}
           </span>
         </div>
         <div className="metric-value-small">
-          {metric.value}{metric.unit}
+          {rule.actual_value !== 'N/A' ? rule.actual_value : 'N/A'}
         </div>
         <div className="metric-progress-small">
           <div
             className="metric-progress-fill-small"
             style={{
-              width: `${percentage}%`,
-              backgroundColor: isOnTarget ? '#00D9A5' : '#FFB800'
+              width: `${rule.passed ? 100 : 50}%`,
+              backgroundColor: rule.passed ? '#00D9A5' : '#FFB800'
             }}
           />
         </div>
         <div className="metric-target-small">
-          Target: {metric.target}{metric.unit}
+          Threshold: {rule.threshold}
         </div>
       </div>
     )
@@ -155,24 +248,27 @@ function ServiceScorecard({ service, onBack }) {
   function renderCategoryCard(category) {
     const scoreLevel = getScoreLevel(category.score)
 
+    // Get all rules from all levels
+    const allRules = category.levels.flatMap(level => level.rules)
+
     return (
       <div className="category-scorecard" key={category.id}>
         <div className="category-header">
           <h3 className="category-title">{category.name}</h3>
           <div className="category-score-badge" style={{ backgroundColor: `${scoreLevel.color}20`, borderColor: scoreLevel.color }}>
             <span className="score-icon">{scoreLevel.icon}</span>
-            <span className="score-value" style={{ color: scoreLevel.color }}>{category.score}</span>
+            <span className="score-value" style={{ color: scoreLevel.color }}>{category.score}%</span>
             <span className="score-label" style={{ color: scoreLevel.color }}>{scoreLevel.level}</span>
           </div>
         </div>
         <div className="category-metrics-grid">
-          {category.metrics.map(metric => renderMetricCard(metric))}
+          {allRules.map(rule => renderRuleCard(rule))}
         </div>
       </div>
     )
   }
 
-  const overallScoreLevel = getScoreLevel(scorecardData.overallScore)
+  const overallScoreLevel = getScoreLevel(Math.round(scorecardEvaluation.overall_percentage))
 
   return (
     <div className="service-scorecard-container">
@@ -197,7 +293,7 @@ function ServiceScorecard({ service, onBack }) {
             <div className="overall-score-circle" style={{ borderColor: overallScoreLevel.color }}>
               <span className="overall-score-icon">{overallScoreLevel.icon}</span>
               <span className="overall-score-number" style={{ color: overallScoreLevel.color }}>
-                {scorecardData.overallScore}
+                {Math.round(scorecardEvaluation.overall_percentage)}%
               </span>
             </div>
             <div className="overall-score-info">
@@ -206,7 +302,7 @@ function ServiceScorecard({ service, onBack }) {
                 {overallScoreLevel.level}
               </p>
               <p className="overall-score-description">
-                Aggregated score across all categories
+                Aggregated score across all scorecard categories
               </p>
             </div>
           </div>
@@ -214,22 +310,22 @@ function ServiceScorecard({ service, onBack }) {
           {/* Quick Stats */}
           <div className="quick-stats-grid">
             <div className="quick-stat">
-              <span className="quick-stat-label">Version</span>
-              <span className="quick-stat-value">{service.version}</span>
+              <span className="quick-stat-label">Team</span>
+              <span className="quick-stat-value">{service.team || 'N/A'}</span>
             </div>
             <div className="quick-stat">
-              <span className="quick-stat-label">Last Deployed</span>
-              <span className="quick-stat-value">{service.lastDeployed}</span>
+              <span className="quick-stat-label">Language</span>
+              <span className="quick-stat-value">{service.language || 'N/A'}</span>
             </div>
             <div className="quick-stat">
               <span className="quick-stat-label">Status</span>
-              <span className={`quick-stat-value status-${service.status.toLowerCase()}`}>
-                {service.status}
+              <span className={`quick-stat-value status-${(service.status || 'healthy').toLowerCase()}`}>
+                {service.status || 'Healthy'}
               </span>
             </div>
             <div className="quick-stat">
-              <span className="quick-stat-label">Uptime</span>
-              <span className="quick-stat-value">{service.metrics?.pagerduty?.uptime || 99.9}%</span>
+              <span className="quick-stat-label">Coverage</span>
+              <span className="quick-stat-value">{service.evaluationMetrics?.coverage || 0}%</span>
             </div>
           </div>
         </div>
@@ -261,16 +357,35 @@ function ServiceScorecard({ service, onBack }) {
       {activeTab === 'overview' && (
         <div className="scorecard-content">
           <div className="categories-grid">
-            {scorecardData.categories.map(category => renderCategoryCard(category))}
+            {categories.map(category => renderCategoryCard(category))}
           </div>
         </div>
       )}
 
       {activeTab === 'details' && (
         <div className="scorecard-content">
-          <div className="details-message">
-            <p>Detailed metrics view - Ready for backend integration</p>
-            <p className="details-note">This section will display historical trends and detailed breakdowns</p>
+          <div className="details-view">
+            <h3>Detailed Scorecard Breakdown</h3>
+            {categories.map(category => (
+              <div key={category.id} className="detail-category-section">
+                <h4>{category.name} - {category.score}%</h4>
+                {category.levels.map((level, idx) => (
+                  <div key={idx} className="detail-level-section">
+                    <h5>{level.level_name} Tier ({Math.round(level.pass_percentage)}% passed)</h5>
+                    <ul className="detail-rules-list">
+                      {level.rules.map((rule, rIdx) => (
+                        <li key={rIdx} className={rule.passed ? 'rule-passed' : 'rule-failed'}>
+                          <span className="rule-icon">{rule.passed ? '✅' : '❌'}</span>
+                          <span className="rule-name">{rule.rule_name}</span>
+                          <span className="rule-value">Actual: {rule.actual_value}</span>
+                          <span className="rule-threshold">Threshold: {rule.threshold}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
+              </div>
+            ))}
           </div>
         </div>
       )}
@@ -278,7 +393,7 @@ function ServiceScorecard({ service, onBack }) {
       {activeTab === 'history' && (
         <div className="scorecard-content">
           <div className="details-message">
-            <p>Score history view - Ready for backend integration</p>
+            <p>Score history view - Coming soon</p>
             <p className="details-note">This section will display score trends over time</p>
           </div>
         </div>

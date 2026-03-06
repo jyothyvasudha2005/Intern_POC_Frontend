@@ -59,6 +59,21 @@ export const API_ENDPOINTS = {
   // GET /sonar/api/v1/github/readme?repo={repo_name}&content=true
   // Returns: { status, message, data: { content: string, ... } }
   GITHUB_README_CONTENT: (repoName) => `/sonar/api/v1/github/readme?repo=${repoName}&content=true`,
+
+  // ========================================
+  // SCORECARD SERVICE
+  // ========================================
+
+  // Get scorecard definitions
+  // GET /scorecard/api/v2/scorecards/definitions
+  // Returns: { scorecards: [...] }
+  SCORECARD_GET_DEFINITIONS: '/scorecard/api/v2/scorecards/definitions',
+
+  // Evaluate service against scorecards
+  // POST /scorecard/api/v2/scorecards/evaluate
+  // Body: { service_name: string, service_data: { coverage, vulnerabilities, ... } }
+  // Returns: { service_name, overall_percentage, total_rules_passed, total_rules, scorecards: [...] }
+  SCORECARD_EVALUATE_V2: '/scorecard/api/v2/scorecards/evaluate',
 }
 
 // API Configuration
