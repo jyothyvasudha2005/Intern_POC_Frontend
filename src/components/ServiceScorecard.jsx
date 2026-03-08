@@ -339,18 +339,6 @@ function ServiceScorecard({ service, onBack }) {
         >
           Overview
         </button>
-        <button
-          className={`tab-button ${activeTab === 'details' ? 'active' : ''}`}
-          onClick={() => setActiveTab('details')}
-        >
-          Detailed Metrics
-        </button>
-        <button
-          className={`tab-button ${activeTab === 'history' ? 'active' : ''}`}
-          onClick={() => setActiveTab('history')}
-        >
-          Score History
-        </button>
       </div>
 
       {/* Tab Content */}
@@ -358,43 +346,6 @@ function ServiceScorecard({ service, onBack }) {
         <div className="scorecard-content">
           <div className="categories-grid">
             {categories.map(category => renderCategoryCard(category))}
-          </div>
-        </div>
-      )}
-
-      {activeTab === 'details' && (
-        <div className="scorecard-content">
-          <div className="details-view">
-            <h3>Detailed Scorecard Breakdown</h3>
-            {categories.map(category => (
-              <div key={category.id} className="detail-category-section">
-                <h4>{category.name} - {category.score}%</h4>
-                {category.levels.map((level, idx) => (
-                  <div key={idx} className="detail-level-section">
-                    <h5>{level.level_name} Tier ({Math.round(level.pass_percentage)}% passed)</h5>
-                    <ul className="detail-rules-list">
-                      {level.rules.map((rule, rIdx) => (
-                        <li key={rIdx} className={rule.passed ? 'rule-passed' : 'rule-failed'}>
-                          <span className="rule-icon">{rule.passed ? '✅' : '❌'}</span>
-                          <span className="rule-name">{rule.rule_name}</span>
-                          <span className="rule-value">Actual: {rule.actual_value}</span>
-                          <span className="rule-threshold">Threshold: {rule.threshold}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ))}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {activeTab === 'history' && (
-        <div className="scorecard-content">
-          <div className="details-message">
-            <p>Score history view - Coming soon</p>
-            <p className="details-note">This section will display score trends over time</p>
           </div>
         </div>
       )}

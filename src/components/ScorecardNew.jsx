@@ -668,7 +668,7 @@ const ScorecardsTab = ({ serviceEvaluations }) => {
                 </th>
                 <th>
                   <div className="th-content">
-                    <span>Blueprint</span>
+                    <span>Domain</span>
                   </div>
                 </th>
                 <th className="sortable">
@@ -947,7 +947,7 @@ const RulesTab = ({ scorecardDefinitions, serviceEvaluations }) => {
         <div className="rules-header">
           <div>
             <h2 className="section-title">
-              <span className="section-icon">📜</span>
+              {/* <span className="section-icon">📜</span> */}
               Scorecard Rules
             </h2>
             {/* <p className="section-description">
@@ -1089,7 +1089,7 @@ const ScorecardRulesTab = () => {
     <div className="scorecard-rules-tab">
       <div className="table-section">
         <h2 className="section-title">
-          <span className="section-icon">📜</span>
+          {/* <span className="section-icon">📜</span> */}
           Scorecard Rules
         </h2>
         <div className="table-container">
