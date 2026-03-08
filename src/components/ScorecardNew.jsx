@@ -1061,7 +1061,9 @@ const ScorecardRulesTab = () => {
       try {
         const response = await scorecardApiService.getScorecardDefinitions()
         // Filter out DORA metrics
-        const filtered = response.filter(sc => sc.scorecard_name !== 'DORA_Metrics')
+        const filtered = response.filter(sc =>
+          sc.scorecard_name !== 'DORA_Metrics' && sc.scorecard_name !== 'DORA Metrics'
+        )
         setScorecardDefinitions(filtered)
       } catch (error) {
         console.error('Error fetching scorecard definitions:', error)
