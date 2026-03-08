@@ -950,10 +950,10 @@ const RulesTab = ({ scorecardDefinitions, serviceEvaluations }) => {
               <span className="section-icon">📜</span>
               Scorecard Rules
             </h2>
-            <p className="section-description">
+            {/* <p className="section-description">
               Navigating to the data source page will allow you to connect a data source.
               Navigating to the automations page will allow you to create and view automations.
-            </p>
+            </p> */}
           </div>
           <div className="search-container">
             <input
