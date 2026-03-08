@@ -423,6 +423,14 @@
   padding: 20px;
   border: 1px solid var(--border-color);
   text-align: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.scorecard-chart-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
+  border-color: var(--primary-color, #4A90E2);
 }
 
 .chart-card-header {
@@ -451,11 +459,21 @@
   flex-direction: column;
   align-items: center;
   gap: 12px;
+  transition: transform 0.3s ease;
+}
+
+.scorecard-chart-card:hover .single-circular-chart-wrapper {
+  transform: scale(1.05);
 }
 
 .single-circular-chart {
   width: 160px;
   height: 160px;
+  transition: filter 0.3s ease;
+}
+
+.scorecard-chart-card:hover .single-circular-chart {
+  filter: brightness(1.1);
 }
 
 .single-chart-center {
