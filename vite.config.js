@@ -10,7 +10,8 @@ export default defineConfig({
     proxy: {
       // Proxy all /api requests to the backend
       '/api': {
-        target: 'http://10.140.8.28:8089',
+        // target: 'http://10.140.8.28:8089',
+        target: 'https://suse-challenging-bird-raised.trycloudflare.com',
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api/, ''),
       },
