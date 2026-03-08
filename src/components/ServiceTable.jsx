@@ -3,7 +3,7 @@ import '../styles/ServiceTable.css'
 import githubIcon from '../assets/github-sign.jpg'
 import jiraIcon from '../assets/jira.png'
 
-function ServiceTable({ services, onServiceClick, onScorecardClick }) {
+function ServiceTable({ services, onServiceClick }) {
   const [sortColumn, setSortColumn] = useState('name')
   const [sortDirection, setSortDirection] = useState('asc')
 
@@ -88,7 +88,6 @@ function ServiceTable({ services, onServiceClick, onScorecardClick }) {
               </div>
             </th>
             <th>Is Active</th>
-            <th>Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -146,20 +145,6 @@ function ServiceTable({ services, onServiceClick, onScorecardClick }) {
                 <span className={`active-status ${service.is_active ? 'active' : 'inactive'}`}>
                   {service.is_active ? "Active" : "Inactive"}
                 </span>
-              </td>
-              <td>
-                <div className="action-buttons">
-                  <button
-                    className="scorecard-button"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      onScorecardClick && onScorecardClick(service)
-                    }}
-                    title="View Scorecard"
-                  >
-                    Scorecard
-                  </button>
-                </div>
               </td>
             </tr>
           ))}
