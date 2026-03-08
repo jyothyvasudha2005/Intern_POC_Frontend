@@ -111,7 +111,12 @@ function ServiceScorecard({ service, onBack }) {
       return null
     }
 
-    const evaluatedScorecards = definitions.scorecards.map(scorecard => {
+    // Filter out DORA Metrics from scorecards
+    const filteredScorecards = definitions.scorecards.filter(
+      scorecard => scorecard.name !== 'DORA_Metrics' && scorecard.name !== 'DORA Metrics'
+    )
+
+    const evaluatedScorecards = filteredScorecards.map(scorecard => {
       const evaluatedLevels = scorecard.levels.map(level => {
         const evaluatedRules = level.rules.map(rule => {
           const { passed, actualValue } = evaluateRule(rule, serviceData)
@@ -207,13 +212,15 @@ function ServiceScorecard({ service, onBack }) {
     'Production_Readiness': 'Production Readiness',
   }
 
-  // Build categories from evaluation data
-  const categories = scorecardEvaluation.scorecards.map(sc => ({
-    id: sc.scorecard_name,
-    name: scorecardNameMap[sc.scorecard_name] || sc.display_name || sc.scorecard_name.replace(/_/g, ' '),
-    score: Math.round(sc.pass_percentage),
-    levels: sc.levels
-  }))
+  // Build categories from evaluation data (filter out DORA Metrics)
+  const categories = scorecardEvaluation.scorecards
+    .filter(sc => sc.scorecard_name !== 'DORA_Metrics' && sc.scorecard_name !== 'DORA Metrics')
+    .map(sc => ({
+      id: sc.scorecard_name,
+      name: scorecardNameMap[sc.scorecard_name] || sc.display_name || sc.scorecard_name.replace(/_/g, ' '),
+      score: Math.round(sc.pass_percentage),
+      levels: sc.levels
+    }))
 
   // Render metric card from rule
   function renderRuleCard(rule) {
