@@ -5,8 +5,15 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from 'recharts'
 import '../styles/ServiceMetrics.css'
-import { fetchServiceById } from '../store/servicesSlice'
-import { selectServiceById, selectIsFetchingService, selectHasCachedService } from '../store/selectors'
+import { fetchServiceById, fetchCommitsForService } from '../store/servicesSlice'
+import {
+  selectServiceById,
+  selectIsFetchingService,
+  selectHasCachedService,
+  selectCommitsByServiceId,
+  selectHasCachedCommits,
+  selectAreCommitsStale
+} from '../store/selectors'
 import store from '../store/store'
 
 const COLORS = {
@@ -28,57 +35,78 @@ function ServiceMetrics({ service, onClose }) {
   const [readme, setReadme] = useState(null)
   const [isLoadingReadme, setIsLoadingReadme] = useState(false)
 
+  // ✅ NEW: Loading state for initial data fetch
+  const [isLoadingCommits, setIsLoadingCommits] = useState(false)
+  const [isInitialLoadComplete, setIsInitialLoadComplete] = useState(false)
+
   // Get detailed service data from Redux
   const detailedService = useSelector(selectServiceById(service.id))
   const isFetchingService = useSelector(selectIsFetchingService)
 
+  // ✅ NEW: Get commits from Redux cache
+  const commits = useSelector(selectCommitsByServiceId(service.id))
+  const hasCachedCommits = useSelector(selectHasCachedCommits(service.id))
+  const areCommitsStale = useSelector(selectAreCommitsStale(service.id))
+
   // Use detailed service if available, otherwise use the basic service data
   const enrichedService = detailedService || service
-
-  // Extract commits from service data if available
-  const commits = enrichedService?.commits || enrichedService?.recentCommits || []
 
   if (!service) {
     return null
   }
 
-  // Fetch detailed service data when component mounts or service changes
+  // ✅ NEW: Fetch ALL data (service details + commits) together before rendering
   useEffect(() => {
-    const fetchDetailedService = async () => {
+    const fetchAllData = async () => {
       if (!service || !service.id) {
         console.warn('No service or service ID provided')
         return
       }
 
-      // Check if we have cached detailed data
-      const hasCached = selectHasCachedService(service.id)(store.getState())
-
-      if (hasCached) {
-        console.log('Using cached service details from Redux for:', service.id)
-        console.log('No API call needed - data already stored!')
-        return
-      }
-
-      // If not cached, fetch from API (this should rarely happen since we cache on list fetch)
-      console.log('Service not in cache, fetching from API:', service.id)
-      console.log('Service object:', service)
+      console.log(`\n🚀 ServiceMetrics: Loading all data for ${service.name}...`)
+      setIsLoadingCommits(true)
 
       try {
-        // Extract org ID from service
-        const orgId = service.organization?.id || service.orgId || 1
-        console.log('Using org ID:', orgId)
+        // Step 1: Fetch service details (if not cached)
+        const hasCached = selectHasCachedService(service.id)(store.getState())
 
-        await dispatch(fetchServiceById({ orgId, serviceId: service.id })).unwrap()
-        console.log('Detailed service data loaded from API and cached')
+        if (!hasCached) {
+          console.log('📦 Step 1: Fetching service details from API...')
+          const orgId = service.organization?.id || service.orgId || 1
+          await dispatch(fetchServiceById({ orgId, serviceId: service.id })).unwrap()
+          console.log('✅ Step 1: Service details loaded')
+        } else {
+          console.log('✅ Step 1: Using cached service details')
+        }
+
+        // Step 2: Fetch commits from GitHub API (using Redux thunk)
+        // Check if commits are cached and not stale
+        if (!hasCachedCommits || areCommitsStale) {
+          console.log('📝 Step 2: Fetching commits from GitHub API...')
+          const serviceName = service.name || service.title
+          await dispatch(fetchCommitsForService({
+            serviceId: service.id,
+            serviceName
+          })).unwrap()
+          console.log('✅ Step 2: Commits loaded and cached in Redux')
+        } else {
+          console.log('✅ Step 2: Using cached commits from Redux')
+        }
+
+        // Mark initial load as complete
+        setIsInitialLoadComplete(true)
+        console.log(`🎉 ServiceMetrics: All data loaded for ${service.name}\n`)
       } catch (error) {
-        console.error('Error fetching detailed service:', error)
-        // Don't fail silently - show the error to user
-        alert(`Failed to load service details: ${error}`)
+        console.error('❌ Error loading data:', error)
+        // Mark as complete even on error
+        setIsInitialLoadComplete(true)
+      } finally {
+        setIsLoadingCommits(false)
       }
     }
 
-    fetchDetailedService()
-  }, [service.id, dispatch])
+    fetchAllData()
+  }, [service.id, service.name, dispatch, hasCachedCommits, areCommitsStale])
 
   // Fetch README when github-readme tab is active
   useEffect(() => {
@@ -307,12 +335,16 @@ function ServiceMetrics({ service, onClose }) {
 
       {/* Tab Content */}
       <div className="service-details-content">
-        {isFetchingService && (
+        {/* Show loading state until ALL data is loaded */}
+        {(isFetchingService || isLoadingCommits || !isInitialLoadComplete) && (
           <div className="loading-metrics">
-            <p className="loading-text">Loading metrics...</p>
+            <p className="loading-text">
+              {isLoadingCommits ? 'Loading commits...' : 'Loading metrics...'}
+            </p>
           </div>
         )}
-        {!isFetchingService && (
+        {/* Only render content after ALL data is loaded */}
+        {!isFetchingService && !isLoadingCommits && isInitialLoadComplete && (
           <>
             {activeTab === 'overview' && renderOverview(enrichedService)}
             {activeTab === 'scorecards' && renderScorecards(enrichedService, getPRBadge, getQualityBadge)}
@@ -341,7 +373,6 @@ function renderOverview(service) {
 
   const healthBadge = getStatusBadge(service.healthStatus || service.status)
   const pagerdutyBadge = getStatusBadge(service.pagerdutyStatus)
-
   return (
     <div className="tab-content">
       <div className="port-details-grid">
@@ -363,7 +394,7 @@ function renderOverview(service) {
                 Language
               </div>
               <div className="port-detail-value">
-                <span className="port-badge language-badge">{service.language || service.metrics?.github?.language || 'Unknown'}</span>
+                <span className="port-badge language-badge">{(service.language === 'Unknown') ? 'NA' : service.language}</span>
               </div>
             </div>
 
@@ -389,7 +420,7 @@ function renderOverview(service) {
               <div className="port-detail-label">
                 On Call
               </div>
-              <div className="port-detail-value">{service.onCall || service.metrics?.pagerduty?.onCall || '-'}</div>
+              <div className="port-detail-value">{service.assignee_name || "Yet to be assigned"}</div>
             </div>
 
             <div className="port-detail-item">
@@ -940,102 +971,11 @@ function renderAuditLog(service) {
   )
 }
 
-function getCommitsForService(service) {
-	const author = service.lastCommitter || service.metrics?.github?.lastCommitter || 'Auto-bot'
-	const lastCommitTime = service.metrics?.github?.lastCommit || service.lastDeployed || 'recently'
+// ✅ REMOVED: getCommitsForService() - No more hardcoded data!
+// Now using ONLY real commits from GitHub API
 
-	// First 5: most recent commits (these will be visible by default)
-	const commits = [
-		{
-			id: 1,
-			message: `Refine ${(service.title || service.name || 'service')} deployment pipeline`,
-			author,
-			time: lastCommitTime,
-			sha: 'a1b2c3d'
-		},
-		{
-			id: 2,
-			message: 'Update dependencies and apply security patches',
-			author,
-			time: '1 day ago',
-			sha: 'e5f6g7h'
-		},
-		{
-			id: 3,
-			message: 'Improve logging and observability',
-			author,
-			time: '2 days ago',
-			sha: 'i8j9k0l'
-		},
-		{
-			id: 4,
-			message: 'Refactor legacy modules for better maintainability',
-			author,
-			time: '3 days ago',
-			sha: 'm1n2o3p'
-		},
-		{
-			id: 5,
-			message: 'Initial service bootstrap',
-			author,
-			time: '1 week ago',
-			sha: 'q4r5s6t'
-		}
-	]
-
-	// Additional historical commits so the table can scroll to show more than 5
-	commits.push(
-		{
-			id: 6,
-			message: 'Add feature flags for gradual rollouts',
-			author,
-			time: '2 weeks ago',
-			sha: 'u7v8w9x'
-		},
-		{
-			id: 7,
-			message: 'Optimize database queries in critical paths',
-			author,
-			time: '3 weeks ago',
-			sha: 'y1z2a3b'
-		},
-		{
-			id: 8,
-			message: 'Introduce structured logging and tracing',
-			author,
-			time: '1 month ago',
-			sha: 'c4d5e6f'
-		},
-		{
-			id: 9,
-			message: 'Harden authentication and authorization flows',
-			author,
-			time: '2 months ago',
-			sha: 'g7h8i9j'
-		},
-		{
-			id: 10,
-			message: 'Migrate CI/CD pipeline to shared templates',
-			author,
-			time: '3 months ago',
-			sha: 'k1l2m3n'
-		}
-	)
-
-	return commits
-}
-
-function renderAuditLogTable(service, realCommits = []) {
-  // Use real commits from API if available, otherwise fall back to mock
-  const commits = realCommits.length > 0
-    ? realCommits.map((commit, index) => ({
-        id: commit.sha || `commit-${index}`,
-        message: commit.message || commit.commit_message || 'No message',
-        author: commit.author || commit.committer || 'Unknown',
-        time: commit.timestamp || commit.commit_time || commit.date || 'Unknown',
-        sha: commit.sha || commit.commit_sha || 'N/A'
-      }))
-    : getCommitsForService(service)
+function renderAuditLogTable(service, commits = []) {
+  // ✅ Use ONLY real commits from API (no fallback to hardcoded data)
 
   return (
     <div className="tab-content">
@@ -1043,8 +983,7 @@ function renderAuditLogTable(service, realCommits = []) {
         <div className="audit-header">
           <h3>Audit Log</h3>
           <p className="audit-description">
-            Recent commits and activities for {service.name}
-            {realCommits.length > 0 && <span className="real-data-badge"> (Live Data)</span>}
+            Recent commits from GitHub for {service.name} (since 2024-01-01)
           </p>
         </div>
 
@@ -1062,7 +1001,7 @@ function renderAuditLogTable(service, realCommits = []) {
               {commits.length === 0 ? (
                 <tr>
                   <td colSpan="4" style={{ textAlign: 'center', padding: '2rem' }}>
-                    No commits found
+                    No commits found for this repository
                   </td>
                 </tr>
               ) : (

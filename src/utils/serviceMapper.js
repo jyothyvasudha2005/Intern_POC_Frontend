@@ -46,8 +46,11 @@ export const mapApiServiceToUI = (apiService) => {
     jira: jiraProjectKey ? `https://jira.com/browse/${jiraProjectKey}` : '',
     
     // Team info
-    onCall: onCall || 'Unknown',
-    lastCommitter: owner,
+    // ✅ CHANGED: Don't use API data - wait for PagerDuty/GitHub APIs
+    onCall: null, // Will be populated by PagerDuty API
+    assignee_name: null, // Will be populated by PagerDuty API
+    lastCommitter: null, // Will be populated by GitHub commits API
+    is_active: null, // Will be populated by GitHub commits API
     
     // Status
     status: 'Healthy',
@@ -76,7 +79,7 @@ export const mapApiServiceToUI = (apiService) => {
         mergedPRs: 0,
         contributors: metrics?.contributors || 0,
         lastCommit: '',
-        lastCommitter: owner,
+        lastCommitter: null, // ✅ Will be populated by GitHub commits API
         coverage: evaluationMetrics?.coverage || 0,
       },
       jira: {
@@ -93,7 +96,8 @@ export const mapApiServiceToUI = (apiService) => {
         mttr: 'N/A',
         mtta: 'N/A',
         uptime: 99,
-        onCall: onCall || '',
+        onCall: null, // ✅ Will be populated by PagerDuty API
+        assignee_name: null, // ✅ Will be populated by PagerDuty API
       },
     },
     

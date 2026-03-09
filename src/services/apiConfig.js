@@ -60,6 +60,11 @@ export const API_ENDPOINTS = {
   // Returns: { status, message, data: { content: string, ... } }
   GITHUB_README_CONTENT: (repoName) => `/sonar/api/v1/github/readme?repo=${repoName}&content=true`,
 
+  // Get commits for a repository
+  // GET /sonar/api/v1/github/commits?repo={repo_name}&since={date}
+  // Returns: Array of commits with sha, message, author, timestamp
+  GITHUB_COMMITS: (repoName, since = '2024-01-01T00:00:00Z') => `/sonar/api/v1/github/commits?repo=${repoName}&since=${since}`,
+
   // ========================================
   // SCORECARD SERVICE
   // ========================================
@@ -74,6 +79,10 @@ export const API_ENDPOINTS = {
   // Body: { service_name: string, service_data: { coverage, vulnerabilities, ... } }
   // Returns: { service_name, overall_percentage, total_rules_passed, total_rules, scorecards: [...] }
   SCORECARD_EVALUATE_V2: '/scorecard/api/v2/scorecards/evaluate',
+
+
+  //PAGERDUTY CALL API SERVICE
+  PAGERDUTY_EVENTS: '/pd/api/metrics/by-name',
 }
 
 // API Configuration
