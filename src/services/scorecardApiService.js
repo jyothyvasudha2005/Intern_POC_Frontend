@@ -288,13 +288,19 @@ export const mapServiceToScorecardData = async (service) => {
  */
 export const filterOutDORA = (evaluation) => {
   if (!evaluation || !evaluation.scorecards) {
+    console.warn('⚠️ filterOutDORA: Invalid evaluation structure', evaluation)
     return evaluation
   }
 
-  return {
+  const filtered = {
     ...evaluation,
-    scorecards: evaluation.scorecards.filter(sc => sc.scorecard_name !== 'DORA_Metrics')
+    scorecards: evaluation.scorecards.filter(sc =>
+      sc.scorecard_name !== 'DORA_Metrics' && sc.scorecard_name !== 'DORA Metrics'
+    )
   }
+
+  console.log(`✅ filterOutDORA: Filtered ${evaluation.scorecards.length} → ${filtered.scorecards.length} scorecards`)
+  return filtered
 }
 
 /**

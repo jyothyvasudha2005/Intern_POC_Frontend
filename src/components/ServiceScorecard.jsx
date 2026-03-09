@@ -1,43 +1,42 @@
 import { useState, useEffect } from 'react'
-import { getScorecardDefinitions } from '../services/scorecardService'
+import { evaluateServiceViaAPI, mapServiceToScorecardData, filterOutDORA } from '../services/scorecardApiService'
 import '../styles/ServiceScorecard.css'
 
 /**
  * ServiceScorecard Component - Redux Integrated
  * Displays comprehensive scorecard metrics for a specific service
- * Uses real scorecard definitions API and local evaluation
+ * Uses evaluate API instead of definitions API
  */
 function ServiceScorecard({ service, onBack }) {
   const [activeTab, setActiveTab] = useState('overview')
-  const [scorecardDefinitions, setScorecardDefinitions] = useState(null)
   const [scorecardEvaluation, setScorecardEvaluation] = useState(null)
   const [isLoading, setIsLoading] = useState(true)
 
-  // Fetch scorecard definitions and evaluate service
+  // Evaluate service using the evaluate API
   useEffect(() => {
-    const fetchAndEvaluate = async () => {
+    const evaluateService = async () => {
       setIsLoading(true)
       try {
-        console.log('📊 ServiceScorecard: Fetching definitions for', service.name)
+        const serviceName = service.name || service.title
+        console.log('📊 ServiceScorecard: Evaluating service via API:', serviceName)
 
-        // Fetch scorecard definitions
-        const result = await getScorecardDefinitions()
+        // Map service data for evaluation
+        const serviceData = await mapServiceToScorecardData(service)
+        console.log('📊 Service data mapped for evaluation:', serviceData)
 
-        if (result.success && result.data) {
-          console.log('✅ Scorecard definitions loaded:', result.data)
-          setScorecardDefinitions(result.data)
+        // Evaluate using backend API
+        const evaluation = await evaluateServiceViaAPI(serviceName, serviceData)
+        console.log('✅ API Evaluation result:', evaluation)
+        console.log('✅ API Evaluation result type:', typeof evaluation)
+        console.log('✅ API Evaluation scorecards:', evaluation?.scorecards)
 
-          // Map service data for evaluation
-          const serviceData = mapServiceDataForEvaluation(service)
-          console.log('📊 Service data mapped for evaluation:', serviceData)
+        // Filter out DORA metrics
+        const filtered = filterOutDORA(evaluation)
+        console.log('✅ Scorecard evaluation complete (DORA filtered):', filtered)
+        console.log('✅ Filtered scorecards array:', filtered?.scorecards)
+        console.log('✅ Is scorecards an array?', Array.isArray(filtered?.scorecards))
 
-          // Evaluate locally
-          const evaluation = calculateScorecardLocally(result.data, serviceData)
-          console.log('✅ Scorecard evaluation complete:', evaluation)
-          setScorecardEvaluation(evaluation)
-        } else {
-          console.error('❌ Failed to load scorecard definitions:', result.error)
-        }
+        setScorecardEvaluation(filtered)
       } catch (error) {
         console.error('❌ Error in scorecard evaluation:', error)
       } finally {
@@ -46,124 +45,9 @@ function ServiceScorecard({ service, onBack }) {
     }
 
     if (service) {
-      fetchAndEvaluate()
+      evaluateService()
     }
   }, [service])
-
-  // Map service data for evaluation (from Redux service object)
-  const mapServiceDataForEvaluation = (service) => {
-    const evalMetrics = service.evaluationMetrics || {}
-    const metrics = service.metrics?.github || {}
-    const jiraMetrics = service.metrics?.jira || {}
-
-    return {
-      serviceName: service.name,
-
-      // From evaluationMetrics
-      coverage: evalMetrics.coverage || 0,
-      code_smells: evalMetrics.codeSmells || 0,
-      vulnerabilities: evalMetrics.vulnerabilities || 0,
-      duplicated_lines_density: evalMetrics.duplicatedLinesDensity || 0,
-      has_readme: evalMetrics.hasReadme || 0,
-      deployment_frequency: evalMetrics.deploymentFrequency || 0,
-      mttr: evalMetrics.mttr || 0,
-
-      // From metrics
-      open_prs: metrics.openPRs || 0,
-      merged_prs: metrics.mergedPRs || 0,
-      contributors: metrics.contributors || 0,
-      bugs: jiraMetrics.bugs || 0,
-      jiraOpenTasks: jiraMetrics.openIssues || 0,
-      jiraActiveSprints: 0,
-
-      // Defaults
-      prs_with_conflicts: 0,
-      security_hotspots: 0
-    }
-  }
-
-  // Evaluate a single rule against service data
-  const evaluateRule = (rule, serviceData) => {
-    const { property, operator, threshold } = rule
-    const actualValue = serviceData[property]
-
-    if (actualValue === undefined || actualValue === null) {
-      return { passed: false, actualValue: 'N/A' }
-    }
-
-    let passed = false
-    switch (operator) {
-      case '>=': passed = actualValue >= threshold; break
-      case '<=': passed = actualValue <= threshold; break
-      case '>':  passed = actualValue > threshold; break
-      case '<':  passed = actualValue < threshold; break
-      case '==': passed = actualValue == threshold; break
-      default:   passed = false
-    }
-
-    return { passed, actualValue }
-  }
-
-  // Calculate scorecard locally using definitions
-  const calculateScorecardLocally = (definitions, serviceData) => {
-    if (!definitions || !definitions.scorecards) {
-      console.warn('⚠️ No scorecard definitions available')
-      return null
-    }
-
-    // Filter out DORA Metrics from scorecards
-    const filteredScorecards = definitions.scorecards.filter(
-      scorecard => scorecard.name !== 'DORA_Metrics' && scorecard.name !== 'DORA Metrics'
-    )
-
-    const evaluatedScorecards = filteredScorecards.map(scorecard => {
-      const evaluatedLevels = scorecard.levels.map(level => {
-        const evaluatedRules = level.rules.map(rule => {
-          const { passed, actualValue } = evaluateRule(rule, serviceData)
-          return {
-            rule_name: rule.name,
-            threshold: `${rule.operator} ${rule.threshold}`,
-            actual_value: actualValue,
-            passed: passed,
-            operator: rule.operator
-          }
-        })
-
-        const passedCount = evaluatedRules.filter(r => r.passed).length
-        const passPercentage = evaluatedRules.length > 0
-          ? (passedCount / evaluatedRules.length) * 100
-          : 0
-
-        return {
-          level_name: level.name,
-          rules: evaluatedRules,
-          pass_percentage: passPercentage
-        }
-      })
-
-      const allRules = evaluatedLevels.flatMap(l => l.rules)
-      const overallPercentage = allRules.length > 0
-        ? (allRules.filter(r => r.passed).length / allRules.length) * 100
-        : 0
-
-      return {
-        scorecard_name: scorecard.name,
-        display_name: scorecard.display_name || scorecard.name,
-        pass_percentage: overallPercentage,
-        levels: evaluatedLevels
-      }
-    })
-
-    const avgPercentage = evaluatedScorecards.length > 0
-      ? evaluatedScorecards.reduce((sum, sc) => sum + sc.pass_percentage, 0) / evaluatedScorecards.length
-      : 0
-
-    return {
-      service_name: serviceData.serviceName,
-      overall_percentage: avgPercentage,
-      scorecards: evaluatedScorecards
-    }
-  }
 
   // Get score level and color based on pass percentage
   function getScoreLevel(score) {
@@ -206,6 +90,7 @@ function ServiceScorecard({ service, onBack }) {
   const scorecardNameMap = {
     'PR_Metrics': 'PR Metrics',
     'CodeQuality': 'Code Quality',
+    'Code Quality': 'Code Quality',
     'Security_Maturity': 'Security Maturity',
     'DORA_Metrics': 'DORA Metrics',
     'Service_Health': 'Service Health',
@@ -213,17 +98,63 @@ function ServiceScorecard({ service, onBack }) {
   }
 
   // Build categories from evaluation data (filter out DORA Metrics)
+  // Check if scorecards array exists
+  if (!scorecardEvaluation || !scorecardEvaluation.scorecards || !Array.isArray(scorecardEvaluation.scorecards)) {
+    console.error('❌ Invalid scorecard evaluation structure:', scorecardEvaluation)
+    return (
+      <div className="service-scorecard-container">
+        <div className="scorecard-error">
+          <div className="error-icon">⚠️</div>
+          <h2>Invalid Scorecard Data</h2>
+          <p>The scorecard evaluation data is not in the expected format.</p>
+          <button className="back-button" onClick={onBack}>
+            <span className="back-icon">←</span>
+            Back to Services
+          </button>
+        </div>
+      </div>
+    )
+  }
+
   const categories = scorecardEvaluation.scorecards
     .filter(sc => sc.scorecard_name !== 'DORA_Metrics' && sc.scorecard_name !== 'DORA Metrics')
-    .map(sc => ({
-      id: sc.scorecard_name,
-      name: scorecardNameMap[sc.scorecard_name] || sc.display_name || sc.scorecard_name.replace(/_/g, ' '),
-      score: Math.round(sc.pass_percentage),
-      levels: sc.levels
-    }))
+    .map(sc => {
+      console.log('📊 Mapping scorecard:', sc.scorecard_name)
+      console.log('  - has levels:', !!sc.levels)
+      console.log('  - has rule_results:', !!sc.rule_results)
+      console.log('  - levels:', sc.levels)
+      console.log('  - rule_results:', sc.rule_results)
+
+      // If levels exist, use them; otherwise create a single level from rule_results
+      let levels = sc.levels
+      if (!levels || levels.length === 0) {
+        // Backend API might return rule_results instead of levels
+        if (sc.rule_results && Array.isArray(sc.rule_results)) {
+          levels = [{
+            level_name: 'All Rules',
+            rules: sc.rule_results,
+            pass_percentage: sc.pass_percentage || 0
+          }]
+        } else {
+          levels = []
+        }
+      }
+
+      return {
+        id: sc.scorecard_name,
+        name: scorecardNameMap[sc.scorecard_name] || sc.display_name || sc.scorecard_name.replace(/_/g, ' '),
+        score: Math.round(sc.pass_percentage || 0),
+        levels: levels
+      }
+    })
 
   // Render metric card from rule
   function renderRuleCard(rule) {
+    // Display expected_value in threshold field
+    const thresholdDisplay = rule.expected_value !== undefined && rule.expected_value !== null
+                               ? rule.expected_value
+                               : 'N/A'
+
     return (
       <div className="metric-card-small" key={rule.rule_name}>
         <div className="metric-header-small">
@@ -233,7 +164,7 @@ function ServiceScorecard({ service, onBack }) {
           </span>
         </div>
         <div className="metric-value-small">
-          {rule.actual_value !== 'N/A' ? rule.actual_value : 'N/A'}
+          Actual: {rule.actual_value !== 'N/A' && rule.actual_value !== undefined ? rule.actual_value : 'N/A'}
         </div>
         <div className="metric-progress-small">
           <div
@@ -245,7 +176,7 @@ function ServiceScorecard({ service, onBack }) {
           />
         </div>
         <div className="metric-target-small">
-          Threshold: {rule.threshold}
+          Threshold: {thresholdDisplay}
         </div>
       </div>
     )
@@ -256,7 +187,7 @@ function ServiceScorecard({ service, onBack }) {
     const scoreLevel = getScoreLevel(category.score)
 
     // Get all rules from all levels
-    const allRules = category.levels.flatMap(level => level.rules)
+    const allRules = (category.levels || []).flatMap(level => level.rules || [])
 
     return (
       <div className="category-scorecard" key={category.id}>
