@@ -106,11 +106,22 @@ apiClient.interceptors.response.use(
     return response
   },
   (error) => {
-    // Record failure for this endpoint
     const url = error.config?.url || 'unknown'
+    const isPagerDutyRequest = url.includes('/pd/api/metrics')
+    const isGitHubRequest = url.includes('/sonar/api/v1/github')
+    const is404 = error.response?.status === 404
+
+    // ✅ SILENTLY handle expected 404s (PagerDuty and GitHub services that don't exist)
+    if ((isPagerDutyRequest || isGitHubRequest) && is404) {
+      // Completely silent - no logging, no failure tracking
+      // This is expected behavior when a service doesn't exist in PagerDuty/GitHub
+      return Promise.reject(error)
+    }
+
+    // Record failure for this endpoint (except expected 404s)
     requestTracker.recordFailure(url)
 
-    // Log error
+    // Log error (except expected 404s)
     if (process.env.NODE_ENV === 'development') {
       console.error('API Error:', error.response?.data || error.message)
     }
@@ -133,7 +144,10 @@ apiClient.interceptors.response.use(
           console.log('💡 This is likely a backend CORS configuration issue')
           break
         case 404:
-          console.error('Not Found:', data.message || data.error)
+          // Only log 404s that are NOT from PagerDuty/GitHub
+          if (!isPagerDutyRequest && !isGitHubRequest) {
+            console.error('Not Found:', data.message || data.error)
+          }
           break
         case 429:
           console.error('Rate Limit Exceeded - Too many requests')
