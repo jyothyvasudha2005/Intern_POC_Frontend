@@ -52,11 +52,6 @@ function Home({ onNavigate, user }) {
       color: '#00D9A5'
     },
     {
-      id: 'developer-dashboard',
-      title: 'Developer Dashboard',
-      color: '#FF6B6B'
-    },
-    {
       id: 'regression-testing',
       title: 'Regression Testing',
       color: '#FFB800'
@@ -66,7 +61,6 @@ function Home({ onNavigate, user }) {
       title: 'Integration Analysis',
       color: '#4E9FFF'
     }
-    
   ]
 
   return (

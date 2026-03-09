@@ -1,9 +1,5 @@
 import { createSelector } from '@reduxjs/toolkit'
 
-// ✅ Shared empty array constant to prevent new references on every selector call
-// This prevents unnecessary rerenders when selectors return empty arrays
-const EMPTY_ARRAY = []
-
 // Basic selectors
 export const selectServicesState = (state) => state.services
 
@@ -32,9 +28,8 @@ export const selectHasCachedOrganizations = (state) => {
   return state.services.organizations.length > 0
 }
 
-// Check if organizations data is stale (older than 30 minutes)
-// ✅ INCREASED: 5 min → 30 min to prevent frequent re-fetching
-export const selectAreOrganizationsStale = (maxAge = 30 * 60 * 1000) => (state) => {
+// Check if organizations data is stale (older than 5 minutes)
+export const selectAreOrganizationsStale = (maxAge = 5 * 60 * 1000) => (state) => {
   const lastFetched = state.services.organizationsLastFetched
   if (!lastFetched) return true
   return Date.now() - lastFetched > maxAge
@@ -45,9 +40,9 @@ export const selectCurrentOrgServices = createSelector(
   [selectServicesState, selectCurrentOrgId],
   (servicesState, currentOrgId) => {
     if (!currentOrgId || !servicesState.servicesByOrg[currentOrgId]) {
-      return EMPTY_ARRAY
+      return []
     }
-    return servicesState.servicesByOrg[currentOrgId].services || EMPTY_ARRAY
+    return servicesState.servicesByOrg[currentOrgId].services || []
   }
 )
 
@@ -87,9 +82,8 @@ export const selectServiceLastFetched = (serviceId) => (state) => {
   return state.services.serviceDetails[serviceId]?.lastFetched || null
 }
 
-// Check if data is stale (older than 30 minutes)
-// ✅ INCREASED: 5 min → 30 min to prevent frequent re-fetching
-export const selectIsDataStale = (orgId, maxAge = 30 * 60 * 1000) => (state) => {
+// Check if data is stale (older than 5 minutes)
+export const selectIsDataStale = (orgId, maxAge = 5 * 60 * 1000) => (state) => {
   const lastFetched = state.services.servicesByOrg[orgId]?.lastFetched
   if (!lastFetched) return true
   return Date.now() - lastFetched > maxAge
@@ -100,25 +94,17 @@ export const selectDashboardData = (orgId) => (state) => {
   return state.services.dashboardData[orgId] || null
 }
 
-// ✅ Memoized selectors to prevent unnecessary rerenders
-// These return the same empty array reference when data doesn't exist
-export const selectDashboardOpenPRs = (orgId) =>
-  createSelector(
-    [(state) => state.services.dashboardData[orgId]?.openPRs],
-    (openPRs) => openPRs || EMPTY_ARRAY
-  )
+export const selectDashboardOpenPRs = (orgId) => (state) => {
+  return state.services.dashboardData[orgId]?.openPRs || []
+}
 
-export const selectDashboardOpenBugs = (orgId) =>
-  createSelector(
-    [(state) => state.services.dashboardData[orgId]?.openBugs],
-    (openBugs) => openBugs || EMPTY_ARRAY
-  )
+export const selectDashboardOpenBugs = (orgId) => (state) => {
+  return state.services.dashboardData[orgId]?.openBugs || []
+}
 
-export const selectDashboardOpenTasks = (orgId) =>
-  createSelector(
-    [(state) => state.services.dashboardData[orgId]?.openTasks],
-    (openTasks) => openTasks || EMPTY_ARRAY
-  )
+export const selectDashboardOpenTasks = (orgId) => (state) => {
+  return state.services.dashboardData[orgId]?.openTasks || []
+}
 
 export const selectIsLoadingDashboard = (state) => {
   return state.services.isLoadingDashboard
@@ -132,8 +118,7 @@ export const selectHasCachedDashboardData = (orgId) => (state) => {
   return !!state.services.dashboardData[orgId]
 }
 
-// ✅ INCREASED: 5 min → 30 min to prevent frequent re-fetching
-export const selectIsDashboardDataStale = (orgId, maxAge = 30 * 60 * 1000) => (state) => {
+export const selectIsDashboardDataStale = (orgId, maxAge = 5 * 60 * 1000) => (state) => {
   const lastFetched = state.services.dashboardData[orgId]?.lastFetched
   if (!lastFetched) return true
   return Date.now() - lastFetched > maxAge
@@ -216,25 +201,4 @@ export const selectDeveloperDashboardSummary = createSelector(
     openTasks
   })
 )
-
-// ✅ NEW: Commits selectors
-export const selectCommitsByServiceId = (serviceId) =>
-  createSelector(
-    [(state) => state.services.serviceCommits[serviceId]?.commits],
-    (commits) => commits || EMPTY_ARRAY
-  )
-
-export const selectHasCachedCommits = (serviceId) => (state) => {
-  return !!state.services.serviceCommits[serviceId]
-}
-
-export const selectCommitsLastFetched = (serviceId) => (state) => {
-  return state.services.serviceCommits[serviceId]?.lastFetched || null
-}
-
-export const selectAreCommitsStale = (serviceId, maxAge = 30 * 60 * 1000) => (state) => {
-  const lastFetched = state.services.serviceCommits[serviceId]?.lastFetched
-  if (!lastFetched) return true
-  return Date.now() - lastFetched > maxAge
-}
 

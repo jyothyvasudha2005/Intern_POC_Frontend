@@ -5,17 +5,9 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from 'recharts'
 import '../styles/ServiceMetrics.css'
-import { fetchServiceById, fetchCommitsForService } from '../store/servicesSlice'
-import {
-  selectServiceById,
-  selectIsFetchingService,
-  selectHasCachedService,
-  selectCommitsByServiceId,
-  selectHasCachedCommits,
-  selectAreCommitsStale
-} from '../store/selectors'
+import { fetchServiceById } from '../store/servicesSlice'
+import { selectServiceById, selectIsFetchingService, selectHasCachedService } from '../store/selectors'
 import store from '../store/store'
-import ServiceScorecard from './ServiceScorecard'
 
 const COLORS = {
   primary: '#6C5DD3',
@@ -36,109 +28,57 @@ function ServiceMetrics({ service, onClose }) {
   const [readme, setReadme] = useState(null)
   const [isLoadingReadme, setIsLoadingReadme] = useState(false)
 
-  // ✅ NEW: Loading state for initial data fetch
-  const [isLoadingCommits, setIsLoadingCommits] = useState(false)
-  const [isInitialLoadComplete, setIsInitialLoadComplete] = useState(false)
-
   // Get detailed service data from Redux
   const detailedService = useSelector(selectServiceById(service.id))
   const isFetchingService = useSelector(selectIsFetchingService)
 
-  // Get evaluation data from Redux
-  const evaluationsByOrg = useSelector(state => state.evaluations?.evaluationsByOrg || {})
-  const orgId = service.organization?.id || service.orgId || 1
-  const evaluationsData = evaluationsByOrg[orgId]
-  const serviceEvaluations = evaluationsData?.evaluations || []
-
-  // Find evaluation for this specific service
-  console.log('🔍 Looking for evaluation for service:', {
-    id: service.id,
-    name: service.name,
-    title: service.title
-  })
-  console.log('🔍 Available evaluations in Redux:', serviceEvaluations.map(ev => ({
-    id: ev.service.id,
-    name: ev.service.name,
-    title: ev.service.title
-  })))
-
-  const serviceEvaluation = serviceEvaluations.find(
-    ev => {
-      const match = ev.service.id === service.id ||
-                    ev.service.name === service.name ||
-                    ev.service.title === service.title
-      if (match) {
-        console.log('✅ Found matching evaluation:', ev.service)
-      }
-      return match
-    }
-  )
-
-  console.log('🔍 Service Evaluation Result:', serviceEvaluation ? 'FOUND' : 'NOT FOUND')
-  // ✅ NEW: Get commits from Redux cache
-  const commits = useSelector(selectCommitsByServiceId(service.id))
-  const hasCachedCommits = useSelector(selectHasCachedCommits(service.id))
-  const areCommitsStale = useSelector(selectAreCommitsStale(service.id))
-
   // Use detailed service if available, otherwise use the basic service data
   const enrichedService = detailedService || service
+
+  // Extract commits from service data if available
+  const commits = enrichedService?.commits || enrichedService?.recentCommits || []
 
   if (!service) {
     return null
   }
 
-  // ✅ NEW: Fetch ALL data (service details + commits) together before rendering
+  // Fetch detailed service data when component mounts or service changes
   useEffect(() => {
-    const fetchAllData = async () => {
+    const fetchDetailedService = async () => {
       if (!service || !service.id) {
         console.warn('No service or service ID provided')
         return
       }
 
-      console.log(`\n🚀 ServiceMetrics: Loading all data for ${service.name}...`)
-      setIsLoadingCommits(true)
+      // Check if we have cached detailed data
+      const hasCached = selectHasCachedService(service.id)(store.getState())
+
+      if (hasCached) {
+        console.log('Using cached service details from Redux for:', service.id)
+        console.log('No API call needed - data already stored!')
+        return
+      }
+
+      // If not cached, fetch from API (this should rarely happen since we cache on list fetch)
+      console.log('Service not in cache, fetching from API:', service.id)
+      console.log('Service object:', service)
 
       try {
-        // Step 1: Fetch service details (if not cached)
-        const hasCached = selectHasCachedService(service.id)(store.getState())
+        // Extract org ID from service
+        const orgId = service.organization?.id || service.orgId || 1
+        console.log('Using org ID:', orgId)
 
-        if (!hasCached) {
-          console.log('📦 Step 1: Fetching service details from API...')
-          const orgId = service.organization?.id || service.orgId || 1
-          await dispatch(fetchServiceById({ orgId, serviceId: service.id })).unwrap()
-          console.log('✅ Step 1: Service details loaded')
-        } else {
-          console.log('✅ Step 1: Using cached service details')
-        }
-
-        // Step 2: Fetch commits from GitHub API (using Redux thunk)
-        // Check if commits are cached and not stale
-        if (!hasCachedCommits || areCommitsStale) {
-          console.log('📝 Step 2: Fetching commits from GitHub API...')
-          const serviceName = service.name || service.title
-          await dispatch(fetchCommitsForService({
-            serviceId: service.id,
-            serviceName
-          })).unwrap()
-          console.log('✅ Step 2: Commits loaded and cached in Redux')
-        } else {
-          console.log('✅ Step 2: Using cached commits from Redux')
-        }
-
-        // Mark initial load as complete
-        setIsInitialLoadComplete(true)
-        console.log(`🎉 ServiceMetrics: All data loaded for ${service.name}\n`)
+        await dispatch(fetchServiceById({ orgId, serviceId: service.id })).unwrap()
+        console.log('Detailed service data loaded from API and cached')
       } catch (error) {
-        console.error('❌ Error loading data:', error)
-        // Mark as complete even on error
-        setIsInitialLoadComplete(true)
-      } finally {
-        setIsLoadingCommits(false)
+        console.error('Error fetching detailed service:', error)
+        // Don't fail silently - show the error to user
+        alert(`Failed to load service details: ${error}`)
       }
     }
 
-    fetchAllData()
-  }, [service.id, service.name, dispatch, hasCachedCommits, areCommitsStale])
+    fetchDetailedService()
+  }, [service.id, dispatch])
 
   // Fetch README when github-readme tab is active
   useEffect(() => {
@@ -195,9 +135,6 @@ function ServiceMetrics({ service, onClose }) {
 
     fetchReadme()
   }, [activeTab, enrichedService.name, readme, isLoadingReadme])
-
-  // Note: Evaluation data is now loaded at app initialization in App.jsx
-  // No need to fetch here - data should already be in Redux
 
   // Manual README fetch function
   const handleFetchReadme = async () => {
@@ -328,16 +265,10 @@ function ServiceMetrics({ service, onClose }) {
             Overview
           </button>
           <button
-            className={`service-tab ${activeTab === 'scorecard' ? 'active' : ''}`}
-            onClick={() => setActiveTab('scorecard')}
-          >
-            Scorecard
-          </button>
-          <button
             className={`service-tab ${activeTab === 'scorecards' ? 'active' : ''}`}
             onClick={() => setActiveTab('scorecards')}
           >
-            Scorecard Statistics
+            Scorecards
           </button>
           <button
             className={`service-tab ${activeTab === 'runs' ? 'active' : ''}`}
@@ -376,20 +307,15 @@ function ServiceMetrics({ service, onClose }) {
 
       {/* Tab Content */}
       <div className="service-details-content">
-        {/* Show loading state until ALL data is loaded */}
-        {(isFetchingService || isLoadingCommits || !isInitialLoadComplete) && (
+        {isFetchingService && (
           <div className="loading-metrics">
-            <p className="loading-text">
-              {isLoadingCommits ? 'Loading commits...' : 'Loading metrics...'}
-            </p>
+            <p className="loading-text">Loading metrics...</p>
           </div>
         )}
-        {/* Only render content after ALL data is loaded */}
-        {!isFetchingService && !isLoadingCommits && isInitialLoadComplete && (
+        {!isFetchingService && (
           <>
             {activeTab === 'overview' && renderOverview(enrichedService)}
-            {activeTab === 'scorecard' && <ServiceScorecard service={enrichedService} onBack={() => setActiveTab('overview')} />}
-            {activeTab === 'scorecards' && renderScorecards(enrichedService, getPRBadge, getQualityBadge, serviceEvaluation)}
+            {activeTab === 'scorecards' && renderScorecards(enrichedService, getPRBadge, getQualityBadge)}
             {activeTab === 'runs' && renderRuns(enrichedService)}
             {activeTab === 'audit' && renderAuditLogTable(enrichedService, commits)}
             {activeTab === 'readme' && renderReadme(enrichedService)}
@@ -415,6 +341,7 @@ function renderOverview(service) {
 
   const healthBadge = getStatusBadge(service.healthStatus || service.status)
   const pagerdutyBadge = getStatusBadge(service.pagerdutyStatus)
+
   return (
     <div className="tab-content">
       <div className="port-details-grid">
@@ -436,7 +363,7 @@ function renderOverview(service) {
                 Language
               </div>
               <div className="port-detail-value">
-                <span className="port-badge language-badge">{(service.language === 'Unknown') ? 'NA' : service.language}</span>
+                <span className="port-badge language-badge">{service.language || service.metrics?.github?.language || 'Unknown'}</span>
               </div>
             </div>
 
@@ -445,7 +372,7 @@ function renderOverview(service) {
                 Type
               </div>
               <div className="port-detail-value">
-                <span className="port-badge type-badge">{service.type}</span>
+                <span className="port-badge type-badge">{service.type || 'Backend'}</span>
               </div>
             </div>
 
@@ -462,7 +389,7 @@ function renderOverview(service) {
               <div className="port-detail-label">
                 On Call
               </div>
-              <div className="port-detail-value">{service.assignee_name || "Yet to be assigned"}</div>
+              <div className="port-detail-value">{service.onCall || service.metrics?.pagerduty?.onCall || '-'}</div>
             </div>
 
             <div className="port-detail-item">
@@ -572,101 +499,73 @@ function renderOverview(service) {
 }
 
 // PR Metrics Tab
-function renderPRMetrics(service, getPRBadge, scorecardData) {
-  // Get evaluation data if available
-  const passPercentage = scorecardData?.pass_percentage || 0
-  const achievedLevel = scorecardData?.achieved_level_name || 'Basic'
-  const rulesPassed = scorecardData?.rules_passed || 0
-  const rulesTotal = scorecardData?.rules_total || 0
-  const ruleResults = scorecardData?.rule_results || []
+function renderPRMetrics(service, getPRBadge) {
+  const prData = [
+    { name: 'Commits/PR', value: service.prMetrics.avgCommitsPerPR, target: 14, max: 25 },
+    { name: 'Open PRs', value: service.prMetrics.openPRCount, target: 4, max: 10 },
+    { name: 'LOC/PR (÷100)', value: service.prMetrics.avgLOCPerPR / 100, target: 10, max: 20 },
+    { name: 'Weekly Merged', value: service.prMetrics.weeklyMergedPRs, target: 4, max: 10 }
+  ]
 
-  // Get level color from achieved level
-  const getLevelColor = (level) => {
-    const levelStr = String(level).toLowerCase()
-    if (levelStr.includes('gold') || levelStr.includes('🟢') || levelStr.includes('green')) return COLORS.gold
-    if (levelStr.includes('silver') || levelStr.includes('🟡') || levelStr.includes('yellow')) return COLORS.silver
-    if (levelStr.includes('bronze') || levelStr.includes('🟠') || levelStr.includes('orange')) return COLORS.bronze
-    return '#8B8896' // Basic/Red
-  }
-
-  const achievedLevelColor = getLevelColor(achievedLevel)
-
-  // Prepare data for BarChart from rule_results
-  const chartData = ruleResults.slice(0, 6).map(rule => ({
-    name: rule.rule_name.length > 15 ? rule.rule_name.substring(0, 15) + '...' : rule.rule_name,
-    actual: rule.actual_value || 0,
-    expected: rule.expected_value || 0,
-    passed: rule.passed
-  }))
-
-  // Get top 3 rules for metric cards
-  const topRules = ruleResults.slice(0, 3)
+  const commitsBadge = getPRBadge('avgCommitsPerPR', service.prMetrics.avgCommitsPerPR)
+  const openPRBadge = getPRBadge('openPRCount', service.prMetrics.openPRCount)
+  const locBadge = getPRBadge('avgLOCPerPR', service.prMetrics.avgLOCPerPR)
+  const mergedBadge = getPRBadge('weeklyMergedPRs', service.prMetrics.weeklyMergedPRs)
 
   return (
     <div className="tab-content">
-      {/* Evaluation Summary */}
-      {scorecardData && (
-        <div className="evaluation-summary" style={{ marginBottom: '24px' }}>
-          <div className="summary-header">
-            <h4>📊 PR Metrics Evaluation</h4>
-          </div>
-          <div className="summary-stats">
-            <div className="stat-item">
-              <span className="stat-label">Overall Score:</span>
-              <span className="stat-value" style={{ color: achievedLevelColor }}>
-                {Math.round(passPercentage)}%
-              </span>
-            </div>
-            <div className="stat-item">
-              <span className="stat-label">Achieved Level:</span>
-              <div className="level-badge" style={{ backgroundColor: achievedLevelColor, display: 'inline-flex', padding: '4px 12px', borderRadius: '12px', marginLeft: '8px' }}>
-                <span style={{ color: '#fff', fontWeight: 'bold' }}>{achievedLevel}</span>
-              </div>
-            </div>
-            <div className="stat-item">
-              <span className="stat-label">Rules Passed:</span>
-              <span className="stat-value">{rulesPassed} / {rulesTotal}</span>
-            </div>
-          </div>
-        </div>
-      )}
-
       <div className="metrics-grid-2col">
         <div className="chart-card">
-          <h3>PR Metrics Rules</h3>
+          <h3>PR Metrics Overview</h3>
           <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={chartData}>
+            <BarChart data={prData}>
               <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
-              <XAxis dataKey="name" tick={{ fill: 'var(--text-primary)', fontSize: 10 }} angle={-45} textAnchor="end" height={80} />
+              <XAxis dataKey="name" tick={{ fill: 'var(--text-primary)', fontSize: 11 }} />
               <YAxis tick={{ fill: 'var(--text-secondary)', fontSize: 10 }} />
               <Tooltip contentStyle={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-color)' }} />
               <Legend />
-              <Bar dataKey="actual" fill={COLORS.primary} name="Actual Value" />
-              <Bar dataKey="expected" fill={COLORS.success} name="Expected Value" opacity={0.5} />
+              <Bar dataKey="value" fill={COLORS.primary} name="Current" />
+              <Bar dataKey="target" fill={COLORS.success} name="Target" opacity={0.5} />
             </BarChart>
           </ResponsiveContainer>
         </div>
 
         <div className="metrics-cards">
-          {topRules.length > 0 ? topRules.map((rule, index) => (
-            <div className="metric-detail-card" key={index}>
-              <div className="metric-header">
-                <span className="metric-name">{rule.rule_name}</span>
-                <span className="badge" style={{ background: rule.passed ? COLORS.success : COLORS.danger }}>
-                  {rule.passed ? '✅ Passed' : '❌ Failed'}
-                </span>
-              </div>
-              <div className="metric-big-value">{rule.actual_value} / {rule.expected_value}</div>
-              <div className="metric-description">{rule.message}</div>
+          <div className="metric-detail-card">
+            <div className="metric-header">
+              <span className="metric-name">Average Commits per PR</span>
+              <span className="badge" style={{ background: commitsBadge.color }}>{commitsBadge.level}</span>
             </div>
-          )) : (
-            <div className="metric-detail-card">
-              <div className="metric-header">
-                <span className="metric-name">No Data Available</span>
-              </div>
-              <div className="metric-description">No rule results found for this scorecard</div>
+            <div className="metric-big-value">{service.prMetrics.avgCommitsPerPR}</div>
+            <div className="metric-description">Target: ≤14 (Silver), ≤20 (Bronze)</div>
+          </div>
+
+          <div className="metric-detail-card">
+            <div className="metric-header">
+              <span className="metric-name">Open PR Count</span>
+              <span className="badge" style={{ background: openPRBadge.color }}>{openPRBadge.level}</span>
             </div>
-          )}
+            <div className="metric-big-value">{service.prMetrics.openPRCount}</div>
+            <div className="metric-description">Target: ≤2 (Gold), ≤4 (Silver), ≤6 (Bronze)</div>
+          </div>
+
+          <div className="metric-detail-card">
+            <div className="metric-header">
+              <span className="metric-name">Average LOC per PR</span>
+              <span className="badge" style={{ background: locBadge.color }}>{locBadge.level}</span>
+            </div>
+            <div className="metric-big-value">{service.prMetrics.avgLOCPerPR}</div>
+            <div className="metric-description">Target: ≤1000 (Gold), ≤1500 (Silver), ≤2000 (Bronze)</div>
+          </div>
+
+          <div className="metric-detail-card">
+            <div className="metric-header">
+              <span className="metric-name">Weekly Merged PRs</span>
+              <span className="badge" style={{ background: mergedBadge.color }}>{mergedBadge.level}</span>
+            </div>
+            <div className="metric-big-value">{service.prMetrics.weeklyMergedPRs}</div>
+            <div className="metric-description">Target: ≥6 (Gold), ≥4 (Silver), ≥2 (Bronze)</div>
+          </div>
         </div>
       </div>
     </div>
@@ -674,113 +573,92 @@ function renderPRMetrics(service, getPRBadge, scorecardData) {
 }
 
 // Code Quality Tab
-function renderCodeQuality(service, getQualityBadge, scorecardData) {
-  // Get evaluation data if available
-  const passPercentage = scorecardData?.pass_percentage || 0
-  const achievedLevel = scorecardData?.achieved_level_name || 'Basic'
-  const rulesPassed = scorecardData?.rules_passed || 0
-  const rulesTotal = scorecardData?.rules_total || 0
-  const ruleResults = scorecardData?.rule_results || []
-
-  // Get level color from achieved level
-  const getLevelColor = (level) => {
-    const levelStr = String(level).toLowerCase()
-    if (levelStr.includes('gold') || levelStr.includes('🟢') || levelStr.includes('green')) return COLORS.gold
-    if (levelStr.includes('silver') || levelStr.includes('🟡') || levelStr.includes('yellow')) return COLORS.silver
-    if (levelStr.includes('bronze') || levelStr.includes('🟠') || levelStr.includes('orange')) return COLORS.bronze
-    return '#8B8896' // Basic/Red
-  }
-
-  const achievedLevelColor = getLevelColor(achievedLevel)
-
-  // Check if we have scorecard data, otherwise use legacy code quality data
-  if (ruleResults.length === 0 && !service.codeQuality) {
+function renderCodeQuality(service, getQualityBadge) {
+  // Check if we have code quality data
+  if (!service.codeQuality) {
     return (
       <div className="tab-content">
         <div className="empty-state">
-          <p>No code quality metrics available for this repository.</p>
-          <p className="empty-state-hint">Make sure code quality analysis is configured for this project.</p>
+          <p>No SonarQube metrics available for this repository.</p>
+          <p className="empty-state-hint">Make sure SonarQube analysis is configured for this project.</p>
         </div>
       </div>
     )
   }
 
-  // Prepare data for BarChart from rule_results
-  const chartData = ruleResults.slice(0, 6).map(rule => ({
-    name: rule.rule_name.length > 15 ? rule.rule_name.substring(0, 15) + '...' : rule.rule_name,
-    actual: rule.actual_value || 0,
-    expected: rule.expected_value || 0,
-    passed: rule.passed
-  }))
+  // Calculate scores for radar chart (0-100 scale)
+  const coverage = service.codeQuality.codeCoverage || 0
+  const vulnerabilities = service.codeQuality.vulnerabilities || 0
+  const codeSmells = service.codeQuality.codeSmells || 0
+  const duplication = service.codeQuality.codeDuplication || 0
 
-  // Get top 3 rules for metric cards
-  const topRules = ruleResults.slice(0, 3)
+  const qualityData = [
+    { name: 'Coverage', value: coverage, max: 100 },
+    { name: 'Vulnerabilities', value: Math.max(0, 100 - (vulnerabilities * 10)), max: 100 },
+    { name: 'Code Smells', value: Math.max(0, 100 - (codeSmells / 2)), max: 100 },
+    { name: 'Duplication', value: Math.max(0, 100 - (duplication * 5)), max: 100 }
+  ]
+
+  console.log('Quality Data for Chart:', qualityData)
+  console.log('Raw Code Quality:', service.codeQuality)
+
+  const coverageBadge = getQualityBadge('codeCoverage', service.codeQuality.codeCoverage || 0)
+  const vulnBadge = getQualityBadge('vulnerabilities', service.codeQuality.vulnerabilities || 0)
+  const smellsBadge = getQualityBadge('codeSmells', service.codeQuality.codeSmells || 0)
+  const dupBadge = getQualityBadge('codeDuplication', service.codeQuality.codeDuplication || 0)
 
   return (
     <div className="tab-content">
-      {/* Evaluation Summary */}
-      {scorecardData && (
-        <div className="evaluation-summary" style={{ marginBottom: '24px' }}>
-          <div className="summary-header">
-            <h4>📊 Code Quality Evaluation</h4>
-          </div>
-          <div className="summary-stats">
-            <div className="stat-item">
-              <span className="stat-label">Overall Score:</span>
-              <span className="stat-value" style={{ color: achievedLevelColor }}>
-                {Math.round(passPercentage)}%
-              </span>
-            </div>
-            <div className="stat-item">
-              <span className="stat-label">Achieved Level:</span>
-              <div className="level-badge" style={{ backgroundColor: achievedLevelColor, display: 'inline-flex', padding: '4px 12px', borderRadius: '12px', marginLeft: '8px' }}>
-                <span style={{ color: '#fff', fontWeight: 'bold' }}>{achievedLevel}</span>
-              </div>
-            </div>
-            <div className="stat-item">
-              <span className="stat-label">Rules Passed:</span>
-              <span className="stat-value">{rulesPassed} / {rulesTotal}</span>
-            </div>
-          </div>
-        </div>
-      )}
-
       <div className="metrics-grid-2col">
         <div className="chart-card">
-          <h3>Code Quality Rules</h3>
+          <h3>Code Quality Radar</h3>
           <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
-              <XAxis dataKey="name" tick={{ fill: 'var(--text-primary)', fontSize: 10 }} angle={-45} textAnchor="end" height={80} />
-              <YAxis tick={{ fill: 'var(--text-secondary)', fontSize: 10 }} />
-              <Tooltip contentStyle={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-color)' }} />
-              <Legend />
-              <Bar dataKey="actual" fill={COLORS.primary} name="Actual Value" />
-              <Bar dataKey="expected" fill={COLORS.success} name="Expected Value" opacity={0.5} />
-            </BarChart>
+            <RadarChart data={qualityData}>
+              <PolarGrid stroke="#E5E7EB" />
+              <PolarAngleAxis dataKey="name" tick={{ fill: 'var(--text-primary)', fontSize: 12 }} />
+              <PolarRadiusAxis angle={90} domain={[0, 100]} tick={{ fill: 'var(--text-secondary)', fontSize: 10 }} />
+              <Radar name="Score" dataKey="value" stroke={COLORS.success} fill={COLORS.success} fillOpacity={0.6} />
+              <Tooltip />
+            </RadarChart>
           </ResponsiveContainer>
         </div>
 
         <div className="metrics-cards">
-          {topRules.length > 0 ? topRules.map((rule, index) => (
-            <div className="metric-detail-card" key={index}>
-              <div className="metric-header">
-                <span className="metric-name">{rule.rule_name}</span>
-                <span className="badge" style={{ background: rule.passed ? COLORS.success : COLORS.danger }}>
-                  {rule.passed ? '✅ Passed' : '❌ Failed'}
-                </span>
-              </div>
-              <div className="metric-big-value">{rule.actual_value} / {rule.expected_value}</div>
-              <div className="metric-description">{rule.message}</div>
+          <div className="metric-detail-card">
+            <div className="metric-header">
+              <span className="metric-name">Code Coverage</span>
+              <span className="badge" style={{ background: coverageBadge.color }}>{coverageBadge.level}</span>
             </div>
-          )) : (
-            <div className="metric-detail-card">
-              <div className="metric-header">
-                <span className="metric-name">No Data Available</span>
-              </div>
-              <div className="metric-description">No rule results found for this scorecard</div>
+            <div className="metric-big-value">{(service.codeQuality.codeCoverage || 0).toFixed(1)}%</div>
+            <div className="metric-description">Target: ≥80% (Gold), ≥70% (Silver), ≥60% (Bronze)</div>
+          </div>
+
+          <div className="metric-detail-card">
+            <div className="metric-header">
+              <span className="metric-name">Vulnerabilities</span>
+              <span className="badge" style={{ background: vulnBadge.color }}>{vulnBadge.level}</span>
             </div>
-          )}
+            <div className="metric-big-value">{service.codeQuality.vulnerabilities || 0}</div>
+            <div className="metric-description">Target: ≤2 (Gold), ≤5 (Silver), ≤10 (Bronze)</div>
+          </div>
+
+          <div className="metric-detail-card">
+            <div className="metric-header">
+              <span className="metric-name">Code Smells</span>
+              <span className="badge" style={{ background: smellsBadge.color }}>{smellsBadge.level}</span>
+            </div>
+            <div className="metric-big-value">{service.codeQuality.codeSmells || 0}</div>
+            <div className="metric-description">Target: ≤10 (Gold), ≤50 (Silver), ≤100 (Bronze)</div>
+          </div>
+
+          <div className="metric-detail-card">
+            <div className="metric-header">
+              <span className="metric-name">Code Duplication</span>
+              <span className="badge" style={{ background: dupBadge.color }}>{dupBadge.level}</span>
+            </div>
+            <div className="metric-big-value">{(service.codeQuality.codeDuplication || 0).toFixed(1)}%</div>
+            <div className="metric-description">Target: ≤5% (Gold), ≤20% (Silver), ≤50% (Bronze)</div>
+          </div>
         </div>
       </div>
     </div>
@@ -824,315 +702,6 @@ function renderSecurity(service) {
           <h3>Required Approvals</h3>
           <div className="security-value">{service.securityMaturity.requiredApprovals}</div>
           <p className="security-label">reviewers required</p>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-// Security Maturity - For Scorecard Statistics Tab (with Evaluation API data and Charts)
-function renderSecurityMaturity(service, scorecardData) {
-  // Get evaluation data if available
-  const passPercentage = scorecardData?.pass_percentage || 0
-  const achievedLevel = scorecardData?.achieved_level_name || 'Basic'
-  const rulesPassed = scorecardData?.rules_passed || 0
-  const rulesTotal = scorecardData?.rules_total || 0
-  const ruleResults = scorecardData?.rule_results || []
-
-  // Get level color from achieved level
-  const getLevelColor = (level) => {
-    const levelStr = String(level).toLowerCase()
-    if (levelStr.includes('gold') || levelStr.includes('🟢') || levelStr.includes('green')) return COLORS.gold
-    if (levelStr.includes('silver') || levelStr.includes('🟡') || levelStr.includes('yellow')) return COLORS.silver
-    if (levelStr.includes('bronze') || levelStr.includes('🟠') || levelStr.includes('orange')) return COLORS.bronze
-    return '#8B8896' // Basic/Red
-  }
-
-  const achievedLevelColor = getLevelColor(achievedLevel)
-
-  // Prepare data for BarChart from rule_results
-  const chartData = ruleResults.slice(0, 6).map(rule => ({
-    name: rule.rule_name.length > 15 ? rule.rule_name.substring(0, 15) + '...' : rule.rule_name,
-    actual: rule.actual_value || 0,
-    expected: rule.expected_value || 0,
-    passed: rule.passed
-  }))
-
-  // Get top 3 rules for metric cards
-  const topRules = ruleResults.slice(0, 3)
-
-  return (
-    <div className="tab-content">
-      {/* Evaluation Summary */}
-      {scorecardData && (
-        <div className="evaluation-summary" style={{ marginBottom: '24px' }}>
-          <div className="summary-header">
-            <h4>📊 Security Maturity Evaluation</h4>
-          </div>
-          <div className="summary-stats">
-            <div className="stat-item">
-              <span className="stat-label">Overall Score:</span>
-              <span className="stat-value" style={{ color: achievedLevelColor }}>
-                {Math.round(passPercentage)}%
-              </span>
-            </div>
-            <div className="stat-item">
-              <span className="stat-label">Achieved Level:</span>
-              <div className="level-badge" style={{ backgroundColor: achievedLevelColor, display: 'inline-flex', padding: '4px 12px', borderRadius: '12px', marginLeft: '8px' }}>
-                <span style={{ color: '#fff', fontWeight: 'bold' }}>{achievedLevel}</span>
-              </div>
-            </div>
-            <div className="stat-item">
-              <span className="stat-label">Rules Passed:</span>
-              <span className="stat-value">{rulesPassed} / {rulesTotal}</span>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Chart and Metrics Grid */}
-      <div className="metrics-grid-2col">
-        <div className="chart-card">
-          <h3>Security Maturity Rules</h3>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
-              <XAxis dataKey="name" tick={{ fill: 'var(--text-primary)', fontSize: 10 }} angle={-45} textAnchor="end" height={80} />
-              <YAxis tick={{ fill: 'var(--text-secondary)', fontSize: 10 }} />
-              <Tooltip contentStyle={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-color)' }} />
-              <Legend />
-              <Bar dataKey="actual" fill={COLORS.primary} name="Actual Value" />
-              <Bar dataKey="expected" fill={COLORS.success} name="Expected Value" opacity={0.5} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-
-        <div className="metrics-cards">
-          {topRules.length > 0 ? topRules.map((rule, index) => (
-            <div className="metric-detail-card" key={index}>
-              <div className="metric-header">
-                <span className="metric-name">{rule.rule_name}</span>
-                <span className="badge" style={{ background: rule.passed ? COLORS.success : COLORS.danger }}>
-                  {rule.passed ? '✅ Passed' : '❌ Failed'}
-                </span>
-              </div>
-              <div className="metric-big-value">{rule.actual_value} / {rule.expected_value}</div>
-              <div className="metric-description">{rule.message}</div>
-            </div>
-          )) : (
-            <div className="metric-detail-card">
-              <div className="metric-header">
-                <span className="metric-name">No Data Available</span>
-              </div>
-              <div className="metric-description">No rule results found for this scorecard</div>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  )
-}
-
-// Production Readiness - For Scorecard Statistics Tab (with Evaluation API data and Charts)
-function renderProductionReadiness(service, scorecardData) {
-  // Get evaluation data if available
-  const passPercentage = scorecardData?.pass_percentage || 0
-  const achievedLevel = scorecardData?.achieved_level_name || 'Basic'
-  const rulesPassed = scorecardData?.rules_passed || 0
-  const rulesTotal = scorecardData?.rules_total || 0
-  const ruleResults = scorecardData?.rule_results || []
-
-  // Get level color from achieved level
-  const getLevelColor = (level) => {
-    const levelStr = String(level).toLowerCase()
-    if (levelStr.includes('gold') || levelStr.includes('🟢') || levelStr.includes('green')) return COLORS.gold
-    if (levelStr.includes('silver') || levelStr.includes('🟡') || levelStr.includes('yellow')) return COLORS.silver
-    if (levelStr.includes('bronze') || levelStr.includes('🟠') || levelStr.includes('orange')) return COLORS.bronze
-    return '#8B8896' // Basic/Red
-  }
-
-  const achievedLevelColor = getLevelColor(achievedLevel)
-
-  // Prepare data for BarChart from rule_results
-  const chartData = ruleResults.slice(0, 6).map(rule => ({
-    name: rule.rule_name.length > 15 ? rule.rule_name.substring(0, 15) + '...' : rule.rule_name,
-    actual: rule.actual_value || 0,
-    expected: rule.expected_value || 0,
-    passed: rule.passed
-  }))
-
-  // Get top 3 rules for metric cards
-  const topRules = ruleResults.slice(0, 3)
-
-  return (
-    <div className="tab-content">
-      {/* Evaluation Summary */}
-      {scorecardData && (
-        <div className="evaluation-summary" style={{ marginBottom: '24px' }}>
-          <div className="summary-header">
-            <h4>📊 Production Readiness Evaluation</h4>
-          </div>
-          <div className="summary-stats">
-            <div className="stat-item">
-              <span className="stat-label">Overall Score:</span>
-              <span className="stat-value" style={{ color: achievedLevelColor }}>
-                {Math.round(passPercentage)}%
-              </span>
-            </div>
-            <div className="stat-item">
-              <span className="stat-label">Achieved Level:</span>
-              <div className="level-badge" style={{ backgroundColor: achievedLevelColor, display: 'inline-flex', padding: '4px 12px', borderRadius: '12px', marginLeft: '8px' }}>
-                <span style={{ color: '#fff', fontWeight: 'bold' }}>{achievedLevel}</span>
-              </div>
-            </div>
-            <div className="stat-item">
-              <span className="stat-label">Rules Passed:</span>
-              <span className="stat-value">{rulesPassed} / {rulesTotal}</span>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Chart and Metrics Grid */}
-      <div className="metrics-grid-2col">
-        <div className="chart-card">
-          <h3>Production Readiness Rules</h3>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
-              <XAxis dataKey="name" tick={{ fill: 'var(--text-primary)', fontSize: 10 }} angle={-45} textAnchor="end" height={80} />
-              <YAxis tick={{ fill: 'var(--text-secondary)', fontSize: 10 }} />
-              <Tooltip contentStyle={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-color)' }} />
-              <Legend />
-              <Bar dataKey="actual" fill={COLORS.primary} name="Actual Value" />
-              <Bar dataKey="expected" fill={COLORS.success} name="Expected Value" opacity={0.5} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-
-        <div className="metrics-cards">
-          {topRules.length > 0 ? topRules.map((rule, index) => (
-            <div className="metric-detail-card" key={index}>
-              <div className="metric-header">
-                <span className="metric-name">{rule.rule_name}</span>
-                <span className="badge" style={{ background: rule.passed ? COLORS.success : COLORS.danger }}>
-                  {rule.passed ? '✅ Passed' : '❌ Failed'}
-                </span>
-              </div>
-              <div className="metric-big-value">{rule.actual_value} / {rule.expected_value}</div>
-              <div className="metric-description">{rule.message}</div>
-            </div>
-          )) : (
-            <div className="metric-detail-card">
-              <div className="metric-header">
-                <span className="metric-name">No Data Available</span>
-              </div>
-              <div className="metric-description">No rule results found for this scorecard</div>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  )
-}
-
-// Service Health - For Scorecard Statistics Tab (with Evaluation API data and Charts)
-function renderServiceHealth(service, scorecardData) {
-  // Get evaluation data if available
-  const passPercentage = scorecardData?.pass_percentage || 0
-  const achievedLevel = scorecardData?.achieved_level_name || 'Basic'
-  const rulesPassed = scorecardData?.rules_passed || 0
-  const rulesTotal = scorecardData?.rules_total || 0
-  const ruleResults = scorecardData?.rule_results || []
-
-  // Get level color from achieved level
-  const getLevelColor = (level) => {
-    const levelStr = String(level).toLowerCase()
-    if (levelStr.includes('gold') || levelStr.includes('🟢') || levelStr.includes('green')) return COLORS.gold
-    if (levelStr.includes('silver') || levelStr.includes('🟡') || levelStr.includes('yellow')) return COLORS.silver
-    if (levelStr.includes('bronze') || levelStr.includes('🟠') || levelStr.includes('orange')) return COLORS.bronze
-    return '#8B8896' // Basic/Red
-  }
-
-  const achievedLevelColor = getLevelColor(achievedLevel)
-
-  // Prepare data for BarChart from rule_results
-  const chartData = ruleResults.slice(0, 6).map(rule => ({
-    name: rule.rule_name.length > 15 ? rule.rule_name.substring(0, 15) + '...' : rule.rule_name,
-    actual: rule.actual_value || 0,
-    expected: rule.expected_value || 0,
-    passed: rule.passed
-  }))
-
-  // Get top 3 rules for metric cards
-  const topRules = ruleResults.slice(0, 3)
-
-  return (
-    <div className="tab-content">
-      {/* Evaluation Summary */}
-      {scorecardData && (
-        <div className="evaluation-summary" style={{ marginBottom: '24px' }}>
-          <div className="summary-header">
-            <h4>📊 Service Health Evaluation</h4>
-          </div>
-          <div className="summary-stats">
-            <div className="stat-item">
-              <span className="stat-label">Overall Score:</span>
-              <span className="stat-value" style={{ color: achievedLevelColor }}>
-                {Math.round(passPercentage)}%
-              </span>
-            </div>
-            <div className="stat-item">
-              <span className="stat-label">Achieved Level:</span>
-              <div className="level-badge" style={{ backgroundColor: achievedLevelColor, display: 'inline-flex', padding: '4px 12px', borderRadius: '12px', marginLeft: '8px' }}>
-                <span style={{ color: '#fff', fontWeight: 'bold' }}>{achievedLevel}</span>
-              </div>
-            </div>
-            <div className="stat-item">
-              <span className="stat-label">Rules Passed:</span>
-              <span className="stat-value">{rulesPassed} / {rulesTotal}</span>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Chart and Metrics Grid */}
-      <div className="metrics-grid-2col">
-        <div className="chart-card">
-          <h3>Service Health Rules</h3>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
-              <XAxis dataKey="name" tick={{ fill: 'var(--text-primary)', fontSize: 10 }} angle={-45} textAnchor="end" height={80} />
-              <YAxis tick={{ fill: 'var(--text-secondary)', fontSize: 10 }} />
-              <Tooltip contentStyle={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-color)' }} />
-              <Legend />
-              <Bar dataKey="actual" fill={COLORS.primary} name="Actual Value" />
-              <Bar dataKey="expected" fill={COLORS.success} name="Expected Value" opacity={0.5} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-
-        <div className="metrics-cards">
-          {topRules.length > 0 ? topRules.map((rule, index) => (
-            <div className="metric-detail-card" key={index}>
-              <div className="metric-header">
-                <span className="metric-name">{rule.rule_name}</span>
-                <span className="badge" style={{ background: rule.passed ? COLORS.success : COLORS.danger }}>
-                  {rule.passed ? '✅ Passed' : '❌ Failed'}
-                </span>
-              </div>
-              <div className="metric-big-value">{rule.actual_value} / {rule.expected_value}</div>
-              <div className="metric-description">{rule.message}</div>
-            </div>
-          )) : (
-            <div className="metric-detail-card">
-              <div className="metric-header">
-                <span className="metric-name">No Data Available</span>
-              </div>
-              <div className="metric-description">No rule results found for this scorecard</div>
-            </div>
-          )}
         </div>
       </div>
     </div>
@@ -1270,58 +839,27 @@ function _renderHistory(service) {
   )
 }
 
-// Scorecards Tab - Combines all metrics with evaluation data
-function renderScorecards(service, getPRBadge, getQualityBadge, serviceEvaluation) {
-  // Extract scorecard data from evaluation if available
-  const evaluationData = serviceEvaluation?.evaluation || null
-  const scorecards = evaluationData?.scorecards || []
-
-  // Find specific scorecards by name
-  const findScorecard = (name) => {
-    return scorecards.find(sc =>
-      sc.scorecard_name === name ||
-      sc.display_name === name ||
-      sc.scorecard_name.replace('_', ' ') === name
-    )
-  }
-
-  const codeQualityScorecard = findScorecard('Code_Quality') || findScorecard('Code Quality')
-  const securityMaturityScorecard = findScorecard('Security_Maturity') || findScorecard('Security Maturity')
-  const productionReadinessScorecard = findScorecard('Production_Readiness') || findScorecard('Production Readiness')
-  const serviceHealthScorecard = findScorecard('Service_Health') || findScorecard('Service Health')
-  const prMetricsScorecard = findScorecard('PR_Metrics') || findScorecard('PR Metrics')
-
+// Scorecards Tab - Combines all metrics
+function renderScorecards(service, getPRBadge, getQualityBadge) {
   return (
     <div className="tab-content">
       <div className="scorecards-grid">
         {/* PR Metrics Card */}
         <div className="scorecard-section">
           <h3 className="section-title">PR Metrics</h3>
-          {renderPRMetrics(service, getPRBadge, prMetricsScorecard)}
+          {renderPRMetrics(service, getPRBadge)}
         </div>
 
         {/* Code Quality Card */}
         <div className="scorecard-section">
           <h3 className="section-title">Code Quality</h3>
-          {renderCodeQuality(service, getQualityBadge, codeQualityScorecard)}
+          {renderCodeQuality(service, getQualityBadge)}
         </div>
 
-        {/* Security Maturity Card */}
+        {/* Security Card */}
         <div className="scorecard-section">
           <h3 className="section-title">Security Maturity</h3>
-          {renderSecurityMaturity(service, securityMaturityScorecard)}
-        </div>
-
-        {/* Production Readiness Card */}
-        <div className="scorecard-section">
-          <h3 className="section-title">Production Readiness</h3>
-          {renderProductionReadiness(service, productionReadinessScorecard)}
-        </div>
-
-        {/* Service Health Card */}
-        <div className="scorecard-section">
-          <h3 className="section-title">Service Health</h3>
-          {renderServiceHealth(service, serviceHealthScorecard)}
+          {renderSecurity(service)}
         </div>
       </div>
     </div>
@@ -1402,11 +940,102 @@ function renderAuditLog(service) {
   )
 }
 
-// ✅ REMOVED: getCommitsForService() - No more hardcoded data!
-// Now using ONLY real commits from GitHub API
+function getCommitsForService(service) {
+	const author = service.lastCommitter || service.metrics?.github?.lastCommitter || 'Auto-bot'
+	const lastCommitTime = service.metrics?.github?.lastCommit || service.lastDeployed || 'recently'
 
-function renderAuditLogTable(service, commits = []) {
-  // ✅ Use ONLY real commits from API (no fallback to hardcoded data)
+	// First 5: most recent commits (these will be visible by default)
+	const commits = [
+		{
+			id: 1,
+			message: `Refine ${(service.title || service.name || 'service')} deployment pipeline`,
+			author,
+			time: lastCommitTime,
+			sha: 'a1b2c3d'
+		},
+		{
+			id: 2,
+			message: 'Update dependencies and apply security patches',
+			author,
+			time: '1 day ago',
+			sha: 'e5f6g7h'
+		},
+		{
+			id: 3,
+			message: 'Improve logging and observability',
+			author,
+			time: '2 days ago',
+			sha: 'i8j9k0l'
+		},
+		{
+			id: 4,
+			message: 'Refactor legacy modules for better maintainability',
+			author,
+			time: '3 days ago',
+			sha: 'm1n2o3p'
+		},
+		{
+			id: 5,
+			message: 'Initial service bootstrap',
+			author,
+			time: '1 week ago',
+			sha: 'q4r5s6t'
+		}
+	]
+
+	// Additional historical commits so the table can scroll to show more than 5
+	commits.push(
+		{
+			id: 6,
+			message: 'Add feature flags for gradual rollouts',
+			author,
+			time: '2 weeks ago',
+			sha: 'u7v8w9x'
+		},
+		{
+			id: 7,
+			message: 'Optimize database queries in critical paths',
+			author,
+			time: '3 weeks ago',
+			sha: 'y1z2a3b'
+		},
+		{
+			id: 8,
+			message: 'Introduce structured logging and tracing',
+			author,
+			time: '1 month ago',
+			sha: 'c4d5e6f'
+		},
+		{
+			id: 9,
+			message: 'Harden authentication and authorization flows',
+			author,
+			time: '2 months ago',
+			sha: 'g7h8i9j'
+		},
+		{
+			id: 10,
+			message: 'Migrate CI/CD pipeline to shared templates',
+			author,
+			time: '3 months ago',
+			sha: 'k1l2m3n'
+		}
+	)
+
+	return commits
+}
+
+function renderAuditLogTable(service, realCommits = []) {
+  // Use real commits from API if available, otherwise fall back to mock
+  const commits = realCommits.length > 0
+    ? realCommits.map((commit, index) => ({
+        id: commit.sha || `commit-${index}`,
+        message: commit.message || commit.commit_message || 'No message',
+        author: commit.author || commit.committer || 'Unknown',
+        time: commit.timestamp || commit.commit_time || commit.date || 'Unknown',
+        sha: commit.sha || commit.commit_sha || 'N/A'
+      }))
+    : getCommitsForService(service)
 
   return (
     <div className="tab-content">
@@ -1414,7 +1043,8 @@ function renderAuditLogTable(service, commits = []) {
         <div className="audit-header">
           <h3>Audit Log</h3>
           <p className="audit-description">
-            Recent commits from GitHub for {service.name} (since 2024-01-01)
+            Recent commits and activities for {service.name}
+            {realCommits.length > 0 && <span className="real-data-badge"> (Live Data)</span>}
           </p>
         </div>
 
@@ -1432,7 +1062,7 @@ function renderAuditLogTable(service, commits = []) {
               {commits.length === 0 ? (
                 <tr>
                   <td colSpan="4" style={{ textAlign: 'center', padding: '2rem' }}>
-                    No commits found for this repository
+                    No commits found
                   </td>
                 </tr>
               ) : (

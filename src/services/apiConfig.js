@@ -27,7 +27,9 @@ export const API_ENDPOINTS = {
   // GET /service/api/v1/org/{org_id}/service
   // Returns: { status, message, data: { total, services: [...] } }
   SERVICE_CATALOG_GET_ALL: (orgId) => `/service/api/v1/org/${orgId}/service`,
-
+// Add this in the API_ENDPOINTS object
+// Regression Testing Service
+  REGRESSION_TEST_AGGREGATE: '/regression/api/v1/test/aggregate',
   // Get single service details by ID (with FULL metrics and evaluation data)
   // GET /service/api/v1/org/{org_id}/service/{service_id}
   // Returns: { status, message, data: { id, title, metrics, evaluationMetrics, pullRequests, jiraIssues, ... } }
@@ -60,11 +62,6 @@ export const API_ENDPOINTS = {
   // Returns: { status, message, data: { content: string, ... } }
   GITHUB_README_CONTENT: (repoName) => `/sonar/api/v1/github/readme?repo=${repoName}&content=true`,
 
-  // Get commits for a repository
-  // GET /sonar/api/v1/github/commits?repo={repo_name}&since={date}
-  // Returns: Array of commits with sha, message, author, timestamp
-  GITHUB_COMMITS: (repoName, since = '2024-01-01T00:00:00Z') => `/sonar/api/v1/github/commits?repo=${repoName}&since=${since}`,
-
   // ========================================
   // SCORECARD SERVICE
   // ========================================
@@ -79,10 +76,6 @@ export const API_ENDPOINTS = {
   // Body: { service_name: string, service_data: { coverage, vulnerabilities, ... } }
   // Returns: { service_name, overall_percentage, total_rules_passed, total_rules, scorecards: [...] }
   SCORECARD_EVALUATE_V2: '/scorecard/api/v2/scorecards/evaluate',
-
-
-  //PAGERDUTY CALL API SERVICE
-  PAGERDUTY_EVENTS: '/pd/api/metrics/by-name',
 }
 
 // API Configuration
