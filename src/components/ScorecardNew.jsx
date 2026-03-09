@@ -3,10 +3,8 @@ import { useDispatch, useSelector } from 'react-redux'
 import '../styles/ScorecardNew.css'
 import { fetchServicesForOrg } from '../store/servicesSlice'
 import { fetchScorecardDefinitions } from '../store/scorecardsSlice'
+import { evaluateServicesForOrg } from '../store/evaluationsSlice'
 import {
-  evaluateServiceViaAPI,
-  mapServiceToScorecardData,
-  filterOutDORA,
   getLevelColor
 } from '../services/scorecardApiService'
 
@@ -23,13 +21,15 @@ const ScorecardNew = () => {
   // Redux state - Scorecards
   const { definitions: scorecardDefinitions, isLoading: isLoadingScorecards } = useSelector(state => state.scorecards)
 
+  // Redux state - Evaluations
+  const { evaluationsByOrg, isLoading: isLoadingEvaluations } = useSelector(state => state.evaluations)
+  const evaluationsData = evaluationsByOrg[ORG_ID]
+
   // Local state
   const [activeTab, setActiveTab] = useState('overview') // overview, scorecards, rules
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
 
-  // Evaluation results
-  const [serviceEvaluations, setServiceEvaluations] = useState([])
+  // Get evaluations and stats from Redux
+  const serviceEvaluations = evaluationsData?.evaluations || []
   const [overallStats, setOverallStats] = useState(null)
 
   // Detailed scorecard view state
@@ -39,113 +39,48 @@ const ScorecardNew = () => {
   // Fetch services from Redux on mount (only if not already loaded)
   // Note: We still fetch scorecard definitions for the Scorecard tab display
   useEffect(() => {
-    console.log('🔄 ScorecardNew: Checking Redux data...')
-
     // Only fetch services if we don't have them for this org
     if (!servicesData) {
-      console.log('📡 Fetching services from API (not in Redux)')
+      console.log('📡 API CALL: GET /service/api/v1/org/{orgId}/service - Fetching all services for organization')
       dispatch(fetchServicesForOrg(ORG_ID))
-    } else {
-      console.log('✅ Using cached services from Redux (no API call)')
     }
 
     // Fetch scorecard definitions for display purposes (not for evaluation)
     if (!scorecardDefinitions) {
-      console.log('📡 Fetching scorecard definitions from API (for display only)')
+      console.log('📡 API CALL: GET /scorecard/api/v2/scorecards/definitions - Fetching scorecard definitions')
       dispatch(fetchScorecardDefinitions())
-    } else {
-      console.log('✅ Using cached scorecard definitions from Redux')
     }
   }, [dispatch, servicesData, scorecardDefinitions])
 
-  // Evaluate all services when Redux data is available
+  // Evaluate all services when Redux data is available (only if not already evaluated)
   useEffect(() => {
-    const evaluateAllServices = async () => {
-      if (!servicesData || !servicesData.services) {
-        console.log('⏳ Waiting for services data from Redux...')
-        return
-      }
+    // Only evaluate if we have services and haven't evaluated yet
+    if (servicesData && servicesData.services && !evaluationsData) {
+      const allServices = servicesData.services
+      dispatch(evaluateServicesForOrg({ orgId: ORG_ID, services: allServices }))
+    }
+  }, [dispatch, servicesData, evaluationsData])
 
-      try {
-        setLoading(true)
-
-        // Get services from Redux
-        const allServices = servicesData.services
-        console.log(`🔄 Evaluating ${allServices.length} services via API...`)
-        console.log('📊 Services to evaluate:', allServices.map(s => s.name || s.title))
-
-        // Evaluate each service using the backend API
-        const evaluations = await Promise.all(
-          allServices.map(async (service) => {
-            const serviceName = service.name || service.title
-            console.log(`📡 Evaluating service via API: ${serviceName}`)
-
-            // Map service to scorecard data format
-            const serviceData = await mapServiceToScorecardData(service)
-            console.log(`📊 Service data for ${serviceName}:`, serviceData)
-
-            // Evaluate using backend API
-            const evaluation = await evaluateServiceViaAPI(serviceName, serviceData)
-            console.log(`✅ API evaluation result for ${serviceName}:`, evaluation)
-
-            // Filter out DORA metrics from the result
-            const filtered = filterOutDORA(evaluation)
-
-            return {
-              service: service,
-              evaluation: filtered
-            }
-          })
-        )
-
-        setServiceEvaluations(evaluations)
-
-        // Calculate overall stats
-        calculateOverallStats(evaluations)
-
-        // Log detailed evaluation results
-        console.log('✅ Service Evaluations Complete:', {
-          totalServices: evaluations.length,
-          services: evaluations.map(ev => ({
-            name: ev.service.name || ev.service.title,
-            overallScore: ev.evaluation.overall_percentage,
-            scorecards: ev.evaluation.scorecards?.map(sc => ({
-              name: sc.scorecard_name,
-              percentage: sc.pass_percentage,
-              level: sc.achieved_level_name
-            }))
-          }))
-        })
-
-        setError(null)
-      } catch (err) {
-        console.error('Failed to evaluate services:', err)
-        setError('Failed to evaluate services')
-      } finally {
-        setLoading(false)
-      }
+  // Calculate overall statistics whenever evaluations change
+  useEffect(() => {
+    if (!serviceEvaluations || serviceEvaluations.length === 0) {
+      setOverallStats(null)
+      return
     }
 
-    evaluateAllServices()
-  }, [servicesData]) // Only depend on servicesData, API handles evaluation
-
-  // Calculate overall statistics
-  const calculateOverallStats = (evaluations) => {
-    if (!evaluations || evaluations.length === 0) return
-
     const stats = {
-      totalServices: evaluations.length,
+      totalServices: serviceEvaluations.length,
       averageScore: 0,
       categoryAverages: {}
     }
 
     // Calculate average overall score
-    const totalScore = evaluations.reduce((sum, ev) => sum + (ev.evaluation.overall_percentage || 0), 0)
-    stats.averageScore = (totalScore / evaluations.length).toFixed(2)
+    const totalScore = serviceEvaluations.reduce((sum, ev) => sum + (ev.evaluation.overall_percentage || 0), 0)
+    stats.averageScore = (totalScore / serviceEvaluations.length).toFixed(2)
 
     // Calculate category averages
     const categories = {}
-    evaluations.forEach(ev => {
+    serviceEvaluations.forEach(ev => {
       ev.evaluation.scorecards?.forEach(sc => {
         if (!categories[sc.scorecard_name]) {
           categories[sc.scorecard_name] = {
@@ -167,22 +102,14 @@ const ScorecardNew = () => {
     })
 
     setOverallStats(stats)
-  }
+  }, [serviceEvaluations])
 
-  // Debug logging
-  console.log('🔍 ScorecardNew State:', {
-    loading,
-    isLoadingServices,
-    isLoadingScorecards,
-    hasDefinitions: !!scorecardDefinitions,
-    hasServicesData: !!servicesData,
-    servicesCount: servicesData?.services?.length || 0,
-    evaluationsCount: serviceEvaluations.length,
-    error
-  })
+  // Determine loading and error states
+  const loading = isLoadingServices || isLoadingScorecards || isLoadingEvaluations
+  const error = evaluationsData?.error || null
 
   // Render loading state
-  if (loading || isLoadingServices || isLoadingScorecards) {
+  if (loading) {
     return (
       <div className="scorecard-new-page">
         <div className="loading-container">
@@ -216,7 +143,6 @@ const ScorecardNew = () => {
       <div className="scorecard-header">
         <div className="scorecard-title-section">
           <h1 className="scorecard-title">
-            <span className="title-icon">📊</span>
             Scorecard System
           </h1>
           <p className="scorecard-description">
@@ -231,19 +157,19 @@ const ScorecardNew = () => {
           className={`tab-button ${activeTab === 'overview' ? 'active' : ''}`}
           onClick={() => setActiveTab('overview')}
         >
-          📈 Overview
+          Overview
         </button>
         <button
           className={`tab-button ${activeTab === 'scorecards' ? 'active' : ''}`}
           onClick={() => setActiveTab('scorecards')}
         >
-          🎯 Scorecard 
+          Scorecard
         </button>
         <button
           className={`tab-button ${activeTab === 'rules' ? 'active' : ''}`}
           onClick={() => setActiveTab('rules')}
         >
-          📋 Scorecard Rules
+          Scorecard Rules
         </button>
       </div>
 
@@ -293,12 +219,10 @@ const OverviewTab = ({ serviceEvaluations, overallStats, loading }) => {
     return <div className="loading-message">Evaluating services...</div>
   }
 
-  console.log('📊 OverviewTab received serviceEvaluations:', serviceEvaluations)
-
   // Define the 5 scorecards we want to display (matching API response names exactly)
-  // API returns names like "CodeQuality", "Security_Maturity", etc.
+  // API returns names like "Code Quality", "Security_Maturity", etc.
   const targetScorecards = [
-    { apiName: 'CodeQuality', displayName: 'Code Quality' },
+    { apiName: 'Code Quality', displayName: 'Code Quality' },
     { apiName: 'Security_Maturity', displayName: 'Security Maturity' },
     { apiName: 'Production_Readiness', displayName: 'Production Readiness' },
     { apiName: 'Service_Health', displayName: 'Service Health' },
@@ -308,7 +232,6 @@ const OverviewTab = ({ serviceEvaluations, overallStats, loading }) => {
   // Get scorecard data for each service, filtering to only the 5 we want
   const getServiceScorecards = (evaluation) => {
     if (!evaluation || !evaluation.scorecards) {
-      console.log('⚠️ No evaluation or scorecards found')
       return targetScorecards.map(sc => ({
         scorecard_name: sc.apiName,
         display_name: sc.displayName,
@@ -316,8 +239,6 @@ const OverviewTab = ({ serviceEvaluations, overallStats, loading }) => {
         achieved_level_name: 'Basic'
       }))
     }
-
-    console.log('📊 Available scorecards:', evaluation.scorecards.map(sc => sc.scorecard_name))
 
     return targetScorecards.map(target => {
       // Try to find by API name first, then by display name
@@ -328,10 +249,8 @@ const OverviewTab = ({ serviceEvaluations, overallStats, loading }) => {
       )
 
       if (scorecard) {
-        console.log(`✅ Found scorecard: ${target.displayName} = ${scorecard.pass_percentage}%`)
         return scorecard
       } else {
-        console.log(`⚠️ Scorecard not found: ${target.displayName}`)
         return {
           scorecard_name: target.apiName,
           display_name: target.displayName,
@@ -345,15 +264,12 @@ const OverviewTab = ({ serviceEvaluations, overallStats, loading }) => {
   // Calculate overall scorecard statistics for circular chart
   const calculateScorecardStats = () => {
     if (!serviceEvaluations || serviceEvaluations.length === 0) {
-      console.log('⚠️ No service evaluations available for circular charts')
       return targetScorecards.map(sc => ({
         name: sc.displayName,
         value: 0,
         color: '#CCCCCC'
       }))
     }
-
-    console.log('📊 Calculating scorecard stats from evaluations:', serviceEvaluations.length)
 
     return targetScorecards.map(target => {
       let totalPercentage = 0
@@ -366,14 +282,12 @@ const OverviewTab = ({ serviceEvaluations, overallStats, loading }) => {
           sc.display_name === target.displayName
         )
         if (scorecard) {
-          console.log(`  ${target.displayName}: ${scorecard.pass_percentage}%`)
           totalPercentage += scorecard.pass_percentage || 0
           count++
         }
       })
 
       const avgPercentage = count > 0 ? totalPercentage / count : 0
-      console.log(`✅ ${target.displayName} average: ${avgPercentage.toFixed(2)}% (from ${count} services)`)
 
       // Get color based on average level
       let color = '#CCCCCC'
@@ -392,12 +306,41 @@ const OverviewTab = ({ serviceEvaluations, overallStats, loading }) => {
 
 
 
+  // Get level icon and color
+  const getLevelIconAndColor = (levelName) => {
+    const normalizedLevel = (levelName || 'Basic').toLowerCase()
+
+    if (normalizedLevel.includes('gold') || normalizedLevel.includes('🥇')) {
+      return { icon: '', color: '#FFD700', label: 'Gold' }
+    } else if (normalizedLevel.includes('silver') || normalizedLevel.includes('🥈')) {
+      return { icon: '', color: '#C0C0C0', label: 'Silver' }
+    } else if (normalizedLevel.includes('bronze') || normalizedLevel.includes('🥉')) {
+      return { icon: '', color: '#CD7F32', label: 'Bronze' }
+    } else {
+      return { icon: '', color: '#8B8896', label: 'Basic' }
+    }
+  }
+
+  // Get level based on percentage (Gold ≥80%, Silver ≥60%, Bronze ≥40%, Basic <40%)
+  const getLevelFromPercentage = (percentage) => {
+    const pct = parseFloat(percentage) || 0
+
+    if (pct >= 80) {
+      return { icon: '', color: '#FFD700', label: 'Gold' }
+    } else if (pct >= 60) {
+      return { icon: '', color: '#C0C0C0', label: 'Silver' }
+    } else if (pct >= 40) {
+      return { icon: '', color: '#CD7F32', label: 'Bronze' }
+    } else {
+      return { icon: '', color: '#8B8896', label: 'Basic' }
+    }
+  }
+
   return (
     <div className="overview-tab">
       {/* Top Section: Services Scorecard Table */}
       <div className="table-section">
         <h2 className="section-title">
-          <span className="section-icon">📊</span>
           Services Scorecard Overview
         </h2>
         <div className="table-container">
@@ -410,13 +353,12 @@ const OverviewTab = ({ serviceEvaluations, overallStats, loading }) => {
                 <th>Production Readiness</th>
                 <th>Service Health</th>
                 <th>PR Metrics</th>
-                <th className="text-center">Actions</th>
               </tr>
             </thead>
             <tbody>
               {serviceEvaluations.length === 0 ? (
                 <tr>
-                  <td colSpan="7" className="text-center" style={{ padding: '40px', color: '#666' }}>
+                  <td colSpan="6" className="text-center" style={{ padding: '40px', color: '#666' }}>
                     No services available. Make sure services are loaded from Redux.
                   </td>
                 </tr>
@@ -428,43 +370,37 @@ const OverviewTab = ({ serviceEvaluations, overallStats, loading }) => {
                     <tr key={idx}>
                       <td>
                         <div className="service-cell">
-                          <span className="service-icon">{item.service.icon || '📦'}</span>
                           <span className="service-name">{item.service.name || item.service.title}</span>
                         </div>
                       </td>
-                      {scorecards.map((sc, scIdx) => (
-                        <td key={scIdx}>
-                          <div className="progress-bar-cell">
-                            <div className="progress-bar-wrapper">
-                              <div
-                                className="progress-bar-fill"
-                                style={{
-                                  width: `${sc.pass_percentage || 0}%`,
-                                  backgroundColor: getLevelColor(sc.achieved_level_name)
-                                }}
-                              />
+                      {scorecards.map((sc, scIdx) => {
+                        // Calculate level based on percentage instead of using API's achieved_level_name
+                        const percentage = sc.pass_percentage || 0
+                        const levelInfo = getLevelFromPercentage(percentage)
+
+                        return (
+                          <td key={scIdx}>
+                            <div className="progress-bar-cell">
+                              <div className="level-badge" style={{ backgroundColor: levelInfo.color }}>
+                                <span className="level-icon">{levelInfo.icon}</span>
+                                <span className="level-label">{levelInfo.label}</span>
+                              </div>
+                              <div className="progress-bar-wrapper">
+                                <div
+                                  className="progress-bar-fill"
+                                  style={{
+                                    width: `${percentage}%`,
+                                    backgroundColor: levelInfo.color
+                                  }}
+                                />
+                              </div>
+                              <div className="progress-bar-label">
+                                {Math.round(percentage)}%
+                              </div>
                             </div>
-                            <div className="progress-bar-label">
-                              {Math.round(sc.pass_percentage || 0)}%
-                            </div>
-                          </div>
-                        </td>
-                      ))}
-                      <td className="text-center">
-                        <button
-                          className="action-button"
-                          onClick={() => {
-                            console.log('📊 Raw Service Data:', item.service)
-                            console.log('📊 Raw Evaluation Data:', item.evaluation)
-                            console.log('📊 Service Metrics:', item.service.metrics)
-                            console.log('📊 Evaluation Metrics:', item.service.evaluationMetrics)
-                            alert(`Raw data logged to console for: ${item.service.name || item.service.title}`)
-                          }}
-                          title="View raw data in console"
-                        >
-                          🔍 View Raw
-                        </button>
-                      </td>
+                          </td>
+                        )
+                      })}
                     </tr>
                   )
                 })
@@ -477,7 +413,6 @@ const OverviewTab = ({ serviceEvaluations, overallStats, loading }) => {
       {/* Bottom Section: 5 Circular Charts for Each Scorecard */}
       <div className="scorecard-charts-section">
         <h2 className="section-title">
-          <span className="section-icon">📈</span>
           Scorecard Metrics Overview
         </h2>
         <div className="scorecard-charts-grid">
@@ -503,6 +438,21 @@ const renderSingleCircularChart = (scorecardStat) => {
   const circumference = 2 * Math.PI * 70
   const offset = circumference - (percentage / 100) * circumference
 
+  // Determine level based on percentage
+  const getLevelFromPercentage = (pct) => {
+    if (pct >= 80) {
+      return { icon: '', color: '#FFD700', label: 'Gold' }
+    } else if (pct >= 60) {
+      return { icon: '', color: '#C0C0C0', label: 'Silver' }
+    } else if (pct >= 40) {
+      return { icon: '', color: '#CD7F32', label: 'Bronze' }
+    } else {
+      return { icon: '', color: '#8B8896', label: 'Basic' }
+    }
+  }
+
+  const levelInfo = getLevelFromPercentage(percentage)
+
   return (
     <div className="single-circular-chart-wrapper">
       <svg className="single-circular-chart" viewBox="0 0 160 160">
@@ -521,7 +471,7 @@ const renderSingleCircularChart = (scorecardStat) => {
           cy="80"
           r="70"
           fill="none"
-          stroke={scorecardStat.color}
+          stroke={levelInfo.color}
           strokeWidth="12"
           strokeDasharray={circumference}
           strokeDashoffset={offset}
@@ -531,6 +481,10 @@ const renderSingleCircularChart = (scorecardStat) => {
       </svg>
       <div className="single-chart-center">
         <div className="single-chart-score">{percentage}%</div>
+      </div>
+      <div className="chart-level-badge" style={{ backgroundColor: levelInfo.color }}>
+        <span className="chart-level-icon">{levelInfo.icon}</span>
+        <span className="chart-level-label">{levelInfo.label}</span>
       </div>
     </div>
   )
@@ -609,120 +563,85 @@ const renderCircularChart = (scorecardStats) => {
   )
 }
 
-// ScorecardsTab Component - Shows all scorecard definitions
-const ScorecardsTab = ({ scorecardDefinitions, serviceEvaluations, onScorecardClick }) => {
-  if (!scorecardDefinitions || !scorecardDefinitions.scorecards) {
-    return <div className="loading-message">Loading scorecard definitions...</div>
+// ScorecardsTab Component - Uses ONLY Evaluation API data
+const ScorecardsTab = ({ serviceEvaluations }) => {
+  if (!serviceEvaluations || serviceEvaluations.length === 0) {
+    return <div className="loading-message">Loading scorecard evaluations...</div>
   }
 
-  console.log('📊 ScorecardsTab - scorecardDefinitions:', scorecardDefinitions)
-  console.log('📊 ScorecardsTab - serviceEvaluations:', serviceEvaluations)
+  // Extract unique scorecards from all service evaluations
+  const extractUniqueScorecards = () => {
+    const scorecardsMap = {}
 
-  // Get blueprint icon based on type
-  const getBlueprintIcon = (blueprintType) => {
-    const icons = {
-      'Team': '👥',
-      'API': '⚙️',
-      'Branch': '🌿',
-      'User': '👤',
-      'Repository': '📁',
-      'Domain': '🔷'
-    }
-    return icons[blueprintType] || '🔷'
-  }
-
-  // Calculate statistics for each scorecard from actual service evaluations
-  // Averages the pass_percentage from each service's scorecard evaluation
-  const calculateScorecardStats = (scorecardName) => {
-    if (!serviceEvaluations || serviceEvaluations.length === 0) {
-      console.log(`⚠️ No service evaluations for ${scorecardName}`)
-      return {
-        totalRulesTested: 0,
-        totalRulesPassed: 0,
-        passPercentage: 0
-      }
-    }
-
-    let totalRulesTested = 0
-    let totalRulesPassed = 0
-    let totalPassPercentage = 0
-    let servicesWithScorecard = 0
-
-    // Normalize both names for comparison (remove underscores, convert to lowercase)
-    const normalizeForComparison = (name) => {
-      return name.replace(/_/g, ' ').toLowerCase().trim()
-    }
-
-    const normalizedSearchName = normalizeForComparison(scorecardName)
-
-    console.log(`🔍 Calculating stats for scorecard: "${scorecardName}"`)
-    console.log(`   Normalized search name: "${normalizedSearchName}"`)
-
-    // Log all available scorecards from first service for debugging
-    if (serviceEvaluations.length > 0 && serviceEvaluations[0].evaluation.scorecards) {
-      console.log(`   Available scorecards in API response:`,
-        serviceEvaluations[0].evaluation.scorecards.map(sc => ({
-          scorecard_name: sc.scorecard_name,
-          display_name: sc.display_name,
-          normalized: normalizeForComparison(sc.scorecard_name || sc.display_name || '')
-        }))
-      )
-    }
-
-    // Aggregate data from all service evaluations for this specific scorecard
     serviceEvaluations.forEach(item => {
-      const serviceName = item.service.name || item.service.title
+      const evaluation = item.evaluation
 
-      // Try to find this specific scorecard in the service's evaluation
-      // Match by normalized names (case-insensitive, underscore-insensitive)
-      const scorecard = item.evaluation.scorecards?.find(sc => {
-        const scName = normalizeForComparison(sc.scorecard_name || '')
-        const scDisplayName = normalizeForComparison(sc.display_name || '')
+      if (!evaluation || !evaluation.scorecards) return
 
-        return scName === normalizedSearchName || scDisplayName === normalizedSearchName
+      evaluation.scorecards.forEach(sc => {
+        const scorecardName = sc.scorecard_name
+
+        // Filter out DORA_Metrics
+        if (scorecardName === 'DORA_Metrics' || scorecardName === 'DORA Metrics') {
+          return
+        }
+
+        if (!scorecardsMap[scorecardName]) {
+          scorecardsMap[scorecardName] = {
+            name: scorecardName,
+            totalRulesTested: 0,
+            totalRulesPassed: 0,
+            totalPassPercentage: 0,
+            servicesCount: 0,
+            achievedLevels: [],
+            repository: 'tecnex-poc' // Always use tecnex-poc
+          }
+        }
+
+        // Aggregate data
+        scorecardsMap[scorecardName].totalRulesTested += sc.rules_total || 0
+        scorecardsMap[scorecardName].totalRulesPassed += sc.rules_passed || 0
+        scorecardsMap[scorecardName].totalPassPercentage += sc.pass_percentage || 0
+        scorecardsMap[scorecardName].servicesCount++
+
+        // Collect achieved levels
+        if (sc.achieved_level_name && sc.achieved_level_name !== 'None') {
+          scorecardsMap[scorecardName].achievedLevels.push(sc.achieved_level_name)
+        }
       })
-
-      if (scorecard) {
-        console.log(`📊 Found ${scorecardName} for ${serviceName}:`, {
-          scorecard_name: scorecard.scorecard_name,
-          display_name: scorecard.display_name,
-          rules_total: scorecard.rules_total,
-          rules_passed: scorecard.rules_passed,
-          pass_percentage: scorecard.pass_percentage
-        })
-
-        // Sum rules_total and rules_passed across all services
-        totalRulesTested += scorecard.rules_total || 0
-        totalRulesPassed += scorecard.rules_passed || 0
-
-        // Sum pass_percentage to calculate average later
-        totalPassPercentage += scorecard.pass_percentage || 0
-        servicesWithScorecard++
-      } else {
-        console.log(`⚠️ Scorecard "${scorecardName}" not found for ${serviceName}`)
-        console.log(`   Available in this service:`,
-          item.evaluation.scorecards?.map(sc => sc.scorecard_name || sc.display_name)
-        )
-      }
     })
 
-    // Calculate AVERAGE percentage from all services (not based on aggregated rules)
-    const passPercentage = servicesWithScorecard > 0
-      ? (totalPassPercentage / servicesWithScorecard).toFixed(2)
-      : 0
+    // Convert map to array and calculate averages
+    return Object.values(scorecardsMap).map(scorecard => ({
+      ...scorecard,
+      passPercentage: scorecard.servicesCount > 0
+        ? (scorecard.totalPassPercentage / scorecard.servicesCount).toFixed(2)
+        : 0,
+      // Get unique achieved levels
+      uniqueLevels: [...new Set(scorecard.achievedLevels)]
+    }))
+  }
 
-    console.log(`✅ ${scorecardName} aggregated totals (from ${servicesWithScorecard} services):`, {
-      totalRulesTested,
-      totalRulesPassed,
-      avgPassPercentage: `${passPercentage}%`,
-      calculation: `(${totalPassPercentage.toFixed(2)} / ${servicesWithScorecard}) = ${passPercentage}%`
-    })
+  // Get level icon and color based on percentage (same as Overview tab)
+  const getLevelIconAndColor = (percentage) => {
+    const pct = parseFloat(percentage) || 0
 
-    return {
-      totalRulesTested,
-      totalRulesPassed,
-      passPercentage
+    if (pct >= 80) {
+      return { icon: '', color: '#FFD700', label: 'Gold' }
+    } else if (pct >= 60) {
+      return { icon: '', color: '#C0C0C0', label: 'Silver' }
+    } else if (pct >= 40) {
+      return { icon: '', color: '#CD7F32', label: 'Bronze' }
+    } else {
+      return { icon: '', color: '#8B8896', label: 'Basic' }
     }
+  }
+
+  const scorecards = extractUniqueScorecards()
+
+  // Get blueprint icon for repository
+  const getBlueprintIcon = () => {
+    return '📁' // Repository icon
   }
 
   return (
@@ -730,11 +649,10 @@ const ScorecardsTab = ({ scorecardDefinitions, serviceEvaluations, onScorecardCl
       <div className="table-section">
         <div className="table-header-section">
           <h2 className="section-title">
-            <span className="section-icon">📋</span>
-            Scorecard 
+            Scorecard
           </h2>
           <div className="table-results-count">
-            {scorecardDefinitions.scorecards.length} results
+            {scorecards.length} results
           </div>
         </div>
         <div className="table-container">
@@ -750,7 +668,7 @@ const ScorecardsTab = ({ scorecardDefinitions, serviceEvaluations, onScorecardCl
                 </th>
                 <th>
                   <div className="th-content">
-                    <span>Blueprint</span>
+                    <span>Domain</span>
                   </div>
                 </th>
                 <th className="sortable">
@@ -776,22 +694,11 @@ const ScorecardsTab = ({ scorecardDefinitions, serviceEvaluations, onScorecardCl
                     <span>Levels</span>
                   </div>
                 </th>
-                <th>
-                  <div className="th-content">
-                    <span>Actions</span>
-                  </div>
-                </th>
               </tr>
             </thead>
             <tbody>
-              {scorecardDefinitions.scorecards.map((scorecard, idx) => {
-                console.log(`📋 Processing scorecard definition:`, scorecard)
-
-                // Get real statistics from service evaluations
-                const stats = calculateScorecardStats(scorecard.name)
-
-                // Get level information
-                const levels = scorecard.levels || []
+              {scorecards.map((scorecard, idx) => {
+                const levelInfo = getLevelIconAndColor(scorecard.passPercentage)
 
                 return (
                   <tr key={idx} className="scorecard-row">
@@ -808,30 +715,20 @@ const ScorecardsTab = ({ scorecardDefinitions, serviceEvaluations, onScorecardCl
                     </td>
                     <td>
                       <div className="blueprint-cell">
-                        <span className="blueprint-icon">{getBlueprintIcon(scorecard.blueprint_type)}</span>
-                        <span className="blueprint-type">{scorecard.blueprint_type || 'Domain'}</span>
+                        <span className="blueprint-icon">{getBlueprintIcon()}</span>
+                        <span className="blueprint-type">{scorecard.repository}</span>
                       </div>
                     </td>
-                    <td className="text-center">{stats.totalRulesTested}</td>
-                    <td className="text-center">{stats.totalRulesPassed}</td>
-                    <td className="text-center">{stats.passPercentage}</td>
+                    <td className="text-center">{scorecard.totalRulesTested}</td>
+                    <td className="text-center">{scorecard.totalRulesPassed}</td>
+                    <td className="text-center">{scorecard.passPercentage}</td>
                     <td>
                       <div className="levels-cell">
-                        {levels.map((level, levelIdx) => (
-                          <div key={levelIdx} className="level-indicator">
-                            <span
-                              className="level-dot"
-                              style={{ backgroundColor: getLevelColor(level.level_name) }}
-                            ></span>
-                            <span className="level-text">
-                              {level.level_name} {level.threshold_percentage}%
-                            </span>
-                          </div>
-                        ))}
+                        <div className="level-badge" style={{ backgroundColor: levelInfo.color }}>
+                          <span className="level-icon">{levelInfo.icon}</span>
+                          <span className="level-label">{levelInfo.label}</span>
+                        </div>
                       </div>
-                    </td>
-                    <td>
-                      <button className="action-button">⋯</button>
                     </td>
                   </tr>
                 )
@@ -964,9 +861,6 @@ const RulesTab = ({ scorecardDefinitions, serviceEvaluations }) => {
     return <div className="loading-message">Loading scorecard rules...</div>
   }
 
-  console.log('📜 RulesTab - scorecardDefinitions:', scorecardDefinitions)
-  console.log('📜 RulesTab - serviceEvaluations:', serviceEvaluations)
-
   // Flatten all rule results from all service evaluations
   const allRuleResults = []
 
@@ -1032,32 +926,19 @@ const RulesTab = ({ scorecardDefinitions, serviceEvaluations }) => {
     )
   }
 
-  // Get level color
-  const getLevelBadgeColor = (levelName) => {
-    if (!levelName || levelName === 'None') return '#CCCCCC'
-    const colors = {
-      'Gold': '#FFD700',
-      '🥇 Gold': '#FFD700',
-      'Silver': '#C0C0C0',
-      '🥈 Silver': '#C0C0C0',
-      'Bronze': '#CD7F32',
-      '🥉 Bronze': '#CD7F32',
-      'Basic': '#8B8896',
-      'Green': '#10B981',
-      '🟢 Green': '#10B981',
-      'Orange': '#F59E0B',
-      '🟠 Orange': '#F59E0B',
-      'Red': '#EF4444',
-      '🔴 Red': '#EF4444',
-      'Low': '#8B8896',
-      'Medium': '#F59E0B',
-      'High': '#10B981',
-      'Good': '#10B981',
-      'Improved': '#3B82F6',
-      'Baseline security issues': '#8B8896',
-      'Higher Assurance': '#10B981'
+  // Get level icon and color based on percentage (same as Scorecards Tab)
+  const getLevelIconAndColor = (percentage) => {
+    const pct = parseFloat(percentage) || 0
+
+    if (pct >= 80) {
+      return { icon: '', color: '#FFD700', label: 'Gold' }
+    } else if (pct >= 60) {
+      return { icon: '', color: '#C0C0C0', label: 'Silver' }
+    } else if (pct >= 40) {
+      return { icon: '', color: '#CD7F32', label: 'Bronze' }
+    } else {
+      return { icon: '', color: '#8B8896', label: 'Basic' }
     }
-    return colors[levelName] || '#CCCCCC'
   }
 
   return (
@@ -1066,13 +947,13 @@ const RulesTab = ({ scorecardDefinitions, serviceEvaluations }) => {
         <div className="rules-header">
           <div>
             <h2 className="section-title">
-              <span className="section-icon">📜</span>
+              {/* <span className="section-icon">📜</span> */}
               Scorecard Rules
             </h2>
-            <p className="section-description">
+            {/* <p className="section-description">
               Navigating to the data source page will allow you to connect a data source.
               Navigating to the automations page will allow you to create and view automations.
-            </p>
+            </p> */}
           </div>
           <div className="search-container">
             <input
@@ -1127,34 +1008,35 @@ const RulesTab = ({ scorecardDefinitions, serviceEvaluations }) => {
               </tr>
             </thead>
             <tbody>
-              {rulesArray.map((rule, idx) => (
-                <tr key={idx} className="rule-result-row">
-                  <td className="text-center">
-                    <span className="rule-icon">
-                      {rule.passPercentage >= 80 ? '✅' : rule.passPercentage >= 50 ? '⚠️' : '❌'}
-                    </span>
-                  </td>
-                  <td>
-                    <div className="property-cell">
-                      <span className="property-name">{rule.ruleName}</span>
-                    </div>
-                  </td>
-                  <td>
-                    <span className="scorecard-badge">{rule.scorecardName}</span>
-                  </td>
-                  <td>
-                    <span
-                      className="level-badge-small"
-                      style={{ backgroundColor: getLevelBadgeColor(rule.achievedLevel) }}
-                    >
-                      {rule.achievedLevel || 'None'}
-                    </span>
-                  </td>
-                  <td className="text-center">{rule.totalServices}</td>
-                  <td className="text-center">{rule.passedServices}</td>
-                  <td className="text-center">{rule.passPercentage}</td>
-                </tr>
-              ))}
+              {rulesArray.map((rule, idx) => {
+                const levelInfo = getLevelIconAndColor(rule.passPercentage)
+                return (
+                  <tr key={idx} className="rule-result-row">
+                    <td className="text-center">
+                      <span className="rule-icon">
+                        {rule.passPercentage >= 80 ? '✅' : rule.passPercentage >= 50 ? '⚠️' : '❌'}
+                      </span>
+                    </td>
+                    <td>
+                      <div className="property-cell">
+                        <span className="property-name">{rule.ruleName}</span>
+                      </div>
+                    </td>
+                    <td>
+                      <span className="scorecard-badge">{rule.scorecardName}</span>
+                    </td>
+                    <td>
+                      <div className="level-badge" style={{ backgroundColor: levelInfo.color }}>
+                        <span className="level-icon">{levelInfo.icon}</span>
+                        <span className="level-text">{levelInfo.label}</span>
+                      </div>
+                    </td>
+                    <td className="text-center">{rule.totalServices}</td>
+                    <td className="text-center">{rule.passedServices}</td>
+                    <td className="text-center">{rule.passPercentage}</td>
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
         </div>
@@ -1179,7 +1061,9 @@ const ScorecardRulesTab = () => {
       try {
         const response = await scorecardApiService.getScorecardDefinitions()
         // Filter out DORA metrics
-        const filtered = response.filter(sc => sc.scorecard_name !== 'DORA_Metrics')
+        const filtered = response.filter(sc =>
+          sc.scorecard_name !== 'DORA_Metrics' && sc.scorecard_name !== 'DORA Metrics'
+        )
         setScorecardDefinitions(filtered)
       } catch (error) {
         console.error('Error fetching scorecard definitions:', error)
@@ -1207,7 +1091,7 @@ const ScorecardRulesTab = () => {
     <div className="scorecard-rules-tab">
       <div className="table-section">
         <h2 className="section-title">
-          <span className="section-icon">📜</span>
+          {/* <span className="section-icon">📜</span> */}
           Scorecard Rules
         </h2>
         <div className="table-container">
@@ -1228,7 +1112,6 @@ const ScorecardRulesTab = () => {
                 <tr key={idx}>
                   <td>
                     <div className="scorecard-name-cell">
-                      <span className="scorecard-icon">📊</span>
                       <span className="scorecard-name">{rule.scorecard_name}</span>
                     </div>
                   </td>

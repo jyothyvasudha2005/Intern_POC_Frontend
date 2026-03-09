@@ -1,11 +1,13 @@
 import { configureStore } from '@reduxjs/toolkit'
 import servicesReducer from './servicesSlice'
 import scorecardsReducer from './scorecardsSlice'
+import evaluationsReducer from './evaluationsSlice'
 
 export const store = configureStore({
   reducer: {
     services: servicesReducer,
     scorecards: scorecardsReducer,
+    evaluations: evaluationsReducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
@@ -13,7 +15,8 @@ export const store = configureStore({
         // Ignore these action types
         ignoredActions: [
           'services/fetchServicesForOrg/fulfilled',
-          'scorecards/fetchDefinitions/fulfilled'
+          'scorecards/fetchDefinitions/fulfilled',
+          'evaluations/evaluateServicesForOrg/fulfilled'
         ],
         // Ignore these field paths in all actions
         ignoredActionPaths: ['payload.timestamp'],
@@ -21,7 +24,8 @@ export const store = configureStore({
         ignoredPaths: [
           'services.servicesByOrg',
           'services.serviceDetails',
-          'scorecards.definitions'
+          'scorecards.definitions',
+          'evaluations.evaluationsByOrg'
         ],
       },
     }),

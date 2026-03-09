@@ -251,8 +251,35 @@
 /* Progress Bar Cell */
 .progress-bar-cell {
   display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Level Badge */
+.level-badge {
+  display: inline-flex;
   align-items: center;
-  gap: 12px;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: white;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  width: fit-content;
+}
+
+.level-icon {
+  font-size: 14px;
+  line-height: 1;
+}
+
+.level-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .progress-bar-wrapper {
@@ -271,7 +298,7 @@
 
 .progress-bar-label {
   min-width: 45px;
-  text-align: right;
+  text-align: left;
   font-size: 13px;
   font-weight: 500;
   color: var(--text-primary);
@@ -396,6 +423,14 @@
   padding: 20px;
   border: 1px solid var(--border-color);
   text-align: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.scorecard-chart-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
+  border-color: var(--primary-color, #4A90E2);
 }
 
 .chart-card-header {
@@ -419,26 +454,68 @@
 .single-circular-chart-wrapper {
   position: relative;
   width: 160px;
-  height: 160px;
+  height: 200px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  transition: transform 0.3s ease;
+}
+
+.scorecard-chart-card:hover .single-circular-chart-wrapper {
+  transform: scale(1.05);
 }
 
 .single-circular-chart {
-  width: 100%;
-  height: 100%;
+  width: 160px;
+  height: 160px;
+  transition: filter 0.3s ease;
+}
+
+.scorecard-chart-card:hover .single-circular-chart {
+  filter: brightness(1.1);
 }
 
 .single-chart-center {
   position: absolute;
-  top: 50%;
-  left: 50%;
+  top: 80px;
+  left: 80px;
   transform: translate(-50%, -50%);
   text-align: center;
+  pointer-events: none;
 }
 
 .single-chart-score {
   font-size: 32px;
   font-weight: 700;
   color: var(--text-primary);
+}
+
+/* Chart Level Badge */
+.chart-level-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  border-radius: 16px;
+  font-size: 13px;
+  font-weight: 600;
+  color: white;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+  margin-top: 8px;
+}
+
+.chart-level-icon {
+  font-size: 16px;
+  line-height: 1;
+}
+
+.chart-level-label {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
 }
 
 .circular-chart-wrapper {
