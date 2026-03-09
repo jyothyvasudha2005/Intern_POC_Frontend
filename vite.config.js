@@ -7,11 +7,12 @@ export default defineConfig({
   server: {
     host: true, // Expose to network
     port: 5173, // Default port
+    allowedHosts: true, // Allow all hosts
     proxy: {
       // Proxy all /api requests to the backend
       '/api': {
-        //target: 'https://suse-challenging-bird-raised.trycloudflare.com/',
-        target: 'http://10.140.8.28:8089',
+        // target: 'http://10.140.8.28:8089',
+        target: 'https://suse-challenging-bird-raised.trycloudflare.com/',
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api/, ''),
       },

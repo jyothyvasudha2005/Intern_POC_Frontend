@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react'
-import { useDispatch, useSelector } from 'react-redux'
 import './App.css'
 import Login from './components/Login'
 import Home from './components/Home'
@@ -8,16 +7,10 @@ import ServiceCatalogue from './components/ServiceCatalogue'
 import ServiceMetrics from './components/ServiceMetrics'
 import ServiceScorecard from './components/ServiceScorecard'
 import ScorecardNew from './components/ScorecardNew'
+import RegressionTesting from './components/RegressionTesting'
 import logoImage from './assets/Red Blue Chinese Dragon Noodle Restaurant Logo.png'
-import { fetchServicesForOrg } from './store/servicesSlice'
-import { evaluateServicesForOrg } from './store/evaluationsSlice'
-
-// Organization ID for fetching services
-const ORG_ID = 1
 
 function App() {
-  const dispatch = useDispatch()
-
   const [user, setUser] = useState(null)
   const [currentView, setCurrentView] = useState('home')
   const [selectedService, setSelectedService] = useState(null)
@@ -30,52 +23,6 @@ function App() {
 
   // Repository filter state
   const [selectedRepo, setSelectedRepo] = useState('')
-
-  // Get services and evaluations from Redux
-  const { servicesByOrg } = useSelector(state => state.services)
-  const { evaluationsByOrg } = useSelector(state => state.evaluations)
-  const servicesData = servicesByOrg[ORG_ID]
-  const evaluationsData = evaluationsByOrg[ORG_ID]
-
-  // Fetch and evaluate all services when app loads
-  useEffect(() => {
-    const initializeData = async () => {
-      console.log('🚀 App Initialization: Fetching and evaluating all services...')
-
-      try {
-        // Step 1: Fetch all services if not already loaded
-        if (!servicesData) {
-          console.log('📡 API CALL: GET /service/api/v1/org/{orgId}/service - Fetching all services')
-          const result = await dispatch(fetchServicesForOrg(ORG_ID)).unwrap()
-          console.log(`✅ Fetched ${result.services.length} services`)
-
-          // Step 2: Evaluate all services
-          if (result.services && result.services.length > 0) {
-            console.log('📊 Evaluating all services...')
-            await dispatch(evaluateServicesForOrg({
-              orgId: ORG_ID,
-              services: result.services
-            })).unwrap()
-            console.log('✅ All services evaluated and stored in Redux')
-          }
-        } else if (!evaluationsData) {
-          // Services exist but evaluations don't - evaluate them
-          console.log('📊 Services exist, evaluating all services...')
-          await dispatch(evaluateServicesForOrg({
-            orgId: ORG_ID,
-            services: servicesData.services
-          })).unwrap()
-          console.log('✅ All services evaluated and stored in Redux')
-        } else {
-          console.log('✅ Services and evaluations already loaded in Redux')
-        }
-      } catch (error) {
-        console.error('❌ Error initializing data:', error)
-      }
-    }
-
-    initializeData()
-  }, [dispatch, servicesData, evaluationsData])
 
   // Check for existing user on mount
   useEffect(() => {
@@ -128,6 +75,11 @@ function App() {
     setViewMode('details')
     console.log('✅ Selected service set to:', service.name)
     console.log('✅ View mode set to: details')
+  }
+
+  const handleScorecardClick = (service) => {
+    setSelectedService(service)
+    setViewMode('scorecard')
   }
 
   const handleBackToServices = () => {
@@ -395,6 +347,7 @@ function App() {
           <div className="content">
             <ServiceCatalogue
               onServiceClick={handleServiceClick}
+              onScorecardClick={handleScorecardClick}
               selectedRepo={selectedRepo}
               setSelectedRepo={setSelectedRepo}
             />
@@ -440,9 +393,36 @@ function App() {
       <div className={`app ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
         {renderSidebar()}
         <div className="main-content">
-          {renderHeader()}
+          <div className="header">
+            <div className="header-right">
+              <button
+                className="theme-switcher"
+                onClick={toggleTheme}
+                title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+              >
+                <span className="theme-icon">
+                  {theme === 'dark' ? '☀️' : '🌙'}
+                </span>
+              </button>
+            </div>
+          </div>
           <div className="content">
             <ScorecardNew />
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // Regression Testing view
+  if (currentView === 'regression-testing') {
+    return (
+      <div className={`app ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
+        {renderSidebar()}
+        <div className="main-content">
+          {renderHeader()}
+          <div className="content">
+            <RegressionTesting />
           </div>
         </div>
       </div>

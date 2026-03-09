@@ -3,7 +3,7 @@ import '../styles/ServiceTable.css'
 import githubIcon from '../assets/github-sign.jpg'
 import jiraIcon from '../assets/jira.png'
 
-function ServiceTable({ services, onServiceClick }) {
+function ServiceTable({ services, onServiceClick, onScorecardClick }) {
   const [sortColumn, setSortColumn] = useState('name')
   const [sortDirection, setSortDirection] = useState('asc')
 
@@ -40,7 +40,7 @@ function ServiceTable({ services, onServiceClick }) {
       return aVal < bVal ? 1 : -1
     }
   })
-  console.log('Sorted Services:', sortedServices)
+
   const getStatusClass = (status) => {
     return `status-badge status-${status.toLowerCase()}`
   }
@@ -88,6 +88,7 @@ function ServiceTable({ services, onServiceClick }) {
               </div>
             </th>
             <th>Is Active</th>
+            <th>Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -99,7 +100,7 @@ function ServiceTable({ services, onServiceClick }) {
             >
               <td className="service-name-cell">
                 <div className="service-name-content">
-                  <span className="service-name">{service.name}</span>
+                  <span className="service-name">{service.title || service.name}</span>
                 </div>
               </td>
               <td>
@@ -116,23 +117,11 @@ function ServiceTable({ services, onServiceClick }) {
               </td>
               <td>
                 <span className="language-badge">
-                  {(service.language === 'Unknown') ? 'NA' : service.language}
+                  {service.language || service.metrics?.github?.language || 'Unknown'}
                 </span>
               </td>
-              <td>
-                {service.lastCommitter === null ? (
-                  <span className="loading-dots">...</span>
-                ) : (
-                  service.lastCommitter || service.metrics?.github?.lastCommitter || '-'
-                )}
-              </td>
-              <td>
-                {service.assignee_name === null ? (
-                  <span className="loading-dots">...</span>
-                ) : (
-                  service.assignee_name || "Yet to be assigned"
-                )}
-              </td>
+              <td>{service.lastCommitter || service.metrics?.github?.lastCommitter || '-'}</td>
+              <td>{service.onCall || service.metrics?.pagerduty?.onCall || '-'}</td>
               <td>
                 <span className={`tier-badge ${service.tier?.toLowerCase().replace(' ', '-')}`}>
                   {service.tier || '-'}
@@ -154,13 +143,23 @@ function ServiceTable({ services, onServiceClick }) {
               <td>{service.sonarProject || '-'}</td>
               <td>{service.owningTeam || service.team || '-'}</td>
               <td>
-                {service.is_active === null ? (
-                  <span className="loading-dots">...</span>
-                ) : (
-                  <span className={`active-status ${service.is_active ? 'active' : 'inactive'}`}>
-                    {service.is_active ? "✅" : "❌"}
-                  </span>
-                )}
+                <span className={`active-status ${service.is_active ? 'active' : 'inactive'}`}>
+                  {service.is_active ? "Active" : "Inactive"}
+                </span>
+              </td>
+              <td>
+                <div className="action-buttons">
+                  <button
+                    className="scorecard-button"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      onScorecardClick && onScorecardClick(service)
+                    }}
+                    title="View Scorecard"
+                  >
+                    Scorecard
+                  </button>
+                </div>
               </td>
             </tr>
           ))}

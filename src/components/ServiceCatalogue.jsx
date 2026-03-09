@@ -6,8 +6,7 @@ import { onboardService } from '../services/onboardingService'
 import {
   fetchServicesForOrg,
   refreshServicesForOrg,
-  setCurrentOrg,
-  fetchServicesWithPagerDuty
+  setCurrentOrg
 } from '../store/servicesSlice'
 import store from '../store/store'
 import {
@@ -19,7 +18,7 @@ import {
   selectIsDataStale
 } from '../store/selectors'
 
-function ServiceCatalogue({ onServiceClick }) {
+function ServiceCatalogue({ onServiceClick, onScorecardClick }) {
   const dispatch = useDispatch()
 
   // Redux state - Organizations (extracted from service responses)
@@ -73,10 +72,33 @@ function ServiceCatalogue({ onServiceClick }) {
     }
   }
 
-  const handleOrgChange = (e) => {
+  const handleOrgChange = async (e) => {
     const orgId = parseInt(e.target.value)
-    // Just update the state - the useEffect will handle fetching
     setSelectedOrgId(orgId)
+
+    // Set current org in Redux
+    dispatch(setCurrentOrg(orgId))
+
+    // CHECK CACHE BEFORE FETCHING
+    const hasCached = selectHasCachedServices(orgId)(store.getState())
+    const isStale = selectIsDataStale(orgId)(store.getState())
+
+    console.log('Organization changed to:', orgId)
+    console.log('Cache status:', { hasCached, isStale })
+
+    // Only fetch if we don't have cached data OR if it's stale
+    if (!hasCached || isStale) {
+      console.log('Fetching services for org:', orgId, '(Cache:', hasCached ? 'stale' : 'missing', ')')
+      try {
+        await dispatch(fetchServicesForOrg(orgId)).unwrap()
+        console.log('Services loaded successfully from API')
+      } catch (error) {
+        console.error('Error fetching services:', error)
+        setLoadError(error.message || 'Failed to load services')
+      }
+    } else {
+      console.log('Using cached services for org:', orgId)
+    }
   }
 
   const handleRefresh = async () => {
@@ -125,40 +147,25 @@ function ServiceCatalogue({ onServiceClick }) {
     })
   }, [selectedOrgId, organizations, services, isLoading, error, loadError])
 
-  // When organization changes, fetch services + PagerDuty + GitHub data together (single render)
+  // When organization changes, fetch services for that org
   useEffect(() => {
-    const loadServicesAndPagerDuty = async () => {
-      if (selectedOrgId && selectedOrgId > 0) {
-        console.log('\n🔄 Organization selected:', selectedOrgId)
-        // Set current org in Redux
-        dispatch(setCurrentOrg(selectedOrgId))
+    if (selectedOrgId && selectedOrgId > 0) {
+      console.log('Organization changed to:', selectedOrgId)
+      // Set current org in Redux
+      dispatch(setCurrentOrg(selectedOrgId))
 
-        // Check cache and fetch if needed
-        const hasCached = selectHasCachedServices(selectedOrgId)(store.getState())
-        const isStale = selectIsDataStale(selectedOrgId)(store.getState())
+      // Check cache and fetch if needed
+      const hasCached = selectHasCachedServices(selectedOrgId)(store.getState())
+      const isStale = selectIsDataStale(selectedOrgId)(store.getState())
 
-        console.log('📦 Cache status:', { hasCached, isStale })
-
-        if (!hasCached || isStale) {
-          console.log('� Fetching services + PagerDuty + GitHub for org:', selectedOrgId)
-          try {
-            // ✅ Use combined thunk - fetches services + PagerDuty + GitHub in one go
-            // All data is merged BEFORE storing in Redux (single render)
-            await dispatch(fetchServicesWithPagerDuty(selectedOrgId)).unwrap()
-            console.log('✅ All data loaded successfully (single render)\n')
-          } catch (error) {
-            console.error('❌ Error loading data:', error)
-            setLoadError(error.message || 'Failed to load services')
-          }
-        } else {
-          console.log('✅ Using cached data for org:', selectedOrgId, '(includes PagerDuty + GitHub)\n')
-          // No need to fetch PagerDuty separately - it's already in the cached services!
-        }
+      if (!hasCached || isStale) {
+        console.log('Fetching services for org:', selectedOrgId)
+        dispatch(fetchServicesForOrg(selectedOrgId))
+      } else {
+        console.log('Using cached services for org:', selectedOrgId)
       }
     }
-
-    loadServicesAndPagerDuty()
-  }, [selectedOrgId, dispatch])
+  }, [selectedOrgId])
 
   const handleAddService = () => {
     setShowAddModal(true)
@@ -284,6 +291,7 @@ function ServiceCatalogue({ onServiceClick }) {
         <ServiceTable
           services={currentServices}
           onServiceClick={onServiceClick}
+          onScorecardClick={onScorecardClick}
         />
       )}
 
