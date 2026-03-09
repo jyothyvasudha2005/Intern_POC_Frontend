@@ -6,7 +6,9 @@ import { onboardService } from '../services/onboardingService'
 import {
   fetchServicesForOrg,
   refreshServicesForOrg,
-  setCurrentOrg
+  setCurrentOrg,
+  fetchPagerDutyDataForOrg,
+  fetchServicesWithPagerDuty
 } from '../store/servicesSlice'
 import store from '../store/store'
 import {
@@ -83,21 +85,29 @@ function ServiceCatalogue({ onServiceClick, onScorecardClick }) {
     const hasCached = selectHasCachedServices(orgId)(store.getState())
     const isStale = selectIsDataStale(orgId)(store.getState())
 
-    console.log('Organization changed to:', orgId)
-    console.log('Cache status:', { hasCached, isStale })
+    console.log('\n🔄 Organization changed to:', orgId)
+    console.log('📦 Cache status:', { hasCached, isStale })
 
     // Only fetch if we don't have cached data OR if it's stale
     if (!hasCached || isStale) {
-      console.log('Fetching services for org:', orgId, '(Cache:', hasCached ? 'stale' : 'missing', ')')
+      console.log('📦 Fetching services + PagerDuty for org:', orgId, '(Cache:', hasCached ? 'stale' : 'missing', ')')
       try {
-        await dispatch(fetchServicesForOrg(orgId)).unwrap()
-        console.log('Services loaded successfully from API')
+        // ✅ NEW: Use combined thunk - fetches services AND PagerDuty in one go (no re-render)
+        await dispatch(fetchServicesWithPagerDuty(orgId)).unwrap()
+        console.log('✅ Services + PagerDuty loaded successfully (single render)\n')
       } catch (error) {
-        console.error('Error fetching services:', error)
+        console.error('❌ Error fetching services:', error)
         setLoadError(error.message || 'Failed to load services')
       }
     } else {
-      console.log('Using cached services for org:', orgId)
+      console.log('✅ Using cached services for org:', orgId)
+      // Still fetch PagerDuty data even if services are cached
+      try {
+        await dispatch(fetchPagerDutyDataForOrg(orgId)).unwrap()
+        console.log('✅ PagerDuty data refreshed\n')
+      } catch (error) {
+        console.error('❌ Error fetching PagerDuty data:', error)
+      }
     }
   }
 
@@ -147,25 +157,43 @@ function ServiceCatalogue({ onServiceClick, onScorecardClick }) {
     })
   }, [selectedOrgId, organizations, services, isLoading, error, loadError])
 
-  // When organization changes, fetch services for that org
+  // When organization changes, fetch services + PagerDuty data together (single render)
   useEffect(() => {
-    if (selectedOrgId && selectedOrgId > 0) {
-      console.log('Organization changed to:', selectedOrgId)
-      // Set current org in Redux
-      dispatch(setCurrentOrg(selectedOrgId))
+    const loadServicesAndPagerDuty = async () => {
+      if (selectedOrgId && selectedOrgId > 0) {
+        console.log('\n🔄 Organization changed to:', selectedOrgId)
+        // Set current org in Redux
+        dispatch(setCurrentOrg(selectedOrgId))
 
-      // Check cache and fetch if needed
-      const hasCached = selectHasCachedServices(selectedOrgId)(store.getState())
-      const isStale = selectIsDataStale(selectedOrgId)(store.getState())
+        // Check cache and fetch if needed
+        const hasCached = selectHasCachedServices(selectedOrgId)(store.getState())
+        const isStale = selectIsDataStale(selectedOrgId)(store.getState())
 
-      if (!hasCached || isStale) {
-        console.log('Fetching services for org:', selectedOrgId)
-        dispatch(fetchServicesForOrg(selectedOrgId))
-      } else {
-        console.log('Using cached services for org:', selectedOrgId)
+        if (!hasCached || isStale) {
+          console.log('📦 Cache status: ' + (hasCached ? 'STALE' : 'MISSING') + ' - Fetching services + PagerDuty...')
+          try {
+            // ✅ NEW: Use combined thunk - fetches services AND PagerDuty in one go (no re-render)
+            await dispatch(fetchServicesWithPagerDuty(selectedOrgId)).unwrap()
+            console.log('✅ Services + PagerDuty data loaded successfully (single render)\n')
+          } catch (error) {
+            console.error('❌ Error loading data:', error)
+          }
+        } else {
+          console.log('✅ Using cached services for org:', selectedOrgId)
+          // Still fetch PagerDuty data even if services are cached
+          // (PagerDuty data might be stale)
+          try {
+            await dispatch(fetchPagerDutyDataForOrg(selectedOrgId)).unwrap()
+            console.log('✅ PagerDuty data refreshed\n')
+          } catch (error) {
+            console.error('❌ Error fetching PagerDuty data:', error)
+          }
+        }
       }
     }
-  }, [selectedOrgId])
+
+    loadServicesAndPagerDuty()
+  }, [selectedOrgId, dispatch])
 
   const handleAddService = () => {
     setShowAddModal(true)

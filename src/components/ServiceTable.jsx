@@ -100,7 +100,7 @@ function ServiceTable({ services, onServiceClick, onScorecardClick }) {
             >
               <td className="service-name-cell">
                 <div className="service-name-content">
-                  <span className="service-name">{service.title || service.name}</span>
+                  <span className="service-name">{service.name}</span>
                 </div>
               </td>
               <td>
@@ -117,11 +117,23 @@ function ServiceTable({ services, onServiceClick, onScorecardClick }) {
               </td>
               <td>
                 <span className="language-badge">
-                  {service.language || service.metrics?.github?.language || 'Unknown'}
+                  {(service.language === 'Unknown') ? 'NA' : service.language}
                 </span>
               </td>
-              <td>{service.lastCommitter || service.metrics?.github?.lastCommitter || '-'}</td>
-              <td>{service.onCall || service.metrics?.pagerduty?.onCall || '-'}</td>
+              <td>
+                {service.lastCommitter === null ? (
+                  <span className="loading-dots">...</span>
+                ) : (
+                  service.lastCommitter || service.metrics?.github?.lastCommitter || '-'
+                )}
+              </td>
+              <td>
+                {service.assignee_name === null ? (
+                  <span className="loading-dots">...</span>
+                ) : (
+                  service.assignee_name || "Yet to be assigned"
+                )}
+              </td>
               <td>
                 <span className={`tier-badge ${service.tier?.toLowerCase().replace(' ', '-')}`}>
                   {service.tier || '-'}
@@ -143,9 +155,13 @@ function ServiceTable({ services, onServiceClick, onScorecardClick }) {
               <td>{service.sonarProject || '-'}</td>
               <td>{service.owningTeam || service.team || '-'}</td>
               <td>
-                <span className={`active-status ${service.is_active ? 'active' : 'inactive'}`}>
-                  {service.is_active ? "Active" : "Inactive"}
-                </span>
+                {service.is_active === null ? (
+                  <span className="loading-dots">...</span>
+                ) : (
+                  <span className={`active-status ${service.is_active ? 'active' : 'inactive'}`}>
+                    {service.is_active ? "✅" : "❌"}
+                  </span>
+                )}
               </td>
               <td>
                 <div className="action-buttons">

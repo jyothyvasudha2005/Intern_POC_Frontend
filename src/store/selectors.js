@@ -28,8 +28,9 @@ export const selectHasCachedOrganizations = (state) => {
   return state.services.organizations.length > 0
 }
 
-// Check if organizations data is stale (older than 5 minutes)
-export const selectAreOrganizationsStale = (maxAge = 5 * 60 * 1000) => (state) => {
+// Check if organizations data is stale (older than 30 minutes)
+// ✅ INCREASED: 5 min → 30 min to prevent frequent re-fetching
+export const selectAreOrganizationsStale = (maxAge = 30 * 60 * 1000) => (state) => {
   const lastFetched = state.services.organizationsLastFetched
   if (!lastFetched) return true
   return Date.now() - lastFetched > maxAge
@@ -82,8 +83,9 @@ export const selectServiceLastFetched = (serviceId) => (state) => {
   return state.services.serviceDetails[serviceId]?.lastFetched || null
 }
 
-// Check if data is stale (older than 5 minutes)
-export const selectIsDataStale = (orgId, maxAge = 5 * 60 * 1000) => (state) => {
+// Check if data is stale (older than 30 minutes)
+// ✅ INCREASED: 5 min → 30 min to prevent frequent re-fetching
+export const selectIsDataStale = (orgId, maxAge = 30 * 60 * 1000) => (state) => {
   const lastFetched = state.services.servicesByOrg[orgId]?.lastFetched
   if (!lastFetched) return true
   return Date.now() - lastFetched > maxAge
@@ -118,7 +120,8 @@ export const selectHasCachedDashboardData = (orgId) => (state) => {
   return !!state.services.dashboardData[orgId]
 }
 
-export const selectIsDashboardDataStale = (orgId, maxAge = 5 * 60 * 1000) => (state) => {
+// ✅ INCREASED: 5 min → 30 min to prevent frequent re-fetching
+export const selectIsDashboardDataStale = (orgId, maxAge = 30 * 60 * 1000) => (state) => {
   const lastFetched = state.services.dashboardData[orgId]?.lastFetched
   if (!lastFetched) return true
   return Date.now() - lastFetched > maxAge
@@ -201,4 +204,23 @@ export const selectDeveloperDashboardSummary = createSelector(
     openTasks
   })
 )
+
+// ✅ NEW: Commits selectors
+export const selectCommitsByServiceId = (serviceId) => (state) => {
+  return state.services.serviceCommits[serviceId]?.commits || []
+}
+
+export const selectHasCachedCommits = (serviceId) => (state) => {
+  return !!state.services.serviceCommits[serviceId]
+}
+
+export const selectCommitsLastFetched = (serviceId) => (state) => {
+  return state.services.serviceCommits[serviceId]?.lastFetched || null
+}
+
+export const selectAreCommitsStale = (serviceId, maxAge = 30 * 60 * 1000) => (state) => {
+  const lastFetched = state.services.serviceCommits[serviceId]?.lastFetched
+  if (!lastFetched) return true
+  return Date.now() - lastFetched > maxAge
+}
 
