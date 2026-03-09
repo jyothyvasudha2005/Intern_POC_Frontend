@@ -1,5 +1,9 @@
 import { createSelector } from '@reduxjs/toolkit'
 
+// ✅ Shared empty array constant to prevent new references on every selector call
+// This prevents unnecessary rerenders when selectors return empty arrays
+const EMPTY_ARRAY = []
+
 // Basic selectors
 export const selectServicesState = (state) => state.services
 
@@ -41,9 +45,9 @@ export const selectCurrentOrgServices = createSelector(
   [selectServicesState, selectCurrentOrgId],
   (servicesState, currentOrgId) => {
     if (!currentOrgId || !servicesState.servicesByOrg[currentOrgId]) {
-      return []
+      return EMPTY_ARRAY
     }
-    return servicesState.servicesByOrg[currentOrgId].services || []
+    return servicesState.servicesByOrg[currentOrgId].services || EMPTY_ARRAY
   }
 )
 
@@ -96,17 +100,25 @@ export const selectDashboardData = (orgId) => (state) => {
   return state.services.dashboardData[orgId] || null
 }
 
-export const selectDashboardOpenPRs = (orgId) => (state) => {
-  return state.services.dashboardData[orgId]?.openPRs || []
-}
+// ✅ Memoized selectors to prevent unnecessary rerenders
+// These return the same empty array reference when data doesn't exist
+export const selectDashboardOpenPRs = (orgId) =>
+  createSelector(
+    [(state) => state.services.dashboardData[orgId]?.openPRs],
+    (openPRs) => openPRs || EMPTY_ARRAY
+  )
 
-export const selectDashboardOpenBugs = (orgId) => (state) => {
-  return state.services.dashboardData[orgId]?.openBugs || []
-}
+export const selectDashboardOpenBugs = (orgId) =>
+  createSelector(
+    [(state) => state.services.dashboardData[orgId]?.openBugs],
+    (openBugs) => openBugs || EMPTY_ARRAY
+  )
 
-export const selectDashboardOpenTasks = (orgId) => (state) => {
-  return state.services.dashboardData[orgId]?.openTasks || []
-}
+export const selectDashboardOpenTasks = (orgId) =>
+  createSelector(
+    [(state) => state.services.dashboardData[orgId]?.openTasks],
+    (openTasks) => openTasks || EMPTY_ARRAY
+  )
 
 export const selectIsLoadingDashboard = (state) => {
   return state.services.isLoadingDashboard
@@ -206,9 +218,11 @@ export const selectDeveloperDashboardSummary = createSelector(
 )
 
 // ✅ NEW: Commits selectors
-export const selectCommitsByServiceId = (serviceId) => (state) => {
-  return state.services.serviceCommits[serviceId]?.commits || []
-}
+export const selectCommitsByServiceId = (serviceId) =>
+  createSelector(
+    [(state) => state.services.serviceCommits[serviceId]?.commits],
+    (commits) => commits || EMPTY_ARRAY
+  )
 
 export const selectHasCachedCommits = (serviceId) => (state) => {
   return !!state.services.serviceCommits[serviceId]

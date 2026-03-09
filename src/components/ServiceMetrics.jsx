@@ -445,7 +445,7 @@ function renderOverview(service) {
                 Type
               </div>
               <div className="port-detail-value">
-                <span className="port-badge type-badge">{service.type || 'Backend'}</span>
+                <span className="port-badge type-badge">{service.type}</span>
               </div>
             </div>
 

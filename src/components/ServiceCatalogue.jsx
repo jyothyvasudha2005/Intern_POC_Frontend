@@ -7,7 +7,6 @@ import {
   fetchServicesForOrg,
   refreshServicesForOrg,
   setCurrentOrg,
-  fetchPagerDutyDataForOrg,
   fetchServicesWithPagerDuty
 } from '../store/servicesSlice'
 import store from '../store/store'
@@ -74,41 +73,10 @@ function ServiceCatalogue({ onServiceClick }) {
     }
   }
 
-  const handleOrgChange = async (e) => {
+  const handleOrgChange = (e) => {
     const orgId = parseInt(e.target.value)
+    // Just update the state - the useEffect will handle fetching
     setSelectedOrgId(orgId)
-
-    // Set current org in Redux
-    dispatch(setCurrentOrg(orgId))
-
-    // CHECK CACHE BEFORE FETCHING
-    const hasCached = selectHasCachedServices(orgId)(store.getState())
-    const isStale = selectIsDataStale(orgId)(store.getState())
-
-    console.log('\n🔄 Organization changed to:', orgId)
-    console.log('📦 Cache status:', { hasCached, isStale })
-
-    // Only fetch if we don't have cached data OR if it's stale
-    if (!hasCached || isStale) {
-      console.log('📦 Fetching services + PagerDuty for org:', orgId, '(Cache:', hasCached ? 'stale' : 'missing', ')')
-      try {
-        // ✅ NEW: Use combined thunk - fetches services AND PagerDuty in one go (no re-render)
-        await dispatch(fetchServicesWithPagerDuty(orgId)).unwrap()
-        console.log('✅ Services + PagerDuty loaded successfully (single render)\n')
-      } catch (error) {
-        console.error('❌ Error fetching services:', error)
-        setLoadError(error.message || 'Failed to load services')
-      }
-    } else {
-      console.log('✅ Using cached services for org:', orgId)
-      // Still fetch PagerDuty data even if services are cached
-      try {
-        await dispatch(fetchPagerDutyDataForOrg(orgId)).unwrap()
-        console.log('✅ PagerDuty data refreshed\n')
-      } catch (error) {
-        console.error('❌ Error fetching PagerDuty data:', error)
-      }
-    }
   }
 
   const handleRefresh = async () => {
@@ -157,11 +125,11 @@ function ServiceCatalogue({ onServiceClick }) {
     })
   }, [selectedOrgId, organizations, services, isLoading, error, loadError])
 
-  // When organization changes, fetch services + PagerDuty data together (single render)
+  // When organization changes, fetch services + PagerDuty + GitHub data together (single render)
   useEffect(() => {
     const loadServicesAndPagerDuty = async () => {
       if (selectedOrgId && selectedOrgId > 0) {
-        console.log('\n🔄 Organization changed to:', selectedOrgId)
+        console.log('\n🔄 Organization selected:', selectedOrgId)
         // Set current org in Redux
         dispatch(setCurrentOrg(selectedOrgId))
 
@@ -169,25 +137,22 @@ function ServiceCatalogue({ onServiceClick }) {
         const hasCached = selectHasCachedServices(selectedOrgId)(store.getState())
         const isStale = selectIsDataStale(selectedOrgId)(store.getState())
 
+        console.log('📦 Cache status:', { hasCached, isStale })
+
         if (!hasCached || isStale) {
-          console.log('📦 Cache status: ' + (hasCached ? 'STALE' : 'MISSING') + ' - Fetching services + PagerDuty...')
+          console.log('� Fetching services + PagerDuty + GitHub for org:', selectedOrgId)
           try {
-            // ✅ NEW: Use combined thunk - fetches services AND PagerDuty in one go (no re-render)
+            // ✅ Use combined thunk - fetches services + PagerDuty + GitHub in one go
+            // All data is merged BEFORE storing in Redux (single render)
             await dispatch(fetchServicesWithPagerDuty(selectedOrgId)).unwrap()
-            console.log('✅ Services + PagerDuty data loaded successfully (single render)\n')
+            console.log('✅ All data loaded successfully (single render)\n')
           } catch (error) {
             console.error('❌ Error loading data:', error)
+            setLoadError(error.message || 'Failed to load services')
           }
         } else {
-          console.log('✅ Using cached services for org:', selectedOrgId)
-          // Still fetch PagerDuty data even if services are cached
-          // (PagerDuty data might be stale)
-          try {
-            await dispatch(fetchPagerDutyDataForOrg(selectedOrgId)).unwrap()
-            console.log('✅ PagerDuty data refreshed\n')
-          } catch (error) {
-            console.error('❌ Error fetching PagerDuty data:', error)
-          }
+          console.log('✅ Using cached data for org:', selectedOrgId, '(includes PagerDuty + GitHub)\n')
+          // No need to fetch PagerDuty separately - it's already in the cached services!
         }
       }
     }

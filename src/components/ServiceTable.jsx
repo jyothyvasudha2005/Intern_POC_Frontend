@@ -40,7 +40,7 @@ function ServiceTable({ services, onServiceClick }) {
       return aVal < bVal ? 1 : -1
     }
   })
-
+  console.log('Sorted Services:', sortedServices)
   const getStatusClass = (status) => {
     return `status-badge status-${status.toLowerCase()}`
   }
