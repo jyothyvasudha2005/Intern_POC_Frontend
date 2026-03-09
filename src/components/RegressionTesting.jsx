@@ -4,7 +4,6 @@ import { selectCurrentOrgServices, selectCurrentOrgId } from '../store/selectors
 import { fetchServicesForOrg } from '../store/servicesSlice'
 import apiClient from '../services/apiClient'
 import '../styles/RegressionTesting.css'
-import { envPatToken } from '../utils/env'
 
 // Mock data for when API is not available
 const MOCK_TEST_RESULTS = {
@@ -142,7 +141,7 @@ const RegressionTesting = () => {
       // Use PAT token from environment
       const payload = {
         github_url: selectedService.repositoryUrl || selectedService.github,
-        pat_token: envPatToken,
+        pat_token: import.meta.env.VITE_GITHUB_PAT,
         branch: 'main'
       }
       console.log("Payload: ", payload);
