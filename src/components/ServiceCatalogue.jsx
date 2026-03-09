@@ -20,7 +20,7 @@ import {
   selectIsDataStale
 } from '../store/selectors'
 
-function ServiceCatalogue({ onServiceClick, onScorecardClick }) {
+function ServiceCatalogue({ onServiceClick }) {
   const dispatch = useDispatch()
 
   // Redux state - Organizations (extracted from service responses)
@@ -319,7 +319,6 @@ function ServiceCatalogue({ onServiceClick, onScorecardClick }) {
         <ServiceTable
           services={currentServices}
           onServiceClick={onServiceClick}
-          onScorecardClick={onScorecardClick}
         />
       )}
 
