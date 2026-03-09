@@ -2,11 +2,7 @@ import { useState, useEffect } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import '../styles/ScorecardNew.css'
 import { fetchServicesForOrg } from '../store/servicesSlice'
-import { fetchScorecardDefinitions } from '../store/scorecardsSlice'
 import { evaluateServicesForOrg } from '../store/evaluationsSlice'
-import {
-  getLevelColor
-} from '../services/scorecardApiService'
 
 // Organization ID for fetching services
 const ORG_ID = 1
@@ -17,9 +13,6 @@ const ScorecardNew = () => {
   // Redux state - Services
   const { servicesByOrg, isLoading: isLoadingServices } = useSelector(state => state.services)
   const servicesData = servicesByOrg[ORG_ID]
-
-  // Redux state - Scorecards
-  const { definitions: scorecardDefinitions, isLoading: isLoadingScorecards } = useSelector(state => state.scorecards)
 
   // Redux state - Evaluations
   const { evaluationsByOrg, isLoading: isLoadingEvaluations } = useSelector(state => state.evaluations)
@@ -37,20 +30,13 @@ const ScorecardNew = () => {
   const [detailedView, setDetailedView] = useState(false)
 
   // Fetch services from Redux on mount (only if not already loaded)
-  // Note: We still fetch scorecard definitions for the Scorecard tab display
   useEffect(() => {
     // Only fetch services if we don't have them for this org
     if (!servicesData) {
       console.log('📡 API CALL: GET /service/api/v1/org/{orgId}/service - Fetching all services for organization')
       dispatch(fetchServicesForOrg(ORG_ID))
     }
-
-    // Fetch scorecard definitions for display purposes (not for evaluation)
-    if (!scorecardDefinitions) {
-      console.log('📡 API CALL: GET /scorecard/api/v2/scorecards/definitions - Fetching scorecard definitions')
-      dispatch(fetchScorecardDefinitions())
-    }
-  }, [dispatch, servicesData, scorecardDefinitions])
+  }, [dispatch, servicesData])
 
   // Evaluate all services when Redux data is available (only if not already evaluated)
   useEffect(() => {
@@ -105,7 +91,7 @@ const ScorecardNew = () => {
   }, [serviceEvaluations])
 
   // Determine loading and error states
-  const loading = isLoadingServices || isLoadingScorecards || isLoadingEvaluations
+  const loading = isLoadingServices || isLoadingEvaluations
   const error = evaluationsData?.error || null
 
   // Render loading state
@@ -117,8 +103,7 @@ const ScorecardNew = () => {
           <p>Loading scorecard data...</p>
           <p style={{ fontSize: '14px', color: '#666' }}>
             {isLoadingServices && 'Fetching services from Redux...'}
-            {isLoadingScorecards && 'Fetching scorecard definitions from Redux...'}
-            {loading && !isLoadingServices && !isLoadingScorecards && 'Evaluating services...'}
+            {loading && !isLoadingServices && 'Evaluating services...'}
           </p>
         </div>
       </div>
@@ -184,7 +169,6 @@ const ScorecardNew = () => {
         )}
         {activeTab === 'scorecards' && !detailedView && (
           <ScorecardsTab
-            scorecardDefinitions={scorecardDefinitions}
             serviceEvaluations={serviceEvaluations}
             onScorecardClick={(scorecard) => {
               setSelectedScorecard(scorecard)
@@ -204,7 +188,6 @@ const ScorecardNew = () => {
         )}
         {activeTab === 'rules' && (
           <RulesTab
-            scorecardDefinitions={scorecardDefinitions}
             serviceEvaluations={serviceEvaluations}
           />
         )}
@@ -854,10 +837,11 @@ const DetailedScorecardView = ({ scorecard, serviceEvaluations, onBack }) => {
 }
 
 // RulesTab Component - Shows detailed rule results from service evaluations
-const RulesTab = ({ scorecardDefinitions, serviceEvaluations }) => {
+// Now uses only evaluation data, no longer needs definitions API
+const RulesTab = ({ serviceEvaluations }) => {
   const [searchTerm, setSearchTerm] = useState('')
 
-  if (!scorecardDefinitions || !scorecardDefinitions.scorecards) {
+  if (!serviceEvaluations || serviceEvaluations.length === 0) {
     return <div className="loading-message">Loading scorecard rules...</div>
   }
 
@@ -1052,39 +1036,33 @@ const RulesTab = ({ scorecardDefinitions, serviceEvaluations }) => {
 }
 
 // ScorecardRulesTab Component - Shows all rules for all scorecards
-const ScorecardRulesTab = () => {
-  const [scorecardDefinitions, setScorecardDefinitions] = useState([])
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    const fetchScorecardDefinitions = async () => {
-      try {
-        const response = await scorecardApiService.getScorecardDefinitions()
-        // Filter out DORA metrics
-        const filtered = response.filter(sc =>
-          sc.scorecard_name !== 'DORA_Metrics' && sc.scorecard_name !== 'DORA Metrics'
-        )
-        setScorecardDefinitions(filtered)
-      } catch (error) {
-        console.error('Error fetching scorecard definitions:', error)
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    fetchScorecardDefinitions()
-  }, [])
-
-  if (loading) {
-    return <div className="loading-message">Loading scorecard rules...</div>
+// Now uses evaluation data instead of definitions API
+const ScorecardRulesTab = ({ serviceEvaluations }) => {
+  if (!serviceEvaluations || serviceEvaluations.length === 0) {
+    return <div className="loading-message">No evaluation data available</div>
   }
 
-  // Flatten all rules from all scorecards
-  const allRules = scorecardDefinitions.flatMap(scorecard =>
-    (scorecard.rules || []).map(rule => ({
-      ...rule,
-      scorecard_name: scorecard.scorecard_name
-    }))
+  // Extract rule definitions from the first service's evaluation
+  // All services are evaluated against the same rules, so we can use any service
+  const firstEvaluation = serviceEvaluations[0]?.evaluation
+
+  if (!firstEvaluation || !firstEvaluation.scorecards) {
+    return <div className="loading-message">No scorecard data available</div>
+  }
+
+  // Extract all rules from all scorecards (already filtered for DORA in Redux)
+  const allRules = firstEvaluation.scorecards.flatMap(scorecard =>
+    (scorecard.levels || []).flatMap(level =>
+      (level.rules || []).map(rule => ({
+        scorecard_name: scorecard.scorecard_name,
+        rule_name: rule.rule_name,
+        description: rule.description || 'N/A',
+        metric_name: rule.rule_name, // Using rule_name as metric_name
+        operator: rule.operator,
+        target_value: rule.threshold?.toString().replace(rule.operator, '').trim() || rule.expected_value || 'N/A',
+        weight: 1 // Default weight
+      }))
+    )
   )
 
   return (
