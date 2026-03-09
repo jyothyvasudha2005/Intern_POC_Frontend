@@ -8,6 +8,7 @@ import ServiceCatalogue from './components/ServiceCatalogue'
 import ServiceMetrics from './components/ServiceMetrics'
 import ServiceScorecard from './components/ServiceScorecard'
 import ScorecardNew from './components/ScorecardNew'
+import RegressionTesting from './components/RegressionTesting'
 import logoImage from './assets/Red Blue Chinese Dragon Noodle Restaurant Logo.png'
 import { fetchServicesForOrg } from './store/servicesSlice'
 import { evaluateServicesForOrg } from './store/evaluationsSlice'
@@ -444,6 +445,18 @@ function App() {
           <div className="content">
             <ScorecardNew />
           </div>
+        </div>
+      </div>
+    )
+  }
+
+  // Regression Testing view
+  if (currentView === 'regression-testing') {
+    return (
+      <div className={`app ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
+        {renderSidebar()}
+        <div className="main-content">
+          <RegressionTesting />
         </div>
       </div>
     )

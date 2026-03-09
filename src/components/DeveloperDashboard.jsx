@@ -3,7 +3,7 @@ import { useDispatch, useSelector } from 'react-redux'
 import '../styles/DeveloperDashboard.css'
 import DeveloperChatbot from './DeveloperChatbot'
 import DeveloperSelfService from './DeveloperSelfService'
-import { fetchServicesForOrg, fetchDashboardData } from '../store/servicesSlice'
+import { fetchDashboardData, setCurrentOrg } from '../store/servicesSlice'
 import {
   selectOrganizations,
   selectIsLoading,
@@ -11,7 +11,8 @@ import {
   selectDashboardOpenPRs,
   selectDashboardOpenBugs,
   selectDashboardOpenTasks,
-  selectIsLoadingDashboard
+  selectIsLoadingDashboard,
+  selectHasCachedServices
 } from '../store/selectors'
 
 function DeveloperDashboard({ onNavigate, user }) {
@@ -25,6 +26,7 @@ function DeveloperDashboard({ onNavigate, user }) {
   // Local state - MUST be declared before using in selectors
   const [selectedOrgId, setSelectedOrgId] = useState(currentOrgId || 1)
   const [loadError, setLoadError] = useState(null)
+  const [infoMessage, setInfoMessage] = useState(null)
 
   // Dashboard data from Redux - using selectedOrgId
   const openPRs = useSelector(state => selectDashboardOpenPRs(selectedOrgId)(state))
@@ -32,28 +34,37 @@ function DeveloperDashboard({ onNavigate, user }) {
   const openTasks = useSelector(state => selectDashboardOpenTasks(selectedOrgId)(state))
   const isDashboardLoading = useSelector(selectIsLoadingDashboard)
 
+  // Check if services are cached for this org
+  const hasCachedServices = useSelector(state => selectHasCachedServices(selectedOrgId)(state))
+
   // Initialize services and dashboard data on mount
   useEffect(() => {
     const initializeDashboard = async () => {
       const orgId = parseInt(selectedOrgId, 10) || 1
-      console.log('🔄 Developer Dashboard - Initializing for org:', orgId, '(type:', typeof orgId, ')')
+      console.log('\n🔄 Developer Dashboard - Initializing for org:', orgId)
 
-      // Fetch services first
-      console.log('🔄 Developer Dashboard - Fetching services for org:', orgId)
-      try {
-        await dispatch(fetchServicesForOrg(orgId)).unwrap()
-        console.log('✅ Developer Dashboard - Services loaded from API')
-      } catch (error) {
-        console.error('❌ Developer Dashboard - Error fetching services:', error)
-        setLoadError(error.message || 'Failed to load services')
+      // Set current org in Redux
+      dispatch(setCurrentOrg(orgId))
+
+      // Clear previous messages
+      setLoadError(null)
+      setInfoMessage(null)
+
+      // ✅ CHECK: Do we have cached services?
+      if (!hasCachedServices) {
+        console.log('⚠️ Developer Dashboard - No cached services found')
+        console.log('ℹ️ Please visit Service Catalogue first to load services')
+        setInfoMessage('Please visit the Service Catalogue to load services first.')
         return
       }
 
-      // Now fetch dashboard data (PRs, bugs, tasks) from the cached services
-      console.log('🔄 Developer Dashboard - Aggregating dashboard data from services')
+      console.log('✅ Developer Dashboard - Using cached services from Service Catalogue')
+
+      // Now aggregate dashboard data (PRs, bugs, tasks) from the cached services
+      console.log('🔄 Developer Dashboard - Aggregating dashboard data from cached services')
       try {
         await dispatch(fetchDashboardData(orgId)).unwrap()
-        console.log('✅ Developer Dashboard - Dashboard data aggregated from Redux')
+        console.log('✅ Developer Dashboard - Dashboard data aggregated from Redux\n')
       } catch (error) {
         console.error('❌ Developer Dashboard - Error aggregating dashboard data:', error)
         setLoadError(error.message || 'Failed to load dashboard data')
@@ -61,7 +72,7 @@ function DeveloperDashboard({ onNavigate, user }) {
     }
 
     initializeDashboard()
-  }, [dispatch, selectedOrgId])
+  }, [dispatch, selectedOrgId, hasCachedServices])
 
   // Helper function to calculate days old
   return (
@@ -110,8 +121,15 @@ function DeveloperDashboard({ onNavigate, user }) {
           </div>
         )}
 
+        {/* Info Message State */}
+        {infoMessage && !isLoading && (
+          <div className="info-container">
+            <p className="info-text">ℹ️ {infoMessage}</p>
+          </div>
+        )}
+
         {/* Error State */}
-        {loadError && !isLoading && (
+        {loadError && !isLoading && !infoMessage && (
           <div className="error-container">
             <p className="error-text">❌ Error loading data: {loadError}</p>
             <button className="retry-button" onClick={() => window.location.reload()}>
@@ -121,7 +139,7 @@ function DeveloperDashboard({ onNavigate, user }) {
         )}
 
         {/* My Open PRs */}
-        {!isDashboardLoading && !loadError && (
+        {!isDashboardLoading && !loadError && !infoMessage && (
           <>
             <div className="dev-table-card">
               <h3 className="table-title">
