@@ -2,6 +2,8 @@ import { createSlice, createAsyncThunk } from '@reduxjs/toolkit'
 import apiClient from '../services/apiClient'
 import { mapApiServiceToUI } from '../utils/serviceMapper'
 import { API_ENDPOINTS } from '../services/apiConfig'
+import { fetchPagerDutyOnCallBatch } from '../services/pagerdutyService'
+import { fetchCommits } from '../services/githubService'
 
 // Async thunk to fetch all services for an organization
 export const fetchServicesForOrg = createAsyncThunk(
@@ -207,6 +209,246 @@ export const fetchDashboardData = createAsyncThunk(
   }
 )
 
+// Async thunk to fetch PagerDuty on-call data for all services in an org
+export const fetchPagerDutyDataForOrg = createAsyncThunk(
+  'services/fetchPagerDutyDataForOrg',
+  async (orgId, { getState, rejectWithValue }) => {
+    try {
+      const state = getState()
+      const orgServices = state.services.servicesByOrg[orgId]
+
+      if (!orgServices || !orgServices.services) {
+        return rejectWithValue('No services found for organization')
+      }
+
+      console.log(`🔄 Redux: Fetching PagerDuty on-call data for org ${orgId}`)
+      console.log(`📊 Total services: ${orgServices.services.length}`)
+
+      // Extract service names
+      const serviceNames = orgServices.services.map(service => service.name || service.title)
+
+      // Fetch PagerDuty data for all services
+      const onCallMap = await fetchPagerDutyOnCallBatch(serviceNames)
+
+      console.log(`✅ Redux: Fetched PagerDuty data for ${Object.keys(onCallMap).length} services`)
+
+      return {
+        orgId,
+        onCallMap
+      }
+    } catch (error) {
+      console.error('❌ Redux: Error fetching PagerDuty data:', error.message)
+      return rejectWithValue(error.message)
+    }
+  }
+)
+
+// ✅ UPDATED: Combined thunk to fetch services + PagerDuty + Commits (all in one - single render)
+export const fetchServicesWithPagerDuty = createAsyncThunk(
+  'services/fetchServicesWithPagerDuty',
+  async (orgId, { rejectWithValue }) => {
+    try {
+      console.log(`\n🚀 Redux: Fetching services + PagerDuty + Commits for org ${orgId} (combined)`)
+
+      // Step 1: Fetch services from API
+      const endpoint = API_ENDPOINTS.SERVICE_CATALOG_GET_ALL(orgId)
+      console.log(`📡 API Endpoint: ${endpoint}`)
+
+      const response = await apiClient.get(endpoint)
+
+      if (!response.data?.status === 'success' || !response.data?.data) {
+        throw new Error('Invalid response format')
+      }
+
+      const rawServices = response.data.data.services || []
+      const totalCount = response.data.data.total || 0
+
+      console.log(`✅ Step 1: Fetched ${totalCount} services from API`)
+
+      // Map API services to UI format
+      const mappedServices = rawServices.map(mapApiServiceToUI).filter(Boolean)
+      console.log(`✅ Step 2: Mapped ${mappedServices.length} services`)
+
+      // Extract organizations
+      const orgsMap = new Map()
+      rawServices.forEach(service => {
+        if (service.organization) {
+          orgsMap.set(service.organization.id, service.organization)
+        }
+      })
+      const organizations = Array.from(orgsMap.values())
+
+      // Step 2: Fetch PagerDuty data for all services
+      const serviceNames = mappedServices.map(service => service.name || service.title)
+      console.log(`🔄 Step 3: Fetching PagerDuty data for ${serviceNames.length} services...`)
+
+      const onCallMap = await fetchPagerDutyOnCallBatch(serviceNames)
+      console.log(`✅ Step 3: Fetched PagerDuty data for ${Object.keys(onCallMap).length} services`)
+
+      // Step 3: Fetch commits for all services in parallel
+      console.log(`📝 Step 4: Fetching commits for ${serviceNames.length} services...`)
+
+      const commitsPromises = mappedServices.map(async (service) => {
+        try {
+          const serviceName = service.name || service.title
+          const commits = await fetchCommits(serviceName, '2024-01-01T00:00:00Z')
+
+          // Extract last committer from most recent commit
+          const lastCommitter = commits.length > 0 ? commits[0].author : null
+
+          // ✅ FIXED: Properly parse date from GitHub and calculate active status
+          let isActive = false
+          let lastCommitDate = null
+
+          if (commits.length > 0) {
+            const lastCommit = commits[0]
+            // GitHub can return: timestamp, date, commit_time, or commit_date
+            const dateStr = lastCommit.timestamp || lastCommit.date || lastCommit.commit_time || lastCommit.commit_date
+
+            if (dateStr) {
+              try {
+                // Parse the date string (handles ISO format, timestamps, etc.)
+                lastCommitDate = new Date(dateStr)
+
+                // Check if date is valid
+                if (!isNaN(lastCommitDate.getTime())) {
+                  const daysSinceLastCommit = (Date.now() - lastCommitDate.getTime()) / (1000 * 60 * 60 * 24)
+                  isActive = daysSinceLastCommit <= 90
+
+                  console.log(`📅 ${serviceName}: Last commit ${daysSinceLastCommit.toFixed(0)} days ago → ${isActive ? 'Active ✅' : 'Inactive ❌'}`)
+                } else {
+                  console.warn(`⚠️ ${serviceName}: Invalid date format: ${dateStr}`)
+                }
+              } catch (dateError) {
+                console.warn(`⚠️ ${serviceName}: Error parsing date: ${dateStr}`)
+              }
+            }
+          }
+
+          return {
+            serviceId: service.id,
+            serviceName,
+            commits,
+            lastCommitter,
+            isActive,
+            lastCommitDate: lastCommitDate ? lastCommitDate.toISOString() : null
+          }
+        } catch (error) {
+          console.log(`⚠️ Could not fetch commits for ${service.name}`)
+          return {
+            serviceId: service.id,
+            serviceName: service.name,
+            commits: [],
+            lastCommitter: null,
+            isActive: false,
+            lastCommitDate: null
+          }
+        }
+      })
+
+      const commitsResults = await Promise.all(commitsPromises)
+      console.log(`✅ Step 4: Fetched commits for ${commitsResults.length} services`)
+
+      // Step 4: Merge PagerDuty + Commits data into services BEFORE returning
+      const commitsMap = {}
+      commitsResults.forEach(result => {
+        commitsMap[result.serviceId] = result
+      })
+
+      mappedServices.forEach(service => {
+        const serviceName = service.name || service.title
+
+        // Merge PagerDuty data
+        if (onCallMap[serviceName]) {
+          service.assignee_name = onCallMap[serviceName]
+          if (service.metrics?.pagerduty) {
+            service.metrics.pagerduty.assignee_name = onCallMap[serviceName]
+          }
+          console.log(`✅ ${serviceName}: assignee_name = "${service.assignee_name}"`)
+        } else {
+          service.assignee_name = 'Yet to be assigned'
+          console.log(`ℹ️ ${serviceName}: assignee_name = "Yet to be assigned" (not in PagerDuty)`)
+        }
+
+        // Merge commits data
+        const commitsData = commitsMap[service.id]
+        if (commitsData) {
+          service.lastCommitter = commitsData.lastCommitter || 'Unknown'
+          service.is_active = commitsData.isActive
+          service.lastCommitDate = commitsData.lastCommitDate
+
+          console.log(`✅ ${serviceName}: lastCommitter = "${service.lastCommitter}", is_active = ${service.is_active}`)
+
+          // Update metrics
+          if (service.metrics?.github) {
+            service.metrics.github.lastCommitter = commitsData.lastCommitter || 'Unknown'
+            service.metrics.github.lastCommit = commitsData.lastCommitDate || ''
+          }
+        } else {
+          service.lastCommitter = 'Unknown'
+          service.is_active = false
+          service.lastCommitDate = null
+          console.log(`ℹ️ ${serviceName}: lastCommitter = "Unknown", is_active = false (no commits data)`)
+        }
+      })
+
+      console.log(`✅ Step 5: Merged PagerDuty + Commits data into services`)
+      console.log(`🎉 Redux: Combined fetch complete - returning ${mappedServices.length} services with ALL data\n`)
+
+      return {
+        orgId,
+        services: mappedServices,
+        total: totalCount,
+        organizations,
+        onCallMap,
+        commitsMap
+      }
+    } catch (error) {
+      console.error('❌ Redux: Error in combined fetch:', error.message)
+      return rejectWithValue(error.message)
+    }
+  }
+)
+
+// ✅ NEW: Thunk to fetch commits for a service
+export const fetchCommitsForService = createAsyncThunk(
+  'services/fetchCommitsForService',
+  async ({ serviceId, serviceName }, { rejectWithValue }) => {
+    try {
+      console.log(`\n📝 Redux: Fetching commits for service ${serviceName} (ID: ${serviceId})`)
+
+      const commits = await fetchCommits(serviceName, '2024-01-01T00:00:00Z')
+
+      // Transform commits to match expected format
+      const transformedCommits = commits.map((commit, index) => ({
+        id: commit.sha || `commit-${index}`,
+        message: commit.message || commit.commit_message || 'No message',
+        author: commit.author || commit.committer || 'Unknown',
+        time: commit.timestamp || commit.commit_time || commit.date || 'Unknown',
+        sha: (commit.sha || commit.commit_sha || 'N/A').substring(0, 7)
+      }))
+
+      // Extract last committer from most recent commit
+      const lastCommitter = transformedCommits.length > 0 ? transformedCommits[0].author : null
+
+      console.log(`✅ Redux: Fetched ${transformedCommits.length} commits for ${serviceName}`)
+      if (lastCommitter) {
+        console.log(`👤 Redux: Last committer: ${lastCommitter}`)
+      }
+
+      return {
+        serviceId,
+        serviceName,
+        commits: transformedCommits,
+        lastCommitter
+      }
+    } catch (error) {
+      console.error(`❌ Redux: Error fetching commits for ${serviceName}:`, error.message)
+      return rejectWithValue(error.message)
+    }
+  }
+)
+
 const servicesSlice = createSlice({
   name: 'services',
   initialState: {
@@ -221,6 +463,9 @@ const servicesSlice = createSlice({
     // Individual service details cache
     serviceDetails: {}, // { serviceId: { ...serviceData, lastFetched: timestamp } }
 
+    // ✅ NEW: Commits cache by service
+    serviceCommits: {}, // { serviceId: { commits: [], lastCommitter: string, lastFetched: timestamp } }
+
     // Dashboard data (aggregated PRs, bugs, tasks from all services in org)
     dashboardData: {}, // { orgId: { openPRs: [], openBugs: [], openTasks: [], lastFetched: timestamp } }
 
@@ -233,6 +478,7 @@ const servicesSlice = createSlice({
     isRefreshing: false,
     isFetchingService: false,
     isLoadingDashboard: false,
+    isLoadingPagerDuty: false,
 
     // Error states
     error: null,
@@ -294,7 +540,61 @@ const servicesSlice = createSlice({
         state.isLoading = false
         state.error = action.payload
       })
-      
+
+      // NEW: Fetch services WITH PagerDuty data (combined - no re-render)
+      .addCase(fetchServicesWithPagerDuty.pending, (state) => {
+        state.isLoading = true
+        state.isLoadingPagerDuty = true
+        state.error = null
+      })
+      .addCase(fetchServicesWithPagerDuty.fulfilled, (state, action) => {
+        state.isLoading = false
+        state.isLoadingPagerDuty = false
+        const { orgId, services, total, organizations, commitsMap } = action.payload
+
+        // Store services for this org (already includes PagerDuty + Commits data)
+        state.servicesByOrg[orgId] = {
+          services,
+          total,
+          lastFetched: Date.now()
+        }
+        state.currentOrgId = orgId
+
+        // Update organizations if we extracted any from services
+        if (organizations && organizations.length > 0) {
+          state.organizations = organizations
+          state.organizationsLastFetched = Date.now()
+          console.log(`Redux: Updated organizations:`, organizations)
+        }
+
+        // ✅ NEW: Store commits data in cache
+        if (commitsMap) {
+          Object.entries(commitsMap).forEach(([serviceId, commitsData]) => {
+            state.serviceCommits[serviceId] = {
+              commits: commitsData.commits,
+              lastCommitter: commitsData.lastCommitter,
+              lastFetched: Date.now()
+            }
+          })
+          console.log(`✅ Redux: Cached commits for ${Object.keys(commitsMap).length} services`)
+        }
+
+        // Store each service in serviceDetails cache (already includes PagerDuty + Commits data)
+        services.forEach(service => {
+          state.serviceDetails[service.id] = {
+            ...service,
+            lastFetched: Date.now()
+          }
+        })
+
+        console.log(`✅ Redux: Stored ${services.length} services with PagerDuty + Commits data in cache (single render)`)
+      })
+      .addCase(fetchServicesWithPagerDuty.rejected, (state, action) => {
+        state.isLoading = false
+        state.isLoadingPagerDuty = false
+        state.error = action.payload
+      })
+
       // Fetch single service
       .addCase(fetchServiceById.pending, (state) => {
         state.isFetchingService = true
@@ -353,6 +653,72 @@ const servicesSlice = createSlice({
       .addCase(fetchDashboardData.rejected, (state, action) => {
         state.isLoadingDashboard = false
         state.dashboardError = action.payload
+      })
+
+      // Fetch PagerDuty data
+      .addCase(fetchPagerDutyDataForOrg.pending, (state) => {
+        state.isLoadingPagerDuty = true
+      })
+      .addCase(fetchPagerDutyDataForOrg.fulfilled, (state, action) => {
+        state.isLoadingPagerDuty = false
+        const { orgId, onCallMap } = action.payload
+
+        console.log(`✅ Redux: Storing PagerDuty data for org ${orgId}`)
+
+        // Update each service with its on-call person
+        const orgServices = state.servicesByOrg[orgId]
+        if (orgServices && orgServices.services) {
+          orgServices.services.forEach(service => {
+            const serviceName = service.name || service.title
+            if (onCallMap[serviceName]) {
+              service.onCall = onCallMap[serviceName]
+
+              // Also update in serviceDetails if it exists
+              if (state.serviceDetails[service.id]) {
+                state.serviceDetails[service.id].assignee_name = onCallMap[serviceName]
+                if (state.serviceDetails[service.id].metrics?.pagerduty) {
+                  state.serviceDetails[service.id].metrics.pagerduty.assignee_name = onCallMap[serviceName]
+                }
+              }
+            }
+          })
+        }
+
+        console.log(`✅ Redux: PagerDuty data updated for ${Object.keys(onCallMap).length} services`)
+      })
+      .addCase(fetchPagerDutyDataForOrg.rejected, (state, action) => {
+        state.isLoadingPagerDuty = false
+        console.error('❌ Redux: Failed to fetch PagerDuty data:', action.payload)
+      })
+
+      // ✅ NEW: Fetch commits for service
+      .addCase(fetchCommitsForService.pending, (state) => {
+        // No loading state needed - handled in component
+      })
+      .addCase(fetchCommitsForService.fulfilled, (state, action) => {
+        const { serviceId, commits, lastCommitter } = action.payload
+
+        console.log(`✅ Redux: Storing ${commits.length} commits for service ${serviceId}`)
+
+        // Store commits in cache
+        state.serviceCommits[serviceId] = {
+          commits,
+          lastCommitter,
+          lastFetched: Date.now()
+        }
+
+        // Update lastCommitter in serviceDetails if it exists
+        if (state.serviceDetails[serviceId] && lastCommitter) {
+          state.serviceDetails[serviceId].lastCommitter = lastCommitter
+          if (state.serviceDetails[serviceId].metrics?.github) {
+            state.serviceDetails[serviceId].metrics.github.lastCommitter = lastCommitter
+          }
+        }
+
+        console.log(`✅ Redux: Commits cached for service ${serviceId}`)
+      })
+      .addCase(fetchCommitsForService.rejected, (state, action) => {
+        console.error('❌ Redux: Failed to fetch commits:', action.payload)
       })
   },
 })

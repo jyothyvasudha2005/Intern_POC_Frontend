@@ -404,3 +404,23 @@
   }
 }
 
+/* ✅ Loading dots animation */
+.loading-dots {
+  color: var(--text-secondary);
+  font-size: 16px;
+  font-weight: bold;
+  letter-spacing: 2px;
+  animation: loadingDots 1.5s infinite;
+}
+
+@keyframes loadingDots {
+  0%, 20% {
+    opacity: 0.3;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0.3;
+  }
+}
