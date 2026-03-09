@@ -575,21 +575,26 @@ function renderOverview(service) {
 function renderPRMetrics(service, getPRBadge, scorecardData) {
   // Get evaluation data if available
   const passPercentage = scorecardData?.pass_percentage || 0
-  const achievedLevel = scorecardData?.achieved_level_name || 'Basic'
   const rulesPassed = scorecardData?.rules_passed || 0
   const rulesTotal = scorecardData?.rules_total || 0
   const ruleResults = scorecardData?.rule_results || []
 
-  // Get level color from achieved level
-  const getLevelColor = (level) => {
-    const levelStr = String(level).toLowerCase()
-    if (levelStr.includes('gold') || levelStr.includes('🟢') || levelStr.includes('green')) return COLORS.gold
-    if (levelStr.includes('silver') || levelStr.includes('🟡') || levelStr.includes('yellow')) return COLORS.silver
-    if (levelStr.includes('bronze') || levelStr.includes('🟠') || levelStr.includes('orange')) return COLORS.bronze
-    return '#8B8896' // Basic/Red
+  // Calculate achieved level based on percentage (Gold ≥80%, Silver ≥60%, Bronze ≥40%, Basic <40%)
+  const getLevelFromPercentage = (pct) => {
+    if (pct >= 80) {
+      return { label: 'Gold', color: COLORS.gold }
+    } else if (pct >= 60) {
+      return { label: 'Silver', color: COLORS.silver }
+    } else if (pct >= 40) {
+      return { label: 'Bronze', color: COLORS.bronze }
+    } else {
+      return { label: 'Basic', color: '#8B8896' }
+    }
   }
 
-  const achievedLevelColor = getLevelColor(achievedLevel)
+  const levelInfo = getLevelFromPercentage(passPercentage)
+  const achievedLevel = levelInfo.label
+  const achievedLevelColor = levelInfo.color
 
   // Prepare data for BarChart from rule_results
   const chartData = ruleResults.slice(0, 6).map(rule => ({
@@ -677,21 +682,26 @@ function renderPRMetrics(service, getPRBadge, scorecardData) {
 function renderCodeQuality(service, getQualityBadge, scorecardData) {
   // Get evaluation data if available
   const passPercentage = scorecardData?.pass_percentage || 0
-  const achievedLevel = scorecardData?.achieved_level_name || 'Basic'
   const rulesPassed = scorecardData?.rules_passed || 0
   const rulesTotal = scorecardData?.rules_total || 0
   const ruleResults = scorecardData?.rule_results || []
 
-  // Get level color from achieved level
-  const getLevelColor = (level) => {
-    const levelStr = String(level).toLowerCase()
-    if (levelStr.includes('gold') || levelStr.includes('🟢') || levelStr.includes('green')) return COLORS.gold
-    if (levelStr.includes('silver') || levelStr.includes('🟡') || levelStr.includes('yellow')) return COLORS.silver
-    if (levelStr.includes('bronze') || levelStr.includes('🟠') || levelStr.includes('orange')) return COLORS.bronze
-    return '#8B8896' // Basic/Red
+  // Calculate achieved level based on percentage (Gold ≥80%, Silver ≥60%, Bronze ≥40%, Basic <40%)
+  const getLevelFromPercentage = (pct) => {
+    if (pct >= 80) {
+      return { label: 'Gold', color: COLORS.gold }
+    } else if (pct >= 60) {
+      return { label: 'Silver', color: COLORS.silver }
+    } else if (pct >= 40) {
+      return { label: 'Bronze', color: COLORS.bronze }
+    } else {
+      return { label: 'Basic', color: '#8B8896' }
+    }
   }
 
-  const achievedLevelColor = getLevelColor(achievedLevel)
+  const levelInfo = getLevelFromPercentage(passPercentage)
+  const achievedLevel = levelInfo.label
+  const achievedLevelColor = levelInfo.color
 
   // Check if we have scorecard data, otherwise use legacy code quality data
   if (ruleResults.length === 0 && !service.codeQuality) {
@@ -834,21 +844,26 @@ function renderSecurity(service) {
 function renderSecurityMaturity(service, scorecardData) {
   // Get evaluation data if available
   const passPercentage = scorecardData?.pass_percentage || 0
-  const achievedLevel = scorecardData?.achieved_level_name || 'Basic'
   const rulesPassed = scorecardData?.rules_passed || 0
   const rulesTotal = scorecardData?.rules_total || 0
   const ruleResults = scorecardData?.rule_results || []
 
-  // Get level color from achieved level
-  const getLevelColor = (level) => {
-    const levelStr = String(level).toLowerCase()
-    if (levelStr.includes('gold') || levelStr.includes('🟢') || levelStr.includes('green')) return COLORS.gold
-    if (levelStr.includes('silver') || levelStr.includes('🟡') || levelStr.includes('yellow')) return COLORS.silver
-    if (levelStr.includes('bronze') || levelStr.includes('🟠') || levelStr.includes('orange')) return COLORS.bronze
-    return '#8B8896' // Basic/Red
+  // Calculate achieved level based on percentage (Gold ≥80%, Silver ≥60%, Bronze ≥40%, Basic <40%)
+  const getLevelFromPercentage = (pct) => {
+    if (pct >= 80) {
+      return { label: 'Gold', color: COLORS.gold }
+    } else if (pct >= 60) {
+      return { label: 'Silver', color: COLORS.silver }
+    } else if (pct >= 40) {
+      return { label: 'Bronze', color: COLORS.bronze }
+    } else {
+      return { label: 'Basic', color: '#8B8896' }
+    }
   }
 
-  const achievedLevelColor = getLevelColor(achievedLevel)
+  const levelInfo = getLevelFromPercentage(passPercentage)
+  const achievedLevel = levelInfo.label
+  const achievedLevelColor = levelInfo.color
 
   // Prepare data for BarChart from rule_results
   const chartData = ruleResults.slice(0, 6).map(rule => ({
@@ -937,21 +952,26 @@ function renderSecurityMaturity(service, scorecardData) {
 function renderProductionReadiness(service, scorecardData) {
   // Get evaluation data if available
   const passPercentage = scorecardData?.pass_percentage || 0
-  const achievedLevel = scorecardData?.achieved_level_name || 'Basic'
   const rulesPassed = scorecardData?.rules_passed || 0
   const rulesTotal = scorecardData?.rules_total || 0
   const ruleResults = scorecardData?.rule_results || []
 
-  // Get level color from achieved level
-  const getLevelColor = (level) => {
-    const levelStr = String(level).toLowerCase()
-    if (levelStr.includes('gold') || levelStr.includes('🟢') || levelStr.includes('green')) return COLORS.gold
-    if (levelStr.includes('silver') || levelStr.includes('🟡') || levelStr.includes('yellow')) return COLORS.silver
-    if (levelStr.includes('bronze') || levelStr.includes('🟠') || levelStr.includes('orange')) return COLORS.bronze
-    return '#8B8896' // Basic/Red
+  // Calculate achieved level based on percentage (Gold ≥80%, Silver ≥60%, Bronze ≥40%, Basic <40%)
+  const getLevelFromPercentage = (pct) => {
+    if (pct >= 80) {
+      return { label: 'Gold', color: COLORS.gold }
+    } else if (pct >= 60) {
+      return { label: 'Silver', color: COLORS.silver }
+    } else if (pct >= 40) {
+      return { label: 'Bronze', color: COLORS.bronze }
+    } else {
+      return { label: 'Basic', color: '#8B8896' }
+    }
   }
 
-  const achievedLevelColor = getLevelColor(achievedLevel)
+  const levelInfo = getLevelFromPercentage(passPercentage)
+  const achievedLevel = levelInfo.label
+  const achievedLevelColor = levelInfo.color
 
   // Prepare data for BarChart from rule_results
   const chartData = ruleResults.slice(0, 6).map(rule => ({
@@ -1040,21 +1060,26 @@ function renderProductionReadiness(service, scorecardData) {
 function renderServiceHealth(service, scorecardData) {
   // Get evaluation data if available
   const passPercentage = scorecardData?.pass_percentage || 0
-  const achievedLevel = scorecardData?.achieved_level_name || 'Basic'
   const rulesPassed = scorecardData?.rules_passed || 0
   const rulesTotal = scorecardData?.rules_total || 0
   const ruleResults = scorecardData?.rule_results || []
 
-  // Get level color from achieved level
-  const getLevelColor = (level) => {
-    const levelStr = String(level).toLowerCase()
-    if (levelStr.includes('gold') || levelStr.includes('🟢') || levelStr.includes('green')) return COLORS.gold
-    if (levelStr.includes('silver') || levelStr.includes('🟡') || levelStr.includes('yellow')) return COLORS.silver
-    if (levelStr.includes('bronze') || levelStr.includes('🟠') || levelStr.includes('orange')) return COLORS.bronze
-    return '#8B8896' // Basic/Red
+  // Calculate achieved level based on percentage (Gold ≥80%, Silver ≥60%, Bronze ≥40%, Basic <40%)
+  const getLevelFromPercentage = (pct) => {
+    if (pct >= 80) {
+      return { label: 'Gold', color: COLORS.gold }
+    } else if (pct >= 60) {
+      return { label: 'Silver', color: COLORS.silver }
+    } else if (pct >= 40) {
+      return { label: 'Bronze', color: COLORS.bronze }
+    } else {
+      return { label: 'Basic', color: '#8B8896' }
+    }
   }
 
-  const achievedLevelColor = getLevelColor(achievedLevel)
+  const levelInfo = getLevelFromPercentage(passPercentage)
+  const achievedLevel = levelInfo.label
+  const achievedLevelColor = levelInfo.color
 
   // Prepare data for BarChart from rule_results
   const chartData = ruleResults.slice(0, 6).map(rule => ({

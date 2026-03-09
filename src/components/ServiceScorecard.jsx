@@ -256,12 +256,6 @@ function ServiceScorecard({ service, onBack }) {
               <span className="quick-stat-value">{service.language || 'N/A'}</span>
             </div>
             <div className="quick-stat">
-              <span className="quick-stat-label">Status</span>
-              <span className={`quick-stat-value status-${(service.status || 'healthy').toLowerCase()}`}>
-                {service.status || 'Healthy'}
-              </span>
-            </div>
-            <div className="quick-stat">
               <span className="quick-stat-label">Coverage</span>
               <span className="quick-stat-value">{service.evaluationMetrics?.coverage || 0}%</span>
             </div>
