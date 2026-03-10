@@ -23,3 +23,5 @@ dist-ssr
 *.sln
 *.sw?
 .env
+.REGRESSION_TESTING_SETUP.md
+.REGRESSION_FILES_STATUS.md
